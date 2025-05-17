@@ -103,7 +103,7 @@ export default function JoinExamPage() {
                 errorBodyText = errorBodyJson.error; // Use JSON error message
               } else {
                  // Use raw text if not specific JSON error or JSON is malformed but text exists
-                errorBodyText = `Server error: ${rawText.substring(0, 200)}${rawText.length > 200 ? '...' : ''}`;
+                errorBodyText = `Server error (non-JSON): ${rawText.substring(0, 200)}${rawText.length > 200 ? '...' : ''}`;
               }
             } catch (jsonParseError) {
               // JSON parsing failed, use the raw text as error if it's not empty
@@ -116,7 +116,9 @@ export default function JoinExamPage() {
           }
         } catch (bodyReadError: any) {
           console.error(`${operationId} Failed to read error response body from /api/generate-seb-token. Status: ${tokenResponse.status}`, bodyReadError);
-          errorBodyText += ` (Could not read error body: ${(bodyReadError && bodyReadError.message) || String(bodyReadError)})`;
+          // Provide a safe message extraction for bodyReadError
+          const safeBodyReadErrorMsg = (bodyReadError && typeof bodyReadError.message === 'string') ? bodyReadError.message : String(bodyReadError);
+          errorBodyText += ` (Could not read error body: ${safeBodyReadErrorMsg})`;
         }
         
         console.error(`${operationId} API Error generating token: ${tokenResponse.status} "${errorBodyText}"`);
@@ -149,8 +151,10 @@ export default function JoinExamPage() {
       }
 
       const appDomain = window.location.origin;
+      // The JWT is now passed as a query parameter to /seb/entry
       const sebEntryPageUrl = `${appDomain}/seb/entry?token=${sebEntryTokenValue}`; 
       
+      // SEB expects the domain and path after sebs://, so remove http(s)://
       const domainAndPathForSeb = sebEntryPageUrl.replace(/^https?:\/\//, '');
       const sebLaunchUrl = `sebs://${domainAndPathForSeb}`;
       
@@ -164,17 +168,20 @@ export default function JoinExamPage() {
       
       window.location.href = sebLaunchUrl;
 
+      // Check if SEB launch failed after a timeout
       setTimeout(() => {
+        // Check if still on the same page (SEB launch might have been blocked or failed)
         if (window.location.pathname.includes('join-exam')) { 
           setIsLoading(false); 
           const sebFailMsg = "SEB launch may have been blocked or failed. If SEB did not start, check your browser's pop-up settings or SEB installation.";
           setLocalError(sebFailMsg);
           toast({ title: "SEB Launch Issue?", description: "If SEB did not open, please check pop-up blockers and ensure SEB is installed correctly.", variant: "destructive", duration: 10000});
         }
-      }, 8000);
+      }, 8000); // 8 second timeout to check
 
     } catch (e: any) {
-      const exceptionMsg = (e && typeof e.message === 'string' ? e.message : "An unexpected error occurred during exam join process.");
+      // Provide a safe message extraction for e
+      const exceptionMsg = (e && typeof e.message === 'string' ? e.message : String(e));
       console.error(`${operationId} Exception during handleSubmit:`, e);
       toast({ title: "Error", description: exceptionMsg, variant: "destructive" });
       setLocalError(exceptionMsg);

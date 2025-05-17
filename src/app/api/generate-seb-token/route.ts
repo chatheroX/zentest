@@ -1,7 +1,8 @@
 
 // src/app/api/generate-seb-token/route.ts
 import { NextResponse, type NextRequest } from 'next/server';
-import jwt from 'jsonwebtoken'; // Assuming standard import
+// Using require for jsonwebtoken as it might be causing issues with ES module resolution in some environments or with specific Next.js builds for API routes.
+// This is a diagnostic step as well.
 
 // Module scope logging to check if the module itself is loaded
 const moduleLoadLogPrefix = '[API GenerateSEBToken MODULE SCOPE]';
@@ -10,7 +11,7 @@ let jwtModuleError: string | null = null;
 
 try {
   console.log(`${moduleLoadLogPrefix} Attempting to load 'jsonwebtoken' module...`);
-  localJwt = require('jsonwebtoken'); // Using require for more direct error handling in this context
+  localJwt = require('jsonwebtoken');
   if (typeof localJwt.sign !== 'function') {
     throw new Error('localJwt.sign is not a function. jsonwebtoken module might be corrupted or not loaded correctly.');
   }
@@ -19,6 +20,7 @@ try {
   const safeMessage = (e && typeof e === 'object' && typeof e.message === 'string') ? e.message : String(e);
   jwtModuleError = `Failed to initialize or verify 'jsonwebtoken' module at load time: ${safeMessage}`;
   console.error(`${moduleLoadLogPrefix} CRITICAL: ${jwtModuleError}`, e);
+  // Not calling logErrorToBackend here as it's module scope
 }
 
 // Simplified local helper for safe error message extraction for server-side logging
@@ -46,6 +48,7 @@ export async function POST(request: NextRequest) {
   const operationId = `[API GenerateSEBToken POST ${Date.now().toString().slice(-5)}]`;
   console.log(`${operationId} Handler started.`);
 
+  // Outermost try-catch to ensure a JSON response is always attempted
   try {
     if (jwtModuleError || !localJwt) {
       const errorMsg = `Server configuration error (JWT library unavailable): ${jwtModuleError || 'jsonwebtoken module not available'}`;
@@ -54,16 +57,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errorMsg }, { status: 500 });
     }
 
-    const jwtSecret = process.env.NEXT_PUBLIC_JWT_SECRET; // As per user's last instruction for deployment
-    console.log(`${operationId} Value of process.env.NEXT_PUBLIC_JWT_SECRET at runtime: '${jwtSecret}' (Type: ${typeof jwtSecret})`);
+    const currentJwtSecretValue = process.env.NEXT_PUBLIC_JWT_SECRET; // As per user's last instruction for deployment
+    console.log(`${operationId} Value of process.env.NEXT_PUBLIC_JWT_SECRET at runtime: '${currentJwtSecretValue}' (Type: ${typeof currentJwtSecretValue})`);
 
-    if (!jwtSecret) {
+    if (!currentJwtSecretValue) {
       const errorMsg = 'Server configuration error (JWT secret missing for generation).';
-      console.error(`${operationId} CRITICAL: NEXT_PUBLIC_JWT_SECRET is not configured on the server for token generation. Verified value is undefined or empty: '${jwtSecret}'`);
+      console.error(`${operationId} CRITICAL: NEXT_PUBLIC_JWT_SECRET is not configured on the server for token generation. Verified value is undefined or empty: '${currentJwtSecretValue}'`);
       console.log(`${operationId} Preparing to send 500 response due to missing NEXT_PUBLIC_JWT_SECRET.`);
       return NextResponse.json({ error: errorMsg }, { status: 500 });
     }
-    console.log(`${operationId} NEXT_PUBLIC_JWT_SECRET is available (length: ${jwtSecret?.length || 0}).`);
+    console.log(`${operationId} NEXT_PUBLIC_JWT_SECRET is available (length: ${currentJwtSecretValue?.length || 0}).`);
 
     let body;
     try {
@@ -73,6 +76,7 @@ export async function POST(request: NextRequest) {
     } catch (parseError: any) {
       const errorMsg = getLocalSafeServerErrorMessage(parseError, "Failed to parse request body as JSON.");
       console.error(`${operationId} Error parsing request body: ${errorMsg}`, parseError);
+      // No logErrorToBackend here to keep it simple, focus on returning JSON
       console.log(`${operationId} Preparing to send 400 response due to body parsing error.`);
       return NextResponse.json({ error: `Invalid request body: ${errorMsg}` }, { status: 400 });
     }
@@ -92,11 +96,12 @@ export async function POST(request: NextRequest) {
 
     try {
       console.log(`${operationId} Attempting to sign JWT with payload:`, payload);
-      token = localJwt.sign(payload, jwtSecret, { expiresIn: '5m' }); // Short expiry for SEB entry
+      token = localJwt.sign(payload, currentJwtSecretValue, { expiresIn: '1h' }); // Using 1h expiry as per latest user context
       console.log(`${operationId} JWT signed successfully. Token (first 20 chars): ${token ? token.substring(0,20) + "..." : "TOKEN_GENERATION_FAILED"}`);
     } catch (signError: any) {
       const errorMsg = getLocalSafeServerErrorMessage(signError, "JWT signing process failed.");
       console.error(`${operationId} Error during jwt.sign: ${errorMsg}`, signError);
+      // No logErrorToBackend here
       console.log(`${operationId} Preparing to send 500 response due to JWT signing error.`);
       return NextResponse.json({ error: `Token generation failed internally: ${errorMsg}` }, { status: 500 });
     }
@@ -108,8 +113,7 @@ export async function POST(request: NextRequest) {
     // This is the outermost catch block to ensure *something* is returned if an unexpected error occurs
     const errorMessage = getLocalSafeServerErrorMessage(e, "A critical unhandled server error occurred in token generation.");
     console.error(`${operationId} CRITICAL UNHANDLED EXCEPTION: ${errorMessage}`, e);
-    // Do not await logErrorToBackend here, prioritize sending the response
-    // logErrorToBackend(e, 'API-GenerateSEBToken-OuterCatch', { requestBody: 'Could not parse or not available' });
+    // No logErrorToBackend here, prioritize sending the response
     console.log(`${operationId} Preparing to send 500 response due to critical unhandled exception.`);
     return NextResponse.json({ error: "Critical server error during token generation. Please contact support." }, { status: 500 });
   }
