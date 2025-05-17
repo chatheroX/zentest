@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { BookOpenCheck, Brain, ArrowRight, PlusCircle, Info, Users, Activity, FileCheck2 } from "lucide-react";
+import { BookOpenCheck, Brain, ArrowRight, PlusCircle, Info, Users, Activity, FileCheck2, BarChart3 } from "lucide-react"; // Added BarChart3
 import { useAuth } from "@/contexts/AuthContext"; 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -49,7 +49,7 @@ export default function TeacherOverviewPage() {
         <StatCard title="Active Exams" value="0" icon={<Activity className="h-4 w-4 text-muted-foreground" />} description="Exams currently ongoing" />
         <StatCard title="Total Students" value="0" icon={<Users className="h-4 w-4 text-muted-foreground" />} description="Across all published exams" />
         <StatCard title="Exams Completed" value="0" icon={<FileCheck2 className="h-4 w-4 text-muted-foreground" />} description="Total exams concluded" />
-        <StatCard title="Pending Gradings" value="0" icon={<Brain className="h-4 w-4 text-muted-foreground" />} description="Submissions awaiting review" />
+        <StatCard title="Results Pending" value="0" icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />} description="Submissions awaiting review/grading" />
       </div>
       
       <Alert className="modern-card border-primary/20 bg-blue-50 dark:bg-blue-500/10">
@@ -88,7 +88,7 @@ export default function TeacherOverviewPage() {
             <CardDescription className="pt-1 text-xs text-muted-foreground">Generate diverse exam questions based on topics and difficulty.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="w-full text-sm py-2 rounded-md border-border hover:bg-accent/10" variant="outline" size="sm">
+            <Button asChild className="w-full text-sm py-2 rounded-md border-border hover:bg-accent/10 btn-outline-subtle" variant="outline" size="sm">
               <Link href="/teacher/dashboard/ai-assistant">
                 Use AI Assistant <ArrowRight className="ml-1.5 h-4 w-4" />
               </Link>

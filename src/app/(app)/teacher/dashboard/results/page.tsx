@@ -6,18 +6,19 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, Eye, Users, Percent, Loader2 } from 'lucide-react';
+import { BarChart3, Eye, Users, Percent, Loader2, Info } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import type { Exam } from '@/types/supabase';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 
 interface ExamResultSummary {
-  exam_id: string; // Changed from id to exam_id
+  exam_id: string; 
   title: string;
-  // dateCompleted: string; // This would come from submissions, not directly from ExamX
-  participants: number; // This would be calculated from submissions
-  averageScore: number | null; // This would be calculated from submissions
+  participants: number; 
+  averageScore: number | null; 
   status: Exam['status'];
   exam_code: string;
 }
@@ -35,10 +36,6 @@ export default function StudentResultsPage() {
       return;
     }
     setIsLoading(true);
-    // This page should summarize results across multiple exams.
-    // Actual participants and average scores require an ExamSubmissionsX table.
-    // For now, we'll fetch exams created by the teacher and display them.
-    // The 'participants' and 'averageScore' will be placeholders.
     try {
       const { data: exams, error } = await supabase
         .from('ExamX')
@@ -83,11 +80,14 @@ export default function StudentResultsPage() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Student Results Overview</h1>
       
-      <Card className="shadow-lg">
+      <Card className="modern-card">
         <CardHeader>
-          <CardTitle>Exam Performance Summary</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-6 w-6 text-primary" />
+            Exam Performance Summary
+          </CardTitle>
           <CardDescription>
-            Review exams you've created. Detailed student scores require exam submissions.
+            Review exams you&apos;ve created. Detailed student scores require exam submissions.
             (This feature is upcoming for individual exam results)
           </CardDescription>
         </CardHeader>
@@ -98,8 +98,8 @@ export default function StudentResultsPage() {
                 <TableRow>
                   <TableHead>Exam Title</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-center flex items-center gap-1 justify-center"><Users className="h-4 w-4" /> Participants</TableHead>
-                  <TableHead className="text-center flex items-center gap-1 justify-center"><Percent className="h-4 w-4" /> Average Score</TableHead>
+                  <TableHead className="text-center"><Users className="inline-block mr-1 h-4 w-4" /> Participants</TableHead>
+                  <TableHead className="text-center"><Percent className="inline-block mr-1 h-4 w-4" /> Average Score</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -110,7 +110,11 @@ export default function StudentResultsPage() {
                     <TableCell>
                       <Badge 
                         variant={result.status === 'Published' ? 'default' : result.status === 'Completed' ? 'outline' : 'secondary'}
-                        className={result.status === 'Published' ? 'bg-blue-500 text-white' : result.status === 'Completed' ? 'bg-green-500 text-white' : ''}
+                        className={
+                            result.status === 'Published' ? 'bg-blue-500 text-white hover:bg-blue-600' : 
+                            result.status === 'Completed' ? 'bg-green-500 text-white hover:bg-green-600' : 
+                            result.status === 'Ongoing' ? 'bg-yellow-500 text-black hover:bg-yellow-600' : ''
+                        }
                       >
                         {result.status}
                       </Badge>
@@ -120,7 +124,7 @@ export default function StudentResultsPage() {
                       {result.averageScore !== null ? `${result.averageScore}%` : 'N/A'}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="outline" size="sm" asChild>
+                      <Button variant="outline" size="sm" asChild className="btn-outline-subtle">
                         <Link href={`/teacher/dashboard/results/${result.exam_id}`}>
                           <Eye className="mr-2 h-4 w-4" /> View Details
                         </Link>
@@ -131,11 +135,13 @@ export default function StudentResultsPage() {
               </TableBody>
             </Table>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <BarChart3 className="h-16 w-16 text-muted-foreground mb-4" />
-              <p className="text-lg text-muted-foreground">No exams found or no results available yet.</p>
-              <p className="text-sm text-muted-foreground">Results for completed exams will appear here.</p>
-            </div>
+            <Alert className="modern-card border-primary/20 bg-blue-50 dark:bg-blue-500/10 mt-4">
+                <Info className="h-5 w-5 text-primary" />
+                <AlertTitle className="font-semibold text-primary/90">No Results Available</AlertTitle>
+                <AlertDescription className="text-primary/80">
+                No exams found or no results available yet. Results for completed exams will appear here once students start submitting their attempts.
+                </AlertDescription>
+            </Alert>
           )}
         </CardContent>
       </Card>

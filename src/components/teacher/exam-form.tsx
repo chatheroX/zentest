@@ -12,12 +12,13 @@ import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { PlusCircle, Trash2, Upload, Brain, Save, FileText, Settings2, CalendarDays, Clock, CheckCircle, Loader2, CalendarIcon, AlertTriangle } from 'lucide-react';
+import { PlusCircle, Trash2, Upload, Brain, Save, FileText, Settings2, CalendarDays, Clock, CheckCircle, Loader2, CalendarIcon, AlertTriangle, ListChecks } from 'lucide-react'; // Added ListChecks
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { cn } from "@/lib/utils";
-import type { Question, QuestionOption, ExamStatus } from '@/types/supabase'; // Removed Exam import
+import type { Question, QuestionOption, ExamStatus } from '@/types/supabase';
 import { format, parseISO, isValid as isValidDate, setHours, setMinutes, setSeconds, setMilliseconds } from 'date-fns';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export interface ExamFormData {
   title: string;
@@ -27,8 +28,8 @@ export interface ExamFormData {
   questions: Question[];
   startTime: Date | null;
   endTime: Date | null;
-  status: ExamStatus; // Will always be 'Published' for new/edited exams from this form
-  exam_id?: string; // UUID
+  status: ExamStatus; 
+  exam_id?: string; 
   exam_code?: string;
 }
 
@@ -42,20 +43,17 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
   const router = useRouter();
   const { toast } = useToast();
 
-  // State for main exam details
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState(60);
   const [allowBacktracking, setAllowBacktracking] = useState(true);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
-  const [startTimeStr, setStartTimeStr] = useState("00:00");
-  const [endTimeStr, setEndTimeStr] = useState("00:00");
+  const [startTimeStr, setStartTimeStr] = useState("09:00"); // Default start time
+  const [endTimeStr, setEndTimeStr] = useState("17:00");   // Default end time
 
-  // State for questions
   const [questions, setQuestions] = useState<Question[]>([]);
   
-  // State for the current question being built
   const [currentQuestionText, setCurrentQuestionText] = useState('');
   const [currentOptions, setCurrentOptions] = useState<QuestionOption[]>(
     Array.from({ length: 4 }, (_, i) => ({ id: `opt-new-${i}-${Date.now()}`, text: '' }))
@@ -80,14 +78,14 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
         setStartTimeStr(format(initialStartTimeObj, "HH:mm"));
       } else {
         setStartTime(null);
-        setStartTimeStr("00:00");
+        setStartTimeStr("09:00");
       }
       if (initialEndTimeObj && isValidDate(initialEndTimeObj)) {
         setEndTime(initialEndTimeObj);
         setEndTimeStr(format(initialEndTimeObj, "HH:mm"));
       } else {
         setEndTime(null);
-        setEndTimeStr("00:00");
+        setEndTimeStr("17:00");
       }
     }
   }, [initialData]);
@@ -109,9 +107,9 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
     if (type === 'start') {
       setStartTime(newDateTime);
       if (endTime && newDateTime >= endTime) {
-        setEndTime(null);
-        setEndTimeStr("00:00");
-        toast({ title: "Warning", description: "End time was cleared because it was before the new start time.", variant: "default" });
+        setEndTime(null); // Clear end time if it's no longer valid
+        setEndTimeStr(format(new Date(newDateTime.getTime() + 60 * 60 * 1000), "HH:mm")); // Default to 1 hour later
+        toast({ title: "Time Adjusted", description: "End time was adjusted as it was before the new start time.", variant: "default" });
       }
     } else {
       setEndTime(newDateTime);
@@ -119,20 +117,25 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
   };
 
   const handleTimeChange = (timeValue: string, type: 'start' | 'end') => {
-    const targetDate = type === 'start' ? startTime : endTime;
+    let targetDate = type === 'start' ? startTime : endTime;
+    if (!targetDate) { // If date part is not set, use today as a base for time setting
+        targetDate = new Date();
+    }
+    
     if (type === 'start') setStartTimeStr(timeValue);
     else setEndTimeStr(timeValue);
 
-    if (targetDate) {
-      handleDateTimeChange(new Date(targetDate), type, timeValue);
-    }
-    // If targetDate is null, the date part is not yet set. handleDateTimeChange will use timeValue when date is picked.
+    handleDateTimeChange(new Date(targetDate), type, timeValue);
   };
 
 
   const resetOptionIdsAndText = (): QuestionOption[] => {
     return Array.from({ length: 4 }, (_, i) => ({ id: `opt-new-${i}-${Date.now() + i}`, text: '' }));
   };
+
+  // Helper for unique option IDs
+  let optionIdCounter = 0; 
+  const generateOptionId = () => `opt-gen-${optionIdCounter++}-${Date.now()}`;
 
   const handleAddQuestion = useCallback(() => {
     if (!currentQuestionText.trim()) {
@@ -151,36 +154,34 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
       return;
     }
 
-    // Create new IDs for options to ensure uniqueness even if text is same as another question's option
     const newOptionsWithUniqueIds = filledOptions.map(opt => ({
       ...opt,
-      id: `opt-${q_id_counter++}-${Date.now()}` // Ensure q_id_counter is managed if this approach used widely
+      id: generateOptionId() 
     }));
 
-    // Find the new ID for the correct option
-    const originalCorrectOption = filledOptions.find(opt => opt.id === currentCorrectOptionId);
-    const newCorrectOptionInArray = newOptionsWithUniqueIds.find(opt => opt.text === originalCorrectOption?.text);
+    const originalCorrectOptionObject = filledOptions.find(opt => opt.id === currentCorrectOptionId);
+    const newCorrectOptionInArray = newOptionsWithUniqueIds.find(opt => opt.text === originalCorrectOptionObject?.text); // Match by text
     const finalCorrectOptionId = newCorrectOptionInArray ? newCorrectOptionInArray.id : '';
 
+    if (!finalCorrectOptionId) {
+        toast({ title: "Error Adding Question", description: "Could not map correct option. Please try again.", variant: "destructive" });
+        return;
+    }
 
     const newQuestion: Question = {
-      id: `q-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, // Unique question ID
+      id: `q-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, 
       text: currentQuestionText,
       options: newOptionsWithUniqueIds,
       correctOptionId: finalCorrectOptionId,
     };
     setQuestions(prevQuestions => [...prevQuestions, newQuestion]);
     
-    // Reset only the fields for adding a new question
     setCurrentQuestionText('');
     setCurrentOptions(resetOptionIdsAndText());
     setCurrentCorrectOptionId('');
     toast({ description: "Question added to list below." });
   }, [currentQuestionText, currentOptions, currentCorrectOptionId, toast]);
   
-  // Helper for unique option IDs, can be improved
-  let q_id_counter = 0;
-
 
   const handleRemoveQuestion = useCallback((id: string) => {
     setQuestions(prevQuestions => prevQuestions.filter(q => q.id !== id));
@@ -228,7 +229,7 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
       questions,
       startTime,
       endTime,
-      status: 'Published', // Always 'Published' from this form
+      status: 'Published', 
       exam_code: initialData?.exam_code,
     };
 
@@ -245,48 +246,52 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
 
   return (
     <form onSubmit={handleSubmit}>
-      <Card className="w-full shadow-xl">
+      <Card className="w-full modern-card">
         <CardHeader>
-          <CardTitle className="text-2xl">{isEditing ? `Edit Exam: ${initialData?.title || ''}` : 'Create New Exam'}</CardTitle>
+          <CardTitle className="text-2xl flex items-center gap-2">
+            {isEditing ? <Edit className="h-6 w-6 text-primary" /> : <PlusCircle className="h-6 w-6 text-primary" />}
+            {isEditing ? `Edit Exam: ${initialData?.title || ''}` : 'Create New Exam'}
+          </CardTitle>
           <CardDescription>
             {isEditing ? 'Modify the details of your existing exam.' : 'Fill in the details to create a new exam. All exams created/edited here will be "Published".'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
-          <section className="space-y-4 p-4 border rounded-lg">
-            <h3 className="text-lg font-medium flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> Basic Information</h3>
+          <section className="space-y-4 p-4 border rounded-lg bg-muted/20">
+            <h3 className="text-lg font-medium flex items-center gap-2 text-foreground"><FileText className="h-5 w-5 text-primary" /> Basic Information</h3>
             <div className="space-y-2">
               <Label htmlFor="examTitle">Exam Title</Label>
-              <Input id="examTitle" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Final Year Mathematics" required />
+              <Input id="examTitle" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Final Year Mathematics" required className="modern-input"/>
             </div>
             <div className="space-y-2">
               <Label htmlFor="examDescription">Description (Optional)</Label>
-              <Textarea id="examDescription" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A brief overview of the exam content and instructions." />
+              <Textarea id="examDescription" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A brief overview of the exam content and instructions." className="modern-input"/>
             </div>
           </section>
 
-          <section className="space-y-4 p-4 border rounded-lg">
-            <h3 className="text-lg font-medium flex items-center gap-2"><Settings2 className="h-5 w-5 text-primary" /> Exam Settings</h3>
+          <section className="space-y-4 p-4 border rounded-lg bg-muted/20">
+            <h3 className="text-lg font-medium flex items-center gap-2 text-foreground"><Settings2 className="h-5 w-5 text-primary" /> Exam Settings</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="examDuration" className="flex items-center gap-1"><Clock className="h-4 w-4" /> Duration (minutes)</Label>
-                <Input id="examDuration" type="number" value={duration} onChange={(e) => setDuration(parseInt(e.target.value))} min="1" required />
+                <Input id="examDuration" type="number" value={duration} onChange={(e) => setDuration(parseInt(e.target.value))} min="1" required className="modern-input"/>
               </div>
               <div className="flex items-center space-x-2 pt-8">
                 <Switch id="allowBacktracking" checked={allowBacktracking} onCheckedChange={setAllowBacktracking} />
                 <Label htmlFor="allowBacktracking">Allow Backtracking</Label>
               </div>
             </div>
-             {/* Status selection removed - defaults to Published */}
-             <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm text-blue-700">
-                    <AlertTriangle className="inline h-4 w-4 mr-1" /> Exams created or edited here will be set to "Published" status. 
-                    Scheduling is mandatory.
-                </p>
-             </div>
+            <Alert variant="default" className="mt-2 bg-primary/10 border-primary/20 text-primary/90">
+                <AlertTriangle className="inline h-4 w-4 mr-1 text-primary" />
+                <AlertTitle className="font-semibold">Important Scheduling Note</AlertTitle>
+                <AlertDescription>
+                    Exams created or edited here are automatically set to &quot;Published&quot; status. 
+                    Accurate start and end times are mandatory for students to access the exam.
+                </AlertDescription>
+             </Alert>
 
             <div className="space-y-2 mt-4">
-              <Label className="flex items-center gap-1"><CalendarDays className="h-4 w-4" /> Scheduling (Required)</Label>
+              <Label className="flex items-center gap-1 font-medium text-foreground"><CalendarDays className="h-4 w-4 text-primary" /> Scheduling (Required)</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label htmlFor="startTimeDate">Start Date & Time</Label>
@@ -296,7 +301,7 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
                         <Button
                           variant={"outline"}
                           className={cn(
-                            "w-full justify-start text-left font-normal",
+                            "w-full justify-start text-left font-normal modern-input", // Added modern-input
                             !startTime && "text-muted-foreground"
                           )}
                         >
@@ -304,7 +309,7 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
                           {startTime ? format(startTime, "PPP") : <span>Pick start date</span>}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0 bg-card border-border shadow-lg">
                         <Calendar
                           mode="single"
                           selected={startTime ?? undefined}
@@ -317,8 +322,8 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
                         type="time" 
                         value={startTimeStr}
                         onChange={(e) => handleTimeChange(e.target.value, 'start')}
-                        className="w-[120px]"
-                        required={!isEditing} // Required on create
+                        className="w-[120px] modern-input" 
+                        required
                     />
                   </div>
                 </div>
@@ -330,7 +335,7 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
                         <Button
                           variant={"outline"}
                           className={cn(
-                            "w-full justify-start text-left font-normal",
+                            "w-full justify-start text-left font-normal modern-input", // Added modern-input
                             !endTime && "text-muted-foreground"
                           )}
                         >
@@ -338,7 +343,7 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
                           {endTime ? format(endTime, "PPP") : <span>Pick end date</span>}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0 bg-card border-border shadow-lg">
                         <Calendar
                           mode="single"
                           selected={endTime ?? undefined}
@@ -352,8 +357,8 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
                         type="time" 
                         value={endTimeStr}
                         onChange={(e) => handleTimeChange(e.target.value, 'end')}
-                        className="w-[120px]"
-                        required={!isEditing} // Required on create
+                        className="w-[120px] modern-input"
+                        required
                     />
                   </div>
                 </div>
@@ -361,40 +366,40 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
             </div>
           </section>
 
-          <section className="space-y-4 p-4 border rounded-lg">
-            <h3 className="text-lg font-medium">Manage Questions ({questions.length} added)</h3>
+          <section className="space-y-4 p-4 border rounded-lg bg-muted/20">
+            <h3 className="text-lg font-medium flex items-center gap-2 text-foreground"><ListChecks className="h-5 w-5 text-primary" /> Manage Questions ({questions.length} added)</h3>
             <div className="flex flex-wrap gap-2 my-4">
-              <Button type="button" variant="outline" disabled>
+              <Button type="button" variant="outline" disabled className="btn-outline-subtle">
                 <Upload className="mr-2 h-4 w-4" /> Upload CSV (Soon)
               </Button>
-              <Button type="button" variant="outline" asChild>
+              <Button type="button" variant="outline" asChild className="btn-outline-subtle">
                 <Link href="/teacher/dashboard/ai-assistant" target="_blank">
                   <Brain className="mr-2 h-4 w-4" /> Use AI Assistant
                 </Link>
               </Button>
             </div>
 
-            <Card className="bg-muted/30">
+            <Card className="bg-background shadow-sm">
               <CardHeader>
-                <CardTitle className="text-md">Add New Question Manually</CardTitle>
+                <CardTitle className="text-md font-semibold text-foreground">Add New Question Manually</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-1">
                   <Label htmlFor="questionText">Question Text</Label>
-                  <Textarea id="questionText" value={currentQuestionText} onChange={(e) => setCurrentQuestionText(e.target.value)} placeholder="Enter the question" />
+                  <Textarea id="questionText" value={currentQuestionText} onChange={(e) => setCurrentQuestionText(e.target.value)} placeholder="Enter the question" className="modern-input"/>
                 </div>
                 <div>
                   <Label>Options & Correct Answer (Provide at least 2 options)</Label>
                   <RadioGroup value={currentCorrectOptionId} onValueChange={setCurrentCorrectOptionId} className="mt-2 space-y-2">
                     {currentOptions.map((opt, index) => (
-                      <div key={opt.id} className="flex items-center gap-2 p-2 border rounded-md bg-background hover:bg-accent/50 has-[[data-state=checked]]:bg-primary/10 has-[[data-state=checked]]:border-primary">
+                      <div key={opt.id} className="flex items-center gap-2 p-2 border rounded-md bg-background/50 hover:bg-accent/10 has-[[data-state=checked]]:bg-primary/10 has-[[data-state=checked]]:border-primary">
                         <RadioGroupItem value={opt.id} id={opt.id} />
                         <Label htmlFor={opt.id} className="sr-only">Select Option {index + 1} as correct</Label>
                         <Input
                           value={opt.text}
                           onChange={(e) => handleOptionChange(index, e.target.value)}
                           placeholder={`Option ${index + 1}`}
-                          className="flex-grow"
+                          className="flex-grow modern-input"
                         />
                       </div>
                     ))}
@@ -402,7 +407,7 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
                 </div>
               </CardContent>
               <CardFooter>
-                <Button type="button" onClick={handleAddQuestion} size="sm">
+                <Button type="button" onClick={handleAddQuestion} size="sm" className="btn-primary-solid">
                   <PlusCircle className="mr-2 h-4 w-4" /> Add This Question
                 </Button>
               </CardFooter>
@@ -410,12 +415,12 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
 
             {questions.length > 0 && (
               <div className="mt-6 space-y-3">
-                <h4 className="font-semibold">Added Questions:</h4>
+                <h4 className="font-semibold text-foreground">Added Questions:</h4>
                 <ul className="space-y-2 max-h-96 overflow-y-auto pr-2">
                   {questions.map((q, index) => (
-                    <li key={q.id} className="p-3 border rounded-md bg-background flex justify-between items-start">
+                    <li key={q.id} className="p-3 border rounded-md bg-background shadow-sm flex justify-between items-start">
                       <div>
-                        <p className="font-medium">{index + 1}. {q.text}</p>
+                        <p className="font-medium text-foreground">{index + 1}. {q.text}</p>
                         <ul className="list-none text-sm text-muted-foreground pl-4 space-y-1">
                           {q.options.map((opt) => (
                             <li key={opt.id} className={cn("flex items-center gap-2", opt.id === q.correctOptionId ? 'text-green-600 font-semibold' : '')}>
@@ -425,7 +430,7 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
                           ))}
                         </ul>
                       </div>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveQuestion(q.id)} className="text-destructive hover:text-destructive">
+                      <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveQuestion(q.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </li>
@@ -435,9 +440,9 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
             )}
           </section>
         </CardContent>
-        <CardFooter className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-          <Button type="submit" disabled={isLoading}>
+        <CardFooter className="flex justify-end gap-2 p-6 border-t">
+          <Button type="button" variant="outline" onClick={() => router.back()} className="btn-outline-subtle">Cancel</Button>
+          <Button type="submit" disabled={isLoading} className="btn-gradient">
             {isLoading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
             {isLoading ? (isEditing ? 'Saving...' : 'Creating...') : (isEditing ? 'Save Changes' : 'Create Exam')}
           </Button>

@@ -4,12 +4,12 @@ import { AppHeader } from '@/components/shared/header';
 import { AppFooter } from '@/components/shared/footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CircleCheckBig, BookOpenText, Users, Cpu, ArrowRight } from 'lucide-react';
+import { CircleCheckBig, BookOpenText, Users, Cpu, ArrowRight, ShieldCheck, BarChart3, Brain } from 'lucide-react'; // Added more icons
 import Link from 'next/link';
 
 const features = [
   {
-    icon: <CircleCheckBig className="h-10 w-10 text-primary mb-3" />,
+    icon: <ShieldCheck className="h-10 w-10 text-primary mb-3" />,
     title: 'Secure Exam Environment',
     description: 'Tight integration with Safe Exam Browser (SEB) for cheat-proof online exams.',
   },
@@ -24,7 +24,7 @@ const features = [
     description: 'Dedicated, intuitive dashboards for both students and teachers.',
   },
   {
-    icon: <Cpu className="h-10 w-10 text-primary mb-3" />,
+    icon: <Brain className="h-10 w-10 text-primary mb-3" />, // Changed from Cpu to Brain for AI
     title: 'AI-Powered Assistance',
     description: 'Built-in AI assistant to help teachers generate diverse exam questions effortlessly.',
   },

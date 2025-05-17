@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -6,11 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { generateExamQuestions, GenerateExamQuestionsInput, GenerateExamQuestionsOutput } from '@/ai/flows/generate-exam-questions';
 import { useToast } from '@/hooks/use-toast';
-import { Brain, Sparkles, Loader2, Lightbulb, ClipboardCopy, ClipboardCheck } from 'lucide-react';
+import { Brain, Sparkles, Loader2, Lightbulb, ClipboardCopy, ClipboardCheck, HelpCircle, PlusCircle } from 'lucide-react'; // Added HelpCircle, PlusCircle
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; // Added Alert
 
 export function QuestionGenerator() {
   const [topic, setTopic] = useState('');
@@ -62,7 +63,7 @@ export function QuestionGenerator() {
 
 
   return (
-    <Card className="w-full max-w-2xl mx-auto shadow-xl">
+    <Card className="w-full max-w-2xl mx-auto modern-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-2xl">
           <Brain className="h-7 w-7 text-primary" /> AI Question Assistant
@@ -74,18 +75,19 @@ export function QuestionGenerator() {
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="topic">Topic</Label>
+            <Label htmlFor="topic" className="flex items-center gap-1"><Lightbulb className="h-4 w-4 text-primary/80"/>Topic</Label>
             <Input
               id="topic"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="e.g., Photosynthesis, World War II, Python Data Types"
               required
+              className="modern-input"
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="numQuestions">Number of Questions</Label>
+              <Label htmlFor="numQuestions" className="flex items-center gap-1"><HelpCircle className="h-4 w-4 text-primary/80"/>Number of Questions</Label>
               <Input
                 id="numQuestions"
                 type="number"
@@ -94,15 +96,16 @@ export function QuestionGenerator() {
                 min="1"
                 max="10"
                 required
+                className="modern-input"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="difficulty">Difficulty Level</Label>
+              <Label htmlFor="difficulty" className="flex items-center gap-1"><Sparkles className="h-4 w-4 text-primary/80"/>Difficulty Level</Label>
               <Select value={difficulty} onValueChange={(value) => setDifficulty(value as 'easy' | 'medium' | 'hard')}>
-                <SelectTrigger id="difficulty">
+                <SelectTrigger id="difficulty" className="modern-input">
                   <SelectValue placeholder="Select difficulty" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-popover border-border shadow-lg">
                   <SelectItem value="easy">Easy</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="hard">Hard</SelectItem>
@@ -112,7 +115,7 @@ export function QuestionGenerator() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full btn-gradient" disabled={isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...
@@ -127,30 +130,32 @@ export function QuestionGenerator() {
       </form>
 
       {generatedQuestions && generatedQuestions.length > 0 && (
-        <div className="p-6 border-t">
-          <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Lightbulb className="h-6 w-6 text-yellow-500" /> Generated Questions
+        <div className="p-6 border-t border-border/30">
+          <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-foreground">
+            <Lightbulb className="h-6 w-6 text-yellow-500" /> Generated Questions ({generatedQuestions.length})
           </h3>
           <Accordion type="single" collapsible className="w-full">
             {generatedQuestions.map((q, index) => (
-              <AccordionItem value={`item-${index}`} key={index}>
-                <AccordionTrigger className="hover:no-underline">
+              <AccordionItem value={`item-${index}`} key={index} className="border-border/30">
+                <AccordionTrigger className="hover:no-underline text-foreground hover:bg-accent/50 px-4 py-3 rounded-t-md data-[state=open]:bg-accent/50">
                   <span className="text-left flex-1">Question {index + 1}: {q.question.substring(0,50)}{q.question.length > 50 ? '...' : ''}</span>
                 </AccordionTrigger>
-                <AccordionContent className="space-y-3">
-                  <p className="font-medium"><strong>Full Question:</strong> {q.question}</p>
-                  <p className="text-green-600"><strong>Answer:</strong> {q.answer}</p>
+                <AccordionContent className="space-y-3 bg-background/50 p-4">
+                  <p className="font-medium text-foreground"><strong>Full Question:</strong> {q.question}</p>
+                  <p className="text-green-700 dark:text-green-400"><strong>Answer:</strong> {q.answer}</p>
                   <div className="flex justify-end gap-2 mt-2">
                     <Button 
                       variant="outline" 
                       size="sm" 
                       onClick={() => handleCopyToClipboard(`Question: ${q.question}\nAnswer: ${q.answer}`, index)}
+                      className="btn-outline-subtle"
                     >
                       {copiedStates[index] ? <ClipboardCheck className="mr-2 h-4 w-4" /> : <ClipboardCopy className="mr-2 h-4 w-4" />}
                       {copiedStates[index] ? 'Copied!' : 'Copy Q&A'}
                     </Button>
-                    {/* Placeholder for adding to an exam */}
-                    <Button size="sm" disabled>Add to Exam (Soon)</Button> 
+                    <Button size="sm" disabled className="btn-primary-solid opacity-50">
+                      <PlusCircle className="mr-2 h-4 w-4" /> Add to Exam (Soon)
+                    </Button> 
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -158,6 +163,15 @@ export function QuestionGenerator() {
           </Accordion>
         </div>
       )}
+       {!generatedQuestions && !isLoading && (
+         <Alert variant="default" className="m-6 border-primary/20 bg-primary/5 text-primary/90">
+            <Lightbulb className="h-5 w-5 text-primary" />
+            <AlertTitle className="font-semibold">Get Started with AI</AlertTitle>
+            <AlertDescription>
+              Enter a topic and other details above, then click "Generate Questions" to see the AI in action!
+            </AlertDescription>
+          </Alert>
+       )}
     </Card>
   );
 }

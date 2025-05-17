@@ -162,7 +162,7 @@ export function AuthForm() {
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-10rem)] py-12 px-4 bg-gradient-to-br from-slate-100 via-gray-200 to-slate-200 dark:from-slate-900 dark:via-slate-800 dark:to-gray-900">
-      <Card className="w-full max-w-md glass-card shadow-xl border-border/50">
+      <Card className="w-full max-w-md modern-card shadow-xl border-border/50"> {/* Changed to modern-card for consistency */}
         <Tabs value={action} onValueChange={handleTabChange} className="w-full">
            <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-3">
             <TabsList className="grid w-full grid-cols-2 bg-muted/70 dark:bg-muted/40 p-1 rounded-md backdrop-blur-sm">
@@ -207,7 +207,7 @@ export function AuthForm() {
                     <Input 
                       id="login-email" type="email" placeholder="you@example.com" 
                       value={email} onChange={(e) => setEmail(e.target.value)} required 
-                      className="pl-10 py-2.5 text-sm rounded-md border-border/70 focus:border-primary focus:ring-primary bg-background/70 dark:bg-slate-800/50 backdrop-blur-sm" 
+                      className="pl-10 modern-input" 
                       autoComplete="email" 
                     />
                   </div>
@@ -219,7 +219,7 @@ export function AuthForm() {
                     <Input 
                       id="login-password" type={showPassword ? 'text' : 'password'} placeholder="••••••••" 
                       value={password} onChange={(e) => setPassword(e.target.value)} required 
-                      className="pl-10 pr-10 py-2.5 text-sm rounded-md border-border/70 focus:border-primary focus:ring-primary bg-background/70 dark:bg-slate-800/50 backdrop-blur-sm" 
+                      className="pl-10 pr-10 modern-input" 
                       autoComplete="current-password" 
                     />
                     <Button type="button" variant="ghost" size="icon" className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>
@@ -230,9 +230,8 @@ export function AuthForm() {
               </CardContent>
               <CardFooter className="flex flex-col p-4 sm:p-6 pt-0 pb-6">
                 <Button type="submit" className="btn-gradient w-full text-sm py-2.5 rounded-md" disabled={isSubmitting || authContextLoading}>
-                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-1.5 h-4 w-4" />}
                   {isSubmitting ? 'Logging in...' : 'Login'}
-                  {!isSubmitting && <ArrowRight className="ml-1.5 h-4 w-4"/>}
                 </Button>
                 <p className="mt-4 text-center text-xs text-muted-foreground">
                   Don&apos;t have an account?{' '}
@@ -256,7 +255,7 @@ export function AuthForm() {
                     <Input 
                       id="register-fullname" placeholder="John Doe" value={fullName} 
                       onChange={(e) => setFullName(e.target.value)} required 
-                      className="pl-10 py-2.5 text-sm rounded-md border-border/70 focus:border-primary focus:ring-primary bg-background/70 dark:bg-slate-800/50 backdrop-blur-sm" 
+                      className="pl-10 modern-input" 
                       autoComplete="name" 
                     />
                   </div>
@@ -268,7 +267,7 @@ export function AuthForm() {
                     <Input 
                       id="register-email" type="email" placeholder="you@example.com" 
                       value={email} onChange={(e) => setEmail(e.target.value)} required 
-                      className="pl-10 py-2.5 text-sm rounded-md border-border/70 focus:border-primary focus:ring-primary bg-background/70 dark:bg-slate-800/50 backdrop-blur-sm" 
+                      className="pl-10 modern-input" 
                       autoComplete="email" 
                     />
                   </div>
@@ -280,7 +279,7 @@ export function AuthForm() {
                     <Input 
                       id="register-password" type={showPassword ? 'text' : 'password'} placeholder="•••••••• (min. 6 characters)" 
                       value={password} onChange={(e) => setPassword(e.target.value)} required 
-                      className="pl-10 pr-10 py-2.5 text-sm rounded-md border-border/70 focus:border-primary focus:ring-primary bg-background/70 dark:bg-slate-800/50 backdrop-blur-sm" 
+                      className="pl-10 pr-10 modern-input" 
                       autoComplete="new-password" 
                     />
                      <Button type="button" variant="ghost" size="icon" className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>
@@ -295,7 +294,7 @@ export function AuthForm() {
                     <Input 
                       id="confirm-password" type={showConfirmPassword ? 'text' : 'password'} placeholder="••••••••" 
                       value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required 
-                      className="pl-10 pr-10 py-2.5 text-sm rounded-md border-border/70 focus:border-primary focus:ring-primary bg-background/70 dark:bg-slate-800/50 backdrop-blur-sm" 
+                      className="pl-10 pr-10 modern-input" 
                       autoComplete="new-password" 
                     />
                     <Button type="button" variant="ghost" size="icon" className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setShowConfirmPassword(!showConfirmPassword)} aria-label={showConfirmPassword ? "Hide password" : "Show password"}>
@@ -308,7 +307,7 @@ export function AuthForm() {
                   <div className="relative">
                      <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
                     <Select value={role || ''} onValueChange={(value) => setRole(value as CustomUser['role'])} required>
-                      <SelectTrigger id="register-role" className="pl-10 py-2.5 text-sm rounded-md border-border/70 focus:border-primary focus:ring-primary bg-background/70 dark:bg-slate-800/50 backdrop-blur-sm">
+                      <SelectTrigger id="register-role" className="pl-10 modern-input"> {/* Added modern-input */}
                         <SelectValue placeholder="Select a role" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover border-border shadow-lg rounded-md">
@@ -321,9 +320,8 @@ export function AuthForm() {
               </CardContent>
               <CardFooter className="flex flex-col p-4 sm:p-6 pt-0 pb-6">
                 <Button type="submit" className="btn-gradient w-full text-sm py-2.5 rounded-md" disabled={isSubmitting || authContextLoading}>
-                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <User className="mr-1.5 h-4 w-4" />}
                   {isSubmitting ? 'Registering...' : 'Create Account'}
-                   {!isSubmitting && <ArrowRight className="ml-1.5 h-4 w-4"/>}
                 </Button>
                 <p className="mt-4 text-center text-xs text-muted-foreground">
                   Already have an account?{' '}

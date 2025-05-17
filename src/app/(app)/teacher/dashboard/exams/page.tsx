@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Share2, Eye, Copy, BookOpenCheck, Loader2, Users2, CalendarClock, ClockIcon, CheckCircleIcon, PlayCircleIcon } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Share2, Eye, Copy, BookOpenCheck, Loader2, Users2, CalendarClock, ClockIcon, CheckCircleIcon, PlayCircleIcon, Info } from 'lucide-react'; // Added Info
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -26,12 +26,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { Exam, ExamStatus } from '@/types/supabase';
 import { format, parseISO, isBefore, isAfter, isValid } from 'date-fns';
 import { getEffectiveExamStatus } from './[examId]/details/page';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface CategorizedExams {
   ongoing: Exam[];
   upcoming: Exam[];
   completed: Exam[];
-  // No 'Drafts' as it's removed
 }
 
 export default function ManageExamsPage() {
@@ -69,7 +69,6 @@ export default function ManageExamsPage() {
         if (effectiveStatus === 'Ongoing') newCategorizedExams.ongoing.push(exam);
         else if (effectiveStatus === 'Published') newCategorizedExams.upcoming.push(exam);
         else if (effectiveStatus === 'Completed') newCategorizedExams.completed.push(exam);
-        // No 'Draft' status handling
       });
 
       setCategorizedExams(newCategorizedExams);
@@ -170,7 +169,7 @@ export default function ManageExamsPage() {
     return (
       <Table>
         <TableHeader>
-          <TableRow>{/* Ensure no whitespace directly inside TableRow */}
+          <TableRow>
             <TableHead>Title</TableHead>
             <TableHead>Effective Status</TableHead>
             <TableHead><CalendarClock className="inline mr-1 h-4 w-4"/>Start Time</TableHead>
@@ -185,7 +184,7 @@ export default function ManageExamsPage() {
           {exams.map((exam) => {
             const effectiveStatus = getEffectiveExamStatus(exam);
             return (
-            <TableRow key={exam.exam_id}>{/* Ensure no whitespace directly inside TableRow */}
+            <TableRow key={exam.exam_id}>
               <TableCell className="font-medium">{exam.title}</TableCell>
               <TableCell>
                  <Badge
@@ -200,7 +199,7 @@ export default function ManageExamsPage() {
               <TableCell>{exam.questions?.length || 0}</TableCell>
               <TableCell>{exam.duration} min</TableCell>
               <TableCell>
-                <Button variant="ghost" size="sm" onClick={() => copyExamCode(exam.exam_code!)} className="p-1 h-auto" disabled={!exam.exam_code}>
+                <Button variant="ghost" size="sm" onClick={() => copyExamCode(exam.exam_code!)} className="p-1 h-auto text-primary hover:bg-primary/10 disabled:text-muted-foreground" disabled={!exam.exam_code}>
                   {exam.exam_code || 'N/A'} <Copy className="ml-2 h-3 w-3" />
                 </Button>
               </TableCell>
@@ -212,23 +211,23 @@ export default function ManageExamsPage() {
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="bg-card border-border shadow-lg">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuItem asChild>
+                    <DropdownMenuItem asChild className="hover:bg-accent/50 focus:bg-accent/50">
                       <Link href={`/teacher/dashboard/exams/${exam.exam_id}/edit`}><Edit className="mr-2 h-4 w-4" /> Edit</Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
+                    <DropdownMenuItem asChild className="hover:bg-accent/50 focus:bg-accent/50">
                       <Link href={`/teacher/dashboard/exams/${exam.exam_id}/details`}><Eye className="mr-2 h-4 w-4" /> View Details</Link>
                     </DropdownMenuItem>
                     {effectiveStatus === 'Ongoing' && (
-                       <DropdownMenuItem asChild>
+                       <DropdownMenuItem asChild className="hover:bg-accent/50 focus:bg-accent/50">
                          <Link href={`/teacher/dashboard/exams/${exam.exam_id}/monitor`}><PlayCircleIcon className="mr-2 h-4 w-4" /> Monitor Exam</Link>
                        </DropdownMenuItem>
                     )}
-                     <DropdownMenuItem asChild>
+                     <DropdownMenuItem asChild className="hover:bg-accent/50 focus:bg-accent/50">
                       <Link href={`/teacher/dashboard/results/${exam.exam_id}`}><Users2 className="mr-2 h-4 w-4" /> View Results</Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => copyExamCode(exam.exam_code!)} disabled={effectiveStatus === 'Completed' || !exam.exam_code}>
+                    <DropdownMenuItem onClick={() => copyExamCode(exam.exam_code!)} disabled={effectiveStatus === 'Completed' || !exam.exam_code} className="hover:bg-accent/50 focus:bg-accent/50 disabled:opacity-50">
                       <Share2 className="mr-2 h-4 w-4" /> Share Code
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -270,14 +269,14 @@ export default function ManageExamsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Manage Exams</h1>
-        <Button asChild>
+        <Button asChild className="btn-primary-solid">
           <Link href="/teacher/dashboard/exams/create">
             <PlusCircle className="mr-2 h-5 w-5" /> Create New Exam
           </Link>
         </Button>
       </div>
 
-      <Card className="shadow-lg">
+      <Card className="modern-card">
         <CardHeader>
           <CardTitle>Your Exams Dashboard</CardTitle>
           <CardDescription>View, edit, and manage all your created exams, categorized by their current status.</CardDescription>
@@ -285,21 +284,23 @@ export default function ManageExamsPage() {
         <CardContent>
           {isLoading && <div className="flex justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
           {!isLoading && Object.values(categorizedExams).every(arr => arr.length === 0) ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <BookOpenCheck className="h-16 w-16 text-muted-foreground mb-4" />
-              <p className="text-lg text-muted-foreground">No exams created yet.</p>
-              <p className="text-sm text-muted-foreground">Click "Create New Exam" to get started.</p>
-            </div>
+            <Alert className="modern-card border-primary/20 bg-blue-50 dark:bg-blue-500/10 mt-4">
+                <Info className="h-5 w-5 text-primary" />
+                <AlertTitle className="font-semibold text-primary/90">No Exams Yet</AlertTitle>
+                <AlertDescription className="text-primary/80">
+                You haven&apos;t created any exams. Click &quot;Create New Exam&quot; to get started.
+                </AlertDescription>
+            </Alert>
           ) : (
             <Accordion type="multiple" defaultValue={examCategories.filter(c=>c.defaultOpen).map(c => c.title)} className="w-full">
               {examCategories.map(category => (
-                <AccordionItem value={category.title} key={category.title}>
-                  <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                <AccordionItem value={category.title} key={category.title} className="border-border/30">
+                  <AccordionTrigger className="text-lg font-semibold hover:no-underline text-foreground hover:bg-accent/50 px-4 py-3 rounded-t-md data-[state=open]:bg-accent/50">
                     <div className="flex items-center gap-2">
                         {category.icon} {category.title} ({category.data.length})
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent>
+                  <AccordionContent className="border-t-0 border-border/30">
                     {renderExamTable(category.data, category.title)}
                   </AccordionContent>
                 </AccordionItem>
@@ -310,19 +311,19 @@ export default function ManageExamsPage() {
       </Card>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="glass-card">
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-foreground">Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
               This action cannot be undone. This will permanently delete the exam
-              "{examToDelete?.title}" and all its associated data (questions, submissions). Ongoing exams cannot be deleted.
+              &quot;{examToDelete?.title}&quot; and all its associated data (questions, submissions). Ongoing exams cannot be deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setExamToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setExamToDelete(null)} className="btn-outline-subtle">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteExam}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              className="btn-gradient-destructive"
               disabled={isDeleting || getEffectiveExamStatus(examToDelete) === 'Ongoing'}
             >
               {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Edit3, History, UserCircle, ArrowRight, ShieldAlert, Info } from "lucide-react";
+import { Edit3, History, UserCircle, ArrowRight, ShieldAlert, Info, FileText, Activity, BarChart2 } from "lucide-react"; // Added more icons
 import { useAuth } from "@/contexts/AuthContext"; 
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
@@ -37,9 +37,9 @@ export default function StudentOverviewPage() {
 
        {/* Stats Cards Section - Placeholder Data for Student */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <StatCard title="Exams Taken" value={0} icon={<History className="h-4 w-4 text-muted-foreground" />} description="Total exams completed" />
-        <StatCard title="Average Score" value={"N/A"} icon={<UserCircle className="h-4 w-4 text-muted-foreground" />} description="Across all taken exams" />
-        <StatCard title="Upcoming Exams" value={0} icon={<Edit3 className="h-4 w-4 text-muted-foreground" />} description="Exams you can join" />
+        <StatCard title="Exams Taken" value={0} icon={<FileText className="h-4 w-4 text-muted-foreground" />} description="Total exams completed" />
+        <StatCard title="Average Score" value={"N/A"} icon={<BarChart2 className="h-4 w-4 text-muted-foreground" />} description="Across all taken exams" />
+        <StatCard title="Active Exams" value={0} icon={<Activity className="h-4 w-4 text-muted-foreground" />} description="Exams you can currently join" />
       </div>
        <Alert className="modern-card border-primary/20 bg-blue-50 dark:bg-blue-500/10 mt-4">
         <Info className="h-5 w-5 text-primary" />
@@ -76,7 +76,7 @@ export default function StudentOverviewPage() {
             <CardDescription className="pt-1 text-xs text-muted-foreground">Review your past exam attempts and scores (Feature upcoming).</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="w-full text-sm py-2 rounded-md border-border hover:bg-accent/10" variant="outline" size="sm">
+            <Button asChild className="w-full text-sm py-2 rounded-md border-border hover:bg-accent/10 btn-outline-subtle" variant="outline" size="sm">
               <Link href="/student/dashboard/exam-history">
                 Check History <ArrowRight className="ml-1.5 h-4 w-4" />
               </Link>
@@ -93,7 +93,7 @@ export default function StudentOverviewPage() {
             <CardDescription className="pt-1 text-xs text-muted-foreground">Keep your personal information current.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="w-full text-sm py-2 rounded-md border-border hover:bg-accent/10" variant="outline" size="sm">
+            <Button asChild className="w-full text-sm py-2 rounded-md border-border hover:bg-accent/10 btn-outline-subtle" variant="outline" size="sm">
               <Link href="/student/dashboard/profile">
                 Edit Profile <ArrowRight className="ml-1.5 h-4 w-4" />
               </Link>
