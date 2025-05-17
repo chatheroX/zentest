@@ -8,9 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, AlertTriangle, PlayCircle, ShieldCheck, XCircle, Info, LogOut, ServerCrash, CheckCircle, Ban, CircleSlash, BookOpen, UserCircle2, CalendarDays, ListChecks, Shield, ClockIcon, FileTextIcon, HelpCircleIcon, Wifi, Maximize, Zap } from 'lucide-react';
+import { Loader2, AlertTriangle, PlayCircle, ShieldCheck, XCircle, Info, LogOut, ServerCrash, CheckCircle, Ban, CircleSlash, BookOpen, UserCircle2, CalendarDays, ListChecks, Shield, ClockIcon, FileTextIcon, HelpCircleIcon, Wifi, Maximize, Zap, ShieldAlert } from 'lucide-react'; // Added ShieldAlert
 import type { Exam, CustomUser, FlaggedEvent } from '@/types/supabase';
-import { useToast, toast as globalToast } from '@/hooks/use-toast'; // Renamed toast to avoid conflict
+import { useToast, toast as globalToast } from '@/hooks/use-toast';
 import { format, isValid as isValidDate, parseISO } from 'date-fns';
 import { isSebEnvironment, isOnline, areDevToolsLikelyOpen, isWebDriverActive } from '@/lib/seb-utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,28 +19,28 @@ import logoAsset from '../../../logo.png';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
 
-// Local helper for safe error message extraction
-function getSafeErrorMessage(e: any, defaultMessage = "An unknown error occurred."): string {
-  if (e && typeof e === 'object') {
-    if (e.name === 'AbortError') {
-      return "The request timed out. Please check your connection and try again.";
-    } else if (typeof e.message === 'string' && e.message.trim() !== '') {
-      return e.message;
+// Helper to get a safe error message (could be moved to a shared util if used elsewhere)
+function getSafeErrorMessage(e: any, fallbackMessage = "An unknown error occurred."): string {
+    if (e && typeof e === 'object') {
+        if (e.name === 'AbortError') {
+            return "The request timed out. Please check your connection and try again.";
+        }
+        if (typeof e.message === 'string' && e.message.trim() !== '') {
+            return e.message;
+        }
+        try {
+            const strError = JSON.stringify(e);
+            if (strError !== '{}' && strError.length > 2) return `Error object: ${strError}`;
+        } catch (stringifyError) { /* Fall through */ }
     }
-    try {
-      const strError = JSON.stringify(e);
-      if (strError !== '{}' && strError.length > 2) return `Error object: ${strError}`;
-    } catch (stringifyError) { /* Fall through */ }
-  }
-  if (e !== null && e !== undefined) {
-    const stringifiedError = String(e);
-    if (stringifiedError.trim() !== '' && stringifiedError !== '[object Object]') {
-      return stringifiedError;
+    if (e !== null && e !== undefined) {
+        const stringifiedError = String(e);
+        if (stringifiedError.trim() !== '' && stringifiedError !== '[object Object]') {
+            return stringifiedError;
+        }
     }
-  }
-  return defaultMessage;
+    return fallbackMessage;
 }
-
 
 type SebStage =
   | 'initializing'
@@ -83,7 +83,7 @@ export function SebEntryClientNew() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { supabase, isLoading: authContextLoading } = useAuth();
-  const { toast } = useToast(); // Local toast for this component
+  const { toast } = useToast();
 
   const [stage, setStage] = useState<SebStage>('initializing');
   const [pageError, setPageError] = useState<string | null>(null);
@@ -124,7 +124,7 @@ export function SebEntryClientNew() {
       stage === 'error' ||
       stage === 'securityChecksFailed' ||
       stage === 'examCompleted' ||
-      stage === 'readyToStart'
+      stage === 'readyToStart' // Show on readyToStart irrespective of submission status
     ) {
       setShowExitSebButton(true);
     } else if (
@@ -149,19 +149,7 @@ export function SebEntryClientNew() {
         console.log(`${effectId} AuthContext loading during initialization. Waiting.`);
         return;
       }
-
-      // Dev Mode: Direct Entry with examId and studentId (JWT token is bypassed)
-      if (isDevModeActive && !searchParams?.get('token') && searchParams?.get('examId') && searchParams?.get('studentId')) {
-        if (stage === 'initializing') {
-          const devExamId = searchParams.get('examId')!;
-          const devStudentId = searchParams.get('studentId')!;
-          console.log(`${effectId} DEV MODE: Direct entry with examId: ${devExamId}, studentId: ${devStudentId}. Skipping token validation.`);
-          setValidatedExamId(devExamId);
-          setValidatedStudentId(devStudentId);
-          setStage('fetchingDetails');
-        }
-      // Production Mode (or Dev Mode with token): JWT Token Validation
-      } else if (stage === 'initializing' || (stage === 'validatingToken' && !validatedExamId)) {
+      if (stage === 'initializing' || (stage === 'validatingToken' && !validatedExamId)) {
         console.log(`${effectId} Stage: ${stage}. Performing initial checks for token flow.`);
         const tokenFromQuery = searchParams?.get('token');
 
@@ -178,11 +166,8 @@ export function SebEntryClientNew() {
         }
         console.log(`${effectId} Token found, moving/staying in validatingToken stage.`);
         if(stage !== 'validatingToken') setStage('validatingToken');
-      // } else if (stage === 'validatingToken') {
-        const tokenToValidate = searchParams?.get('token');
-        if (!tokenToValidate) { // Should be caught above, but as a safeguard
-          setPageError("Token missing for validation stage."); setStage('error'); return;
-        }
+
+        const tokenToValidate = tokenFromQuery;
         console.log(`${effectId} Stage: validatingToken. Token: ${tokenToValidate.substring(0, 10)}...`);
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
@@ -207,7 +192,7 @@ export function SebEntryClientNew() {
                 console.error(`${effectId} Failed to parse successful API response JSON:`, jsonParseError);
                 throw new Error("Failed to parse server response after successful validation.");
             });
-            if(responseBody.error) { // API itself returned a structured error
+            if(responseBody.error) { 
                 console.error(`${effectId} Token validation API returned error: ${responseBody.error}`);
                 throw new Error(responseBody.error);
             }
@@ -303,7 +288,7 @@ export function SebEntryClientNew() {
     }
     if (isPreviouslySubmitted) {
       console.log(`${operationId} Exam previously submitted. Skipping security checks.`);
-      setStage('readyToStart'); // Ensure correct stage if bypassed
+      setStage('readyToStart'); 
       return;
     }
 
@@ -313,7 +298,7 @@ export function SebEntryClientNew() {
     const currentChecksConfig = securityChecks.map(c => ({ 
         ...c, 
         status: 'pending' as 'pending',
-        isCritical: (c.id === 'sebEnv' && isDevModeActive) ? false : c.isCritical // Make SEB Env check non-critical in dev mode
+        isCritical: (c.id === 'sebEnv' && isDevModeActive) ? false : c.isCritical
     }));
     
     for (let i = 0; i < currentChecksConfig.length; i++) {
@@ -321,7 +306,7 @@ export function SebEntryClientNew() {
       console.log(`${operationId} Performing check: ${check.label} (Critical: ${check.isCritical})`);
       currentChecksConfig[i] = { ...check, status: 'checking' };
       setSecurityChecks([...currentChecksConfig]);
-      await new Promise(resolve => setTimeout(resolve, 700 + Math.random() * 500)); // Slightly randomized delay
+      await new Promise(resolve => setTimeout(resolve, 700 + Math.random() * 500)); 
 
       try {
         const passed = await check.checkFn();
@@ -338,7 +323,7 @@ export function SebEntryClientNew() {
         if (check.isCritical) allCriticalPassed = false;
         console.error(`${operationId} Error in check ${check.label}:`, errorMsg, e);
       }
-      setSecurityChecks([...currentChecksConfig]); // Update UI after each check
+      setSecurityChecks([...currentChecksConfig]); 
       if (!allCriticalPassed && check.isCritical && currentChecksConfig[i].status === 'failed') {
         console.error(`${operationId} Critical check ${currentChecksConfig[i].label} failed. Stopping further checks.`);
         break; 
@@ -355,6 +340,7 @@ export function SebEntryClientNew() {
       setPageError(errorMsg); setStage('securityChecksFailed');
     }
   }, [examDetails, studentProfile, validatedStudentId, isPreviouslySubmitted, securityChecks, isDevModeActive]);
+
 
   const handleStartExamSession = useCallback(async () => {
     const operationId = `[SebEntryClientNew handleStartExamSession ${Date.now().toString().slice(-5)}]`;
@@ -438,7 +424,7 @@ export function SebEntryClientNew() {
       setExamDetails(prev => prev ? ({ ...prev, status: 'Completed' }) : null); 
       setIsPreviouslySubmitted(true); 
       setStage('examCompleted');
-    } catch (e: any) {
+    } catch (e: any)_ {
       const errorMsg = getSafeErrorMessage(e, "Failed to submit exam.");
       console.error(`${operationId} Exception during submission:`, errorMsg, e);
       setPageError(`Submission Error: ${errorMsg}`); setStage('error');
@@ -450,7 +436,6 @@ export function SebEntryClientNew() {
 
   const isLoadingCriticalStages = stage === 'initializing' || stage === 'validatingToken' || stage === 'fetchingDetails' || (authContextLoading && stage === 'initializing');
 
-  // Common Loading UI
   if (isLoadingCriticalStages && !pageError) {
     let message = "Initializing Secure Exam Environment...";
     if (stage === 'validatingToken') message = "Validating exam session token...";
@@ -465,7 +450,6 @@ export function SebEntryClientNew() {
     );
   }
 
-  // Common Error UI
   if (stage === 'error' || stage === 'securityChecksFailed') {
     const displayError = pageError || "An unknown error occurred. Could not prepare the exam session.";
     const errorTitle = stage === 'securityChecksFailed' ? "Security Check Failed" : "Exam Access Error";
@@ -483,7 +467,6 @@ export function SebEntryClientNew() {
     );
   }
 
-  // Security Checks UI
   if (stage === 'performingSecurityChecks') {
     return (
       <main className="min-h-screen w-full flex flex-col items-center justify-center p-2 sm:p-2 bg-background text-foreground overflow-hidden">
@@ -531,7 +514,6 @@ export function SebEntryClientNew() {
     );
   }
 
-  // Starting Exam / Submitting UI
   if (stage === 'startingExamSession' || stage === 'submittingExam') {
     return (
       <div className="flex flex-col items-center justify-center text-center min-h-screen w-full p-2 sm:p-2 bg-background text-foreground overflow-hidden">
@@ -544,7 +526,6 @@ export function SebEntryClientNew() {
     );
   }
 
-  // Data not ready (should be caught by error stage if fetch fails)
   if (!examDetails || !studentProfile || !isDataReadyForExam) {
     console.error("[SebEntryClientNew Render] Critical data (examDetails, studentProfile, or isDataReady) is missing post-loading stages. Stage:", stage, "ExamDetails:", !!examDetails, "StudentProfile:", !!studentProfile, "isDataReady:", isDataReadyForExam);
     return (
@@ -561,7 +542,6 @@ export function SebEntryClientNew() {
     );
   }
 
-  // Exam In Progress UI
   if (stage === 'examInProgress') {
     return (
       <ExamTakingInterface
@@ -576,7 +556,6 @@ export function SebEntryClientNew() {
     );
   }
 
-  // Semi-Landing Page UI (ReadyToStart or ExamCompleted)
   const isEffectivelyCompleted = stage === 'examCompleted' || isPreviouslySubmitted;
   let examStatusText = "Not Started";
   if (isPreviouslySubmitted) examStatusText = "Already Submitted";
@@ -585,12 +564,11 @@ export function SebEntryClientNew() {
 
   return (
     <div className="min-h-screen w-full flex flex-col sm:flex-row bg-background text-foreground overflow-hidden p-2 sm:p-2">
-      {/* Left Column: Exam Info & Logo */}
-      <div className="w-full sm:w-2/5 lg:w-1/3 flex flex-col bg-slate-50 dark:bg-slate-800/30 p-2 sm:p-2 space-y-4 overflow-hidden">
-        <header className="flex items-center justify-start shrink-0 h-16 p-2 sm:p-0">
-          <Image src={logoAsset} alt="ZenTest Logo" width={180} height={50} className="h-12 sm:h-16 w-auto" />
+      <div className="w-full sm:w-2/5 lg:w-1/3 flex flex-col bg-slate-50 dark:bg-slate-800/30 p-4 sm:p-6 space-y-4 overflow-hidden">
+        <header className="flex items-center justify-start shrink-0 h-16">
+          <Image src={logoAsset} alt="ZenTest Logo" width={180} height={50} className="h-16 w-auto" />
         </header>
-        <div className="flex-grow overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600 p-2 sm:p-0">
+        <div className="flex-grow overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600">
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">{examDetails.title}</h1>
           {examDetails.description && <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{examDetails.description}</p>}
           
@@ -605,7 +583,7 @@ export function SebEntryClientNew() {
             <p className="flex items-center gap-2 text-muted-foreground"><ListChecks className="h-4 w-4 text-primary shrink-0 stroke-width-1.5" /> Backtracking: <span className="font-medium text-foreground">{examDetails.allow_backtracking ? 'Allowed' : 'Not Allowed'}</span></p>
           </div>
         </div>
-        <div className="mt-auto p-2 sm:p-0 shrink-0">
+        <div className="mt-auto shrink-0">
           {showExitSebButton && (
             <Button variant="outline" onClick={handleExitSeb} className="w-full btn-outline-subtle py-2.5 rounded-md text-sm">
               <LogOut className="mr-2 h-4 w-4 stroke-width-1.5" /> Exit SEB
@@ -614,9 +592,8 @@ export function SebEntryClientNew() {
         </div>
       </div>
 
-      {/* Right Column: User Info, Status, Actions, Rules */}
-      <div className="w-full sm:w-3/5 lg:w-2/3 flex flex-col p-2 sm:p-2 space-y-6 bg-background overflow-hidden">
-        <div className="flex justify-end items-start shrink-0 p-2 sm:p-0">
+      <div className="w-full sm:w-3/5 lg:w-2/3 flex flex-col p-4 sm:p-6 space-y-6 bg-background overflow-hidden">
+        <div className="flex justify-end items-start shrink-0">
           <div className="flex items-center gap-3 p-3 border border-border/20 rounded-lg bg-card shadow-sm">
             <Avatar className="h-12 w-12 sm:h-16 sm:w-16 border-2 border-primary/60">
               <AvatarImage src={studentProfile.avatar_url || undefined} alt={studentProfile.name || 'Student'} />
@@ -632,7 +609,7 @@ export function SebEntryClientNew() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 shrink-0 px-2 sm:px-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 shrink-0">
           <div className="border border-border/20 rounded-lg p-4 sm:p-6 text-center bg-card shadow-sm">
             <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Exam Duration</p>
             <p className="text-3xl sm:text-4xl font-bold text-foreground tabular-nums">{examDetails.duration} minutes</p>
@@ -662,7 +639,7 @@ export function SebEntryClientNew() {
           </ul>
         </div>
 
-        <div className="flex justify-center mt-auto pt-4 shrink-0 px-2 sm:px-0">
+        <div className="flex justify-center mt-auto pt-4 shrink-0">
           {isEffectivelyCompleted ? (
             <TooltipProvider delayDuration={100}>
               <Tooltip>
@@ -693,4 +670,3 @@ export function SebEntryClientNew() {
     </div>
   );
 }
-
