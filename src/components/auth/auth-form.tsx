@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, EyeOff, User, Mail, Lock, Loader2, Briefcase, ArrowRight, AlertTriangle, LogIn } from 'lucide-react'; // Added LogIn here
+import { Eye, EyeOff, User, Mail, Lock, Loader2, Briefcase, ArrowRight, AlertTriangle, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { CustomUser } from '@/types/supabase';
@@ -119,7 +119,7 @@ export function AuthForm() {
   if (authContextLoading && pathname === AUTH_ROUTE && user === null) {
     console.log('[AuthForm] AuthContext initial loading state on /auth. Showing AuthForm page loader.');
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-10rem)] py-12 bg-gradient-to-br from-slate-100 via-gray-200 to-slate-200 dark:from-slate-900 dark:via-slate-800 dark:to-gray-900">
+      <div className="flex items-center justify-center min-h-[calc(100vh-10rem)] py-12"> {/* Removed specific bg from wrapper */}
         <Card className="p-6 glass-card text-center">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary mb-3"/>
             <p className="text-md font-medium text-foreground">Verifying session...</p>
@@ -128,11 +128,10 @@ export function AuthForm() {
     );
   }
 
-  // If user is authenticated (user object exists) AND auth context is done loading AND we are still on /auth page
   if (!authContextLoading && user && pathname === AUTH_ROUTE) {
     console.log(`[AuthForm] User is authenticated (${user.email}), AuthContext loaded, but still on /auth. AuthContext should be redirecting. Displaying "Finalizing..." message.`);
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] py-12 bg-gradient-to-br from-slate-100 via-gray-200 to-slate-200 dark:from-slate-900 dark:via-slate-800 dark:to-gray-900">
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] py-12"> {/* Removed specific bg from wrapper */}
         <Card className="p-8 glass-card text-center shadow-xl">
           <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary mb-4"/>
           <p className="text-lg font-semibold text-foreground">Finalizing session for {user.email}...</p>
@@ -161,8 +160,8 @@ export function AuthForm() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-10rem)] py-12 px-4 bg-gradient-to-br from-slate-100 via-gray-200 to-slate-200 dark:from-slate-900 dark:via-slate-800 dark:to-gray-900">
-      <Card className="w-full max-w-md modern-card shadow-xl border-border/50"> {/* Changed to modern-card for consistency */}
+    <div className="flex items-center justify-center min-h-[calc(100vh-10rem)] py-12 px-4"> {/* Removed specific bg from wrapper */}
+      <Card className="w-full max-w-md modern-card shadow-xl border-border/50">
         <Tabs value={action} onValueChange={handleTabChange} className="w-full">
            <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-3">
             <TabsList className="grid w-full grid-cols-2 bg-muted/70 dark:bg-muted/40 p-1 rounded-md backdrop-blur-sm">
