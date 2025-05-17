@@ -197,28 +197,28 @@ export function ExamTakingInterface({
 
   if (parentIsLoading && !isSubmittingInternally) { 
     return (
-      <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-slate-900/80 dark:bg-slate-900/80 backdrop-blur-md p-6 text-center text-white dark:text-white">
-          <Loader2 className="h-16 w-16 text-blue-400 dark:text-blue-400 animate-spin mb-6 stroke-width-1.5" />
+      <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-background/80 backdrop-blur-md p-6 text-center text-foreground">
+          <Loader2 className="h-16 w-16 text-primary animate-spin mb-6 stroke-width-1.5" />
           <h2 className="text-xl font-medium mb-2">Submitting Exam...</h2>
-          <p className="text-sm text-slate-300 dark:text-slate-300">Please wait.</p>
+          <p className="text-sm text-muted-foreground">Please wait.</p>
       </div>
     );
   }
   if (isSubmittingInternally && !parentIsLoading) { 
      return (
-      <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-slate-900/80 dark:bg-slate-900/80 backdrop-blur-md p-6 text-center text-white dark:text-white">
-          <Loader2 className="h-16 w-16 text-blue-400 dark:text-blue-400 animate-spin mb-6 stroke-width-1.5" />
+      <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-background/80 backdrop-blur-md p-6 text-center text-foreground">
+          <Loader2 className="h-16 w-16 text-primary animate-spin mb-6 stroke-width-1.5" />
           <h2 className="text-xl font-medium mb-2">Processing Submission...</h2>
-          <p className="text-sm text-slate-300 dark:text-slate-300">Please wait.</p>
+          <p className="text-sm text-muted-foreground">Please wait.</p>
       </div>
     );
   }
 
   // Main container defaults to bg-background and text-foreground from SEB layout
   return (
-    <div className="min-h-screen w-full flex flex-col">
-      {/* Header: Glassmorphic style for light theme */}
-      <header className="h-20 px-4 sm:px-6 flex items-center justify-between border-b border-border/40 bg-card/80 backdrop-blur-md shadow-sm shrink-0">
+    <div className="min-h-screen w-full flex flex-col bg-background text-foreground">
+      {/* Header: Use bg-card for light theme */}
+      <header className="h-20 px-4 sm:px-6 flex items-center justify-between border-b border-border bg-card shadow-sm shrink-0">
         <div className="flex items-center gap-2">
           <Image src={logoAsset} alt="ZenTest Logo" width={180} height={50} className="h-16 w-auto" />
         </div>
@@ -236,8 +236,8 @@ export function ExamTakingInterface({
         </div>
       </header>
 
-      {/* Timer and Submit Button Bar: Glassmorphic style */}
-      <div className="h-14 px-4 sm:px-6 flex items-center justify-between border-b border-border/40 bg-card/80 backdrop-blur-md shadow-sm shrink-0">
+      {/* Timer and Submit Button Bar: Use bg-card */}
+      <div className="h-14 px-4 sm:px-6 flex items-center justify-between border-b border-border bg-card shadow-sm shrink-0">
         <div className="flex items-center gap-2 text-foreground">
           <Clock size={20} className="text-primary stroke-width-1.5" />
           <span className="font-medium text-sm">Time remaining:</span>
@@ -254,7 +254,7 @@ export function ExamTakingInterface({
                     Submit Exam
                 </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="glass-card border-border"> {/* Use glass-card for dialog */}
+            <AlertDialogContent className="glass-card border-border bg-card text-card-foreground">
                 <AlertDialogHeader>
                 <AlertDialogTitle className="text-foreground">Confirm Submission</AlertDialogTitle>
                 <AlertDialogDescription className="text-muted-foreground">
@@ -276,8 +276,8 @@ export function ExamTakingInterface({
 
       {/* Main Content Area: Question display */}
       <main className="flex-1 flex flex-col py-6 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-24 overflow-y-auto">
-        {/* Question Text Card: Glassmorphic style */}
-        <div className="w-full bg-card/80 backdrop-blur-md border border-border/40 rounded-lg shadow-lg p-6 sm:p-8 mb-6">
+        {/* Question Text Card: Use bg-card */}
+        <div className="w-full bg-card border border-border rounded-lg shadow-lg p-6 sm:p-8 mb-6">
           <div className="mb-4 flex justify-between items-center">
             <p className="text-lg sm:text-xl font-semibold text-primary">
               Question {currentQuestionIndex + 1} <span className="text-sm font-normal text-muted-foreground">of {totalQuestions}</span>
@@ -291,9 +291,9 @@ export function ExamTakingInterface({
           </h2>
         </div>
 
-        {/* Options Card: Glassmorphic style */}
+        {/* Options Card: Use bg-card */}
         {currentQuestion && (
-          <div className="w-full bg-card/80 backdrop-blur-md border border-border/40 rounded-lg shadow-lg p-6 sm:p-8">
+          <div className="w-full bg-card border border-border rounded-lg shadow-lg p-6 sm:p-8">
             <RadioGroup
               key={currentQuestion.id}
               value={answers[currentQuestion.id] || ''}
@@ -309,11 +309,11 @@ export function ExamTakingInterface({
                   key={option.id}
                   htmlFor={`opt-${currentQuestion.id}-${option.id}`}
                   className={cn(
-                    "flex items-center space-x-3 p-4 border rounded-lg transition-all duration-150 ease-in-out cursor-pointer text-base text-foreground",
-                    "hover:shadow-md hover:border-primary/70",
+                    "flex items-center space-x-3 p-4 border rounded-lg transition-all duration-150 ease-in-out cursor-pointer text-base",
+                    "hover:shadow-md",
                     answers[currentQuestion.id] === option.id
-                      ? "bg-primary/20 border-primary ring-2 ring-primary/80 text-primary-foreground" // Adjusted for light theme selection
-                      : "bg-background/50 border-border hover:bg-muted/50",
+                      ? "bg-blue-100 border-blue-500 text-blue-700 dark:bg-blue-700 dark:border-blue-500 dark:text-blue-100" // Selected styles
+                      : "bg-card border-border text-card-foreground hover:bg-muted/30 dark:hover:bg-muted/10", // Unselected styles
                     (parentIsLoading || isSubmittingInternally) && "cursor-not-allowed opacity-70"
                   )}
                 >
@@ -331,8 +331,8 @@ export function ExamTakingInterface({
         )}
       </main>
 
-      {/* Footer: Navigation, Glassmorphic style */}
-      <footer className="h-20 px-4 sm:px-6 flex items-center justify-between border-t border-border/40 bg-card/80 backdrop-blur-md shadow-sm shrink-0">
+      {/* Footer: Navigation, Use bg-card */}
+      <footer className="h-20 px-4 sm:px-6 flex items-center justify-between border-t border-border bg-card shadow-sm shrink-0">
         <Button
           variant="outline"
           onClick={handlePreviousQuestion}
@@ -352,11 +352,11 @@ export function ExamTakingInterface({
                 className={cn(
                   "h-10 w-10 text-sm rounded-md shrink-0 font-medium shadow",
                   currentQuestionIndex === index
-                    ? "btn-primary-solid" // Use primary solid for current
+                    ? "btn-primary-solid" 
                     : "bg-card border-border text-foreground hover:bg-muted",
-                  answers[q.id] && currentQuestionIndex !== index ? "bg-green-500/20 border-green-500 text-green-700 hover:bg-green-500/30" : "",
-                  markedForReview[q.id] && currentQuestionIndex !== index && !answers[q.id] ? "bg-purple-500/20 border-purple-500 text-purple-700 hover:bg-purple-500/30" : "",
-                  markedForReview[q.id] && currentQuestionIndex !== index && answers[q.id] ? "bg-purple-500/20 border-purple-500 text-purple-700 ring-2 ring-green-500 hover:bg-purple-500/30" : "",
+                  answers[q.id] && currentQuestionIndex !== index ? "bg-green-100 border-green-500 text-green-700 hover:bg-green-200 dark:bg-green-700/30 dark:border-green-600 dark:text-green-300" : "",
+                  markedForReview[q.id] && currentQuestionIndex !== index && !answers[q.id] ? "bg-purple-100 border-purple-500 text-purple-700 hover:bg-purple-200 dark:bg-purple-700/30 dark:border-purple-600 dark:text-purple-300" : "",
+                  markedForReview[q.id] && currentQuestionIndex !== index && answers[q.id] ? "bg-purple-100 border-purple-500 text-purple-700 ring-1 ring-green-500 hover:bg-purple-200 dark:bg-purple-700/30 dark:border-purple-600 dark:text-purple-300 dark:ring-green-400" : "",
                   (!allowBacktracking && index < currentQuestionIndex) && "opacity-60 cursor-not-allowed"
                 )}
                 onClick={() => handleQuestionNavigation(index)}
