@@ -13,7 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import type { Exam, CustomUser } from '@/types/supabase';
 import { getEffectiveExamStatus } from '@/app/(app)/teacher/dashboard/exams/[examId]/details/page';
 import { useAuth } from '@/contexts/AuthContext';
-import jwt from 'jsonwebtoken';
+// Removed: import jwt from 'jsonwebtoken'; - No longer signing on client
+import { getSafeErrorMessage, logErrorToBackend } from '@/lib/error-logging';
 
 
 export default function JoinExamPage() {
@@ -57,7 +58,7 @@ export default function JoinExamPage() {
         .single();
 
       if (examFetchError || !exam) {
-        const errMsg = examFetchError?.message || "Exam code not found or error fetching exam.";
+        const errMsg = getSafeErrorMessage(examFetchError, "Exam code not found or error fetching exam.");
         toast({ title: "Invalid Code", description: errMsg, variant: "destructive" });
         setLocalError(errMsg);
         setIsLoading(false);
@@ -82,26 +83,42 @@ export default function JoinExamPage() {
         return;
       }
       
-      const jwtSecret = process.env.NEXT_PUBLIC_JWT_SECRET; 
-      if (!jwtSecret) {
-        console.error(`${operationId} NEXT_PUBLIC_JWT_SECRET is not defined in environment variables for client-side token generation.`);
-        const jwtErrorMsg = "Configuration error: Cannot create secure exam token.";
-        toast({ title: "Launch Error", description: jwtErrorMsg, variant: "destructive" });
-        setLocalError(jwtErrorMsg);
+      // Generate JWT via API route
+      console.log(`${operationId} Requesting SEB entry JWT from API for student: ${studentUser.user_id}, exam: ${exam.exam_id}`);
+      const tokenResponse = await fetch('/api/generate-seb-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: studentUser.user_id, examId: exam.exam_id }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorBody = await tokenResponse.json().catch(() => ({ error: `API error: ${tokenResponse.statusText}` }));
+        const errMsg = getSafeErrorMessage(errorBody, "Failed to generate secure exam token from API.");
+        console.error(`${operationId} API Error generating token: ${tokenResponse.status}`, errorBody);
+        toast({ title: "Launch Error", description: errMsg, variant: "destructive" });
+        setLocalError(errMsg);
         setIsLoading(false);
+        await logErrorToBackend(new Error(errMsg), 'JoinExamPage-GenerateTokenAPIFail', { status: tokenResponse.status, response: errorBody, studentId: studentUser.user_id, examId: exam.exam_id });
         return;
       }
 
-      const jwtPayload = {
-        studentId: studentUser.user_id,
-        examId: exam.exam_id,
-      };
-      const sebEntryTokenValue = jwt.sign(jwtPayload, jwtSecret, { expiresIn: '1h' }); 
+      const { token: sebEntryTokenValue } = await tokenResponse.json();
+
+      if (!sebEntryTokenValue) {
+        const errMsg = "API did not return a token.";
+        console.error(`${operationId} ${errMsg}`);
+        toast({ title: "Launch Error", description: errMsg, variant: "destructive" });
+        setLocalError(errMsg);
+        setIsLoading(false);
+        await logErrorToBackend(new Error(errMsg), 'JoinExamPage-NoTokenFromAPI', { studentId: studentUser.user_id, examId: exam.exam_id });
+        return;
+      }
       
-      console.log(`${operationId} Generated SEB entry JWT:`, sebEntryTokenValue ? sebEntryTokenValue.substring(0,20) + "..." : "GENERATION FAILED");
+      console.log(`${operationId} Received SEB entry JWT from API:`, sebEntryTokenValue ? sebEntryTokenValue.substring(0,20) + "..." : "TOKEN_GENERATION_FAILED_OR_EMPTY");
 
       const appDomain = window.location.origin;
-      const sebEntryPageUrl = `${appDomain}/seb/entry?token=${sebEntryTokenValue}`;
+      // The API for token validation expects the token as a query parameter
+      const sebEntryPageUrl = `${appDomain}/seb/entry?token=${sebEntryTokenValue}`; 
       
       const domainAndPathForSeb = sebEntryPageUrl.replace(/^https?:\/\//, '');
       const sebLaunchUrl = `sebs://${domainAndPathForSeb}`;
@@ -119,20 +136,19 @@ export default function JoinExamPage() {
       setTimeout(() => {
         if (window.location.pathname.includes('join-exam')) { 
           setIsLoading(false); 
-          setLocalError("SEB launch may have been blocked or failed. If SEB did not start, check your browser's pop-up settings or SEB installation.");
+          const sebFailMsg = "SEB launch may have been blocked or failed. If SEB did not start, check your browser's pop-up settings or SEB installation.";
+          setLocalError(sebFailMsg);
           toast({ title: "SEB Launch Issue?", description: "If SEB did not open, please check pop-up blockers and ensure SEB is installed correctly.", variant: "destructive", duration: 10000});
         }
       }, 8000);
 
     } catch (e: any) {
+      const exceptionMsg = getSafeErrorMessage(e, "An unexpected error occurred during exam join process.");
       console.error(`${operationId} Exception during handleSubmit:`, e);
-      let exceptionMsg = e.message || "An unexpected error occurred.";
-      if (e.name === 'JsonWebTokenError' || e.name === 'TokenExpiredError') {
-        exceptionMsg = `JWT Error: ${e.message}`;
-      }
       toast({ title: "Error", description: exceptionMsg, variant: "destructive" });
       setLocalError(exceptionMsg);
       setIsLoading(false);
+      await logErrorToBackend(e, 'JoinExamPage-SubmitException', { examCode });
     }
   }, [examCode, authSupabase, toast, studentUser, authLoading, router]);
 
@@ -245,4 +261,6 @@ export default function JoinExamPage() {
     </div>
   );
 }
+    
+
     
