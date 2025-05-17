@@ -4,38 +4,15 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { Exam, Question, ExamSubmissionInsert, FlaggedEvent, CustomUser, ErrorLogInsert } from '@/types/supabase';
+import type { Exam, Question, ExamSubmissionInsert, FlaggedEvent, CustomUser } from '@/types/supabase';
 import { ExamTakingInterface } from '@/components/shared/exam-taking-interface';
 import { Loader2, AlertTriangle, ShieldAlert, ServerCrash, XCircle, CheckCircle, LogOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { isSebEnvironment, attemptBlockShortcuts, disableContextMenu, disableCopyPaste, isOnline, areDevToolsLikelyOpen, isWebDriverActive } from '@/lib/seb-utils';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Added Alert components
+import { isSebEnvironment, attemptBlockShortcuts, disableContextMenu, disableCopyPaste, isOnline, areDevToolsLikelyOpen, isWebDriverActive, addInputRestrictionListeners } from '@/lib/seb-utils';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; 
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-
-// Helper function to log errors to backend (duplicated for standalone use if needed, or import from a shared util)
-async function logErrorToBackend(error: any, location: string, userContext?: object) {
-  try {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorDetails = error instanceof Error ? { name: error.name, stack: error.stack } : error;
-    
-    const payload: ErrorLogInsert = {
-      location,
-      error_message: errorMessage,
-      error_details: errorDetails,
-      user_context: userContext || null,
-    };
-    
-    await fetch('/api/log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-  } catch (loggingError) {
-    console.error(`[${location}] Failed to log error to backend:`, loggingError);
-  }
-}
+import { logErrorToBackend } from '@/lib/error-logging'; // Import shared logger
 
 
 export function SebLiveTestClient() {
@@ -124,10 +101,12 @@ export function SebLiveTestClient() {
         ]);
 
         if (examRes.error || !examRes.data) {
-          throw new Error(examRes.error?.message || "Exam not found.");
+          const errorMsg = (examRes.error && typeof examRes.error.message === 'string') ? examRes.error.message : "Exam not found.";
+          throw new Error(errorMsg);
         }
         if (studentRes.error || !studentRes.data) {
-          throw new Error(studentRes.error?.message || "Student profile not found.");
+          const errorMsg = (studentRes.error && typeof studentRes.error.message === 'string') ? studentRes.error.message : "Student profile not found.";
+          throw new Error(errorMsg);
         }
 
         const currentExam = examRes.data as Exam;
@@ -140,29 +119,26 @@ export function SebLiveTestClient() {
         setStudentProfile(studentRes.data as Pick<CustomUser, 'user_id' | 'name' | 'avatar_url' | 'email'>);
         console.log(`${effectId} Exam (${currentExam.title}) and student (${studentRes.data.name}) data fetched.`);
         
-        // Upsert "In Progress" status - this should have been done by SebEntryClientNew.
-        // Re-confirming or simply proceeding is fine here.
-        // The primary guard against re-entry is now in /api/seb/validate-token
         const { error: submissionUpsertError } = await supabase
           .from('ExamSubmissionsX')
           .upsert({
               exam_id: currentExam.exam_id,
               student_user_id: studentIdFromUrl,
-              status: 'In Progress', // This status might be redundant if validate-token is the only entry point.
+              status: 'In Progress', 
               started_at: new Date().toISOString() 
           }, { onConflict: 'exam_id, student_user_id' }) 
           .select();
         
         if (submissionUpsertError) {
           console.warn(`${effectId} Error upserting 'In Progress' submission (might be okay if already set):`, submissionUpsertError.message);
-          // Not critical enough to stop the exam if it's just a re-confirmation
         }
         setPageError(null);
       } catch (e: any) {
         console.error(`${effectId} Error fetching data:`, e.message);
-        setPageError(e.message || "Failed to load exam data.");
-        toast({ title: "Exam Load Error", description: e.message + " SEB will quit.", variant: "destructive", duration: 7000 });
-        logErrorToBackend(e, 'SebLiveTestClient-FetchData-Exception', { examIdFromUrl, studentIdFromUrl });
+        const errorMessage = (e && typeof e.message === 'string') ? e.message : String(e);
+        setPageError(errorMessage || "Failed to load exam data.");
+        toast({ title: "Exam Load Error", description: (errorMessage || "Unknown error") + " SEB will quit.", variant: "destructive", duration: 7000 });
+        await logErrorToBackend(e, 'SebLiveTestClient-FetchData-Exception', { examIdFromUrl, studentIdFromUrl });
         setTimeout(handleSebQuit, 6000);
       } finally {
         setPageIsLoading(false); 
@@ -181,7 +157,7 @@ export function SebLiveTestClient() {
 
 
   useEffect(() => {
-    if (!isSebEnvironment() || pageError || !examDetails) return;
+    if (!isSebEnvironment() || pageError || !examDetails || !enabled) return; // Added enabled check from props
 
     const effectId = `[SebLiveTestClient SecurityListeners ${Date.now().toString().slice(-4)}]`;
     console.log(`${effectId} Adding SEB security event listeners.`);
@@ -208,23 +184,23 @@ export function SebLiveTestClient() {
       document.removeEventListener('paste', disableCopyPaste);
       window.removeEventListener('beforeunload', beforeUnloadHandler);
     };
-  }, [pageError, examDetails, toast]); 
+  }, [pageError, examDetails, toast, enabled]); // Added enabled to dependency array
 
 
   const handleActualSubmit = useCallback(async (answers: Record<string, string>, flaggedEvents: FlaggedEvent[], submissionType: 'submit' | 'timeup') => {
     const operationId = `[SebLiveTestClient handleActualSubmit ${Date.now().toString().slice(-4)}]`;
     if (!studentIdFromUrl || !examDetails) {
         toast({title: "Submission Error", description: "Student or Exam details missing for submission.", variant: "destructive"});
-        logErrorToBackend(new Error("Student or Exam details missing for submission"), 'SebLiveTestClient-ActualSubmit-MissingDetails', { studentIdFromUrl, examId: examDetails?.exam_id });
+        await logErrorToBackend(new Error("Student or Exam details missing for submission"), 'SebLiveTestClient-ActualSubmit-MissingDetails', { studentIdFromUrl, examId: examDetails?.exam_id });
         return;
     }
     
-    const submissionPayload: Omit<ExamSubmissionInsert, 'submission_id' | 'started_at' | 'score'> = {
+    const submissionPayload = { // Omit<ExamSubmissionInsert, 'submission_id' | 'started_at' | 'score'>
         exam_id: examDetails.exam_id,
         student_user_id: studentIdFromUrl,
         answers: answers,
         flagged_events: flaggedEvents.length > 0 ? flaggedEvents : null,
-        status: 'Completed',
+        status: 'Completed' as 'Completed',
         submitted_at: new Date().toISOString(),
     };
 
@@ -238,16 +214,17 @@ export function SebLiveTestClient() {
 
       if (!response.ok) {
         let errorMsg = `Failed to submit with status: ${response.status}`;
+        let errorResponseData = null;
         try {
-            const errorResult = await response.json();
-            errorMsg = errorResult.error || errorMsg;
+            errorResponseData = await response.json();
+            errorMsg = (errorResponseData && typeof errorResponseData.error === 'string') ? errorResponseData.error : errorMsg;
         } catch (e) {
             errorMsg = response.statusText || errorMsg;
             console.warn(`${operationId} Could not parse error response as JSON. Status: ${response.status}, StatusText: ${response.statusText}`);
         }
         setPageError("Failed to submit exam: " + errorMsg + ". Please contact support. SEB will quit.");
         toast({ title: "Submission Error", description: errorMsg + ". Quitting SEB.", variant: "destructive", duration: 10000 });
-        logErrorToBackend(new Error(errorMsg), 'SebLiveTestClient-ActualSubmit-APIError', { status: response.status, studentIdFromUrl, examId: examDetails.exam_id });
+        await logErrorToBackend(new Error(errorMsg), 'SebLiveTestClient-ActualSubmit-APIError', { status: response.status, response: errorResponseData, studentIdFromUrl, examId: examDetails.exam_id });
         setTimeout(handleSebQuit, 9000);
         return;
       }
@@ -258,13 +235,14 @@ export function SebLiveTestClient() {
       setIsSubmitted(true);
       if (typeof window !== 'undefined') sessionStorage.setItem(`exam-${examDetails.exam_id}-finished`, 'true');
       toast({ title: submissionType === 'submit' ? "Exam Submitted!" : "Exam Auto-Submitted!", description: "Your responses have been recorded. SEB will now quit.", duration: 10000 });
-      setTimeout(handleSebQuit, 9000); // Auto-quit SEB after successful submission and toast
+      setTimeout(handleSebQuit, 9000); 
 
     } catch(e: any) {
       console.error(`${operationId} Submission API error:`, e.message, e);
-      setPageError("Failed to submit exam: " + e.message + ". Please contact support. SEB will quit.");
-      toast({ title: "Submission Error", description: e.message + ". Quitting SEB.", variant: "destructive", duration: 10000 });
-      logErrorToBackend(e, 'SebLiveTestClient-ActualSubmit-Exception', { studentIdFromUrl, examId: examDetails.exam_id });
+      const errorMessage = (e && typeof e.message === 'string') ? e.message : String(e);
+      setPageError("Failed to submit exam: " + errorMessage + ". Please contact support. SEB will quit.");
+      toast({ title: "Submission Error", description: errorMessage + ". Quitting SEB.", variant: "destructive", duration: 10000 });
+      await logErrorToBackend(e, 'SebLiveTestClient-ActualSubmit-Exception', { studentIdFromUrl, examId: examDetails.exam_id });
       setTimeout(handleSebQuit, 9000);
     }
   }, [studentIdFromUrl, examDetails, toast, handleSebQuit]);
@@ -322,8 +300,6 @@ export function SebLiveTestClient() {
   }
 
   if (isSubmitted) {
-    // This state is now primarily handled by SebEntryClientNew.tsx, which will show "Exam Completed" and an Exit SEB button.
-    // If somehow this component remains mounted and isSubmitted is true, show a fallback.
     return (
       <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-background/90 backdrop-blur-md p-6 text-center">
         <Alert className="w-full max-w-lg shadow-2xl p-8 bg-card border-green-500">

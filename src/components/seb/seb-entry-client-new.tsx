@@ -8,17 +8,18 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Card might still be used for discrete sections like security checks
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, AlertTriangle, PlayCircle, ShieldCheck, XCircle, Info, LogOut, ServerCrash, CheckCircle, Ban, CircleSlash, BookOpen, UserCircle2, CalendarDays, ListChecks } from 'lucide-react';
-import type { Exam, CustomUser, FlaggedEvent, ErrorLogInsert } from '@/types/supabase';
+import type { Exam, CustomUser, FlaggedEvent } from '@/types/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { format, isValid as isValidDate, parseISO } from 'date-fns';
-import { isSebEnvironment, isOnline, areDevToolsLikelyOpen, isWebDriverActive, disableContextMenu, attemptBlockShortcuts, disableCopyPaste, addInputRestrictionListeners } from '@/lib/seb-utils';
+import { isSebEnvironment, isOnline, areDevToolsLikelyOpen, isWebDriverActive, disableContextMenu, attemptBlockShortcuts, disableCopyPaste } from '@/lib/seb-utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { ExamTakingInterface } from '@/components/shared/exam-taking-interface';
 import logoAsset from '../../../logo.png';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
+import { logErrorToBackend } from '@/lib/error-logging'; // Import shared logger
 
 type SebStage =
   | 'initializing'
@@ -50,28 +51,6 @@ const INITIAL_SECURITY_CHECKS: SecurityCheck[] = [
 ];
 
 const TOKEN_VALIDATION_TIMEOUT_MS = 15000;
-
-async function logErrorToBackend(error: any, location: string, userContext?: object) {
-  try {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorDetails = error instanceof Error ? { name: error.name, stack: error.stack } : error;
-    
-    const payload: Omit<ErrorLogInsert, 'log_id' | 'timestamp'> = { // Use Omit for Insert type
-      location,
-      error_message: errorMessage,
-      error_details: errorDetails,
-      user_context: userContext || null,
-    };
-    
-    await fetch('/api/log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-  } catch (loggingError) {
-    console.error(`[${location}] Failed to log error to backend:`, loggingError);
-  }
-}
 
 export function SebEntryClientNew() {
   const router = useRouter();
@@ -151,21 +130,27 @@ export function SebEntryClientNew() {
           const timeoutId = setTimeout(() => controller.abort(), TOKEN_VALIDATION_TIMEOUT_MS);
 
           const res = await fetch(`/api/seb/validate-token?token=${encodeURIComponent(entryTokenFromQuery!)}`, {
-            method: 'GET',
+            method: 'GET', // Changed from POST in original to GET, based on error details in prompt
             headers: { 'Content-Type': 'application/json' },
             signal: controller.signal,
           });
           clearTimeout(timeoutId);
 
-          const data = await res.json();
+          // Robust error handling for fetch response
           if (!res.ok) {
-            console.error(`${effectId} Token validation API failed. Status: ${res.status}, Body:`, data);
-            const apiErrorMsg = data.error || `Token validation API failed: ${res.status}`;
-            setPageError(`Token validation failed: ${apiErrorMsg}.`);
-            setStage('error');
-            await logErrorToBackend(new Error(apiErrorMsg), 'SebEntryClientNew-TokenValidation-APIError', { token: entryTokenFromQuery, status: res.status, response: data });
-            return;
+            let errorData = { error: `Token validation API failed: ${res.status} ${res.statusText}` };
+            try {
+              errorData = await res.json();
+            } catch (parseError) {
+              // If parsing JSON fails, use the statusText
+              console.warn(`${effectId} Failed to parse error response from /api/seb/validate-token as JSON.`);
+            }
+            const apiErrorMsg = errorData.error || `Token validation API request failed with status: ${res.status}`;
+            console.error(`${effectId} Token validation API failed. Status: ${res.status}, Response:`, errorData);
+            throw new Error(apiErrorMsg);
           }
+          
+          const data = await res.json();
 
           setValidatedStudentId(data.studentId);
           setValidatedExamId(data.examId);
@@ -173,8 +158,9 @@ export function SebEntryClientNew() {
           setStage('fetchingDetails');
         } catch (e: any) {
           console.error(`${effectId} Exception during token validation:`, e);
-          let errorMsg = `Token validation failed: ${e.message}.`;
-          if (e.name === 'AbortError') {
+          let errorMsg = `Token validation failed: ${(e && typeof e.message === 'string') ? e.message : String(e)}.`;
+           const isDOMExceptionConstructorValid = typeof DOMException === 'function';
+          if (isDOMExceptionConstructorValid && e instanceof DOMException && e.name === 'AbortError') {
             errorMsg = "Token validation timed out. Please check your connection and try again.";
           }
           setPageError(errorMsg);
@@ -193,12 +179,12 @@ export function SebEntryClientNew() {
           ]);
 
           if (examRes.error || !examRes.data) {
-            const errorMsg = examRes.error?.message || `Exam ${validatedExamId} not found.`;
+            const errorMsg = (examRes.error && typeof examRes.error.message === 'string') ? examRes.error.message : `Exam ${validatedExamId} not found.`;
             console.error(`${effectId} Error fetching exam data:`, examRes.error);
             throw new Error(errorMsg);
           }
           if (studentRes.error || !studentRes.data) {
-            const errorMsg = studentRes.error?.message || `Student ${validatedStudentId} not found.`;
+            const errorMsg = (studentRes.error && typeof studentRes.error.message === 'string') ? studentRes.error.message : `Student ${validatedStudentId} not found.`;
             console.error(`${effectId} Error fetching student data:`, studentRes.error);
             throw new Error(errorMsg);
           }
@@ -223,7 +209,7 @@ export function SebEntryClientNew() {
           setShowExitSebButton(true);
         } catch (e: any) {
           console.error(`${effectId} Exception during data fetching:`, e);
-          setPageError(`Failed to load exam/student information: ${e.message}.`);
+          setPageError(`Failed to load exam/student information: ${(e && typeof e.message === 'string') ? e.message : String(e)}.`);
           setStage('error');
           await logErrorToBackend(e, 'SebEntryClientNew-DataFetch-Exception', { examId: validatedExamId, studentId: validatedStudentId });
         }
@@ -255,7 +241,7 @@ export function SebEntryClientNew() {
       const check = updatedChecks[i];
       updatedChecks[i] = { ...check, status: 'checking' };
       setSecurityChecks([...updatedChecks]);
-      await new Promise(resolve => setTimeout(resolve, 1200)); // Slightly increased delay
+      await new Promise(resolve => setTimeout(resolve, 1300)); // Slightly increased delay
 
       try {
         const passed = await check.checkFn();
@@ -265,7 +251,7 @@ export function SebEntryClientNew() {
         }
         console.log(`[SebEntryClientNew runSecurityChecks] Check ${check.label}: ${passed ? 'Passed' : 'Failed'}`);
       } catch (e: any) {
-        updatedChecks[i] = { ...check, status: 'failed', details: e.message || 'Error during check' };
+        updatedChecks[i] = { ...check, status: 'failed', details: (e && typeof e.message === 'string') ? e.message : 'Error during check' };
         if (check.isCritical) allCriticalPassed = false;
         console.error(`[SebEntryClientNew runSecurityChecks] Error in check ${check.label}:`, e);
         await logErrorToBackend(e, `SebEntryClientNew-SecurityCheckFailure-${check.id}`);
@@ -333,7 +319,7 @@ export function SebEntryClientNew() {
       setShowExitSebButton(false);
       console.log('[SebEntryClientNew handleStartExamSession] Stage set to examInProgress.');
     } catch (e: any) {
-      const errorMsg = `Failed to initialize exam session state: ${e.message}`;
+      const errorMsg = `Failed to initialize exam session state: ${(e && typeof e.message === 'string') ? e.message : String(e)}`;
       console.error(`[SebEntryClientNew handleStartExamSession] Exception:`, e);
       setPageError(errorMsg);
       setStage('error');
@@ -375,16 +361,13 @@ export function SebEntryClientNew() {
     setStage('submittingExam');
     setIsSubmittingViaApi(true);
 
-    const submissionPayload: Omit<ExamSubmissionInsert, 'submission_id' | 'score'> = {
+    const submissionPayload = { // Omit<ExamSubmissionInsert, 'submission_id' | 'score' | 'started_at'>
       exam_id: validatedExamId,
       student_user_id: validatedStudentId,
       answers: answers,
       flagged_events: [...activityFlagsDuringExam, ...flaggedEventsFromInterface].length > 0 ? [...activityFlagsDuringExam, ...flaggedEventsFromInterface] : null,
-      status: 'Completed',
+      status: 'Completed' as 'Completed', // Explicitly type for submission
       submitted_at: new Date().toISOString(),
-      // started_at will be set on initial 'In Progress' upsert and should not be overwritten here
-      // unless it was missed, in which case, a fallback could be:
-      // started_at: studentProfile.created_at || new Date(Date.now() - examDetails.duration * 60 * 1000).toISOString(),
     };
     console.log(`${operationId} Submitting payload:`, {...submissionPayload, answers: "{...}"});
 
@@ -394,27 +377,31 @@ export function SebEntryClientNew() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submissionPayload),
       });
-      const result = await response.json();
+      
       if (!response.ok) {
-        console.error(`${operationId} API submission failed. Status: ${response.status}, Result:`, result);
-        const apiErrorMsg = result.error || `API submission failed: ${response.status}`;
-        setPageError(apiErrorMsg); 
-        setStage('error'); 
-        toast({ title: "Submission Error", description: apiErrorMsg, variant: "destructive", duration: 10000 });
-        await logErrorToBackend(new Error(apiErrorMsg), 'SebEntryClientNew-Submit-APIError', { status: response.status, response: result });
-        return; 
+        let errorData = { error: `API submission failed: ${response.status} ${response.statusText}` };
+        try {
+            errorData = await response.json();
+        } catch (parseError) {
+             console.warn(`${operationId} Failed to parse error response from /api/seb/submit-exam as JSON.`);
+        }
+        const apiErrorMsg = errorData.error || `API submission failed: ${response.status}`;
+        console.error(`${operationId} API submission failed. Status: ${response.status}, Response:`, errorData);
+        throw new Error(apiErrorMsg);
       }
+      
+      const result = await response.json(); 
 
-      console.log(`${operationId} Submission successful via API.`);
+      console.log(`${operationId} Submission successful via API. Result:`, result);
       toast({ title: submissionType === 'submit' ? "Exam Submitted!" : "Exam Auto-Submitted!", description: "Your responses have been recorded.", duration: 6000 });
       setStage('examCompleted');
       setShowExitSebButton(true);
     } catch (e: any) {
-      const errorMsg = `Failed to submit exam: ${e.message}.`;
+      const errorMsg = `Failed to submit exam: ${(e && typeof e.message === 'string') ? e.message : String(e)}.`;
       console.error(`${operationId} Exception:`, e);
       setPageError(errorMsg);
       setStage('error');
-      toast({ title: "Submission Error", description: e.message, variant: "destructive", duration: 10000 });
+      toast({ title: "Submission Error", description: errorMsg, variant: "destructive", duration: 10000 });
       await logErrorToBackend(e, 'SebEntryClientNew-Submit-Exception');
     } finally {
       setIsSubmittingViaApi(false);
@@ -445,27 +432,27 @@ export function SebEntryClientNew() {
     const displayError = pageError || "Could not load necessary exam information. This might be due to an invalid token, network issues, or configuration problems (e.g., exam has no questions).";
     return (
       <div className="flex flex-col items-center justify-center min-h-screen w-full bg-background text-foreground p-4">
-        <Alert variant="destructive" className="w-full max-w-lg text-center p-6 sm:p-8 rounded-xl shadow-2xl border border-destructive bg-destructive/5">
+        <div className="w-full max-w-lg text-center p-6 sm:p-8 rounded-xl shadow-2xl border border-destructive bg-destructive/5">
             <XCircle className="h-16 w-16 text-destructive mx-auto mb-5" />
-            <AlertTitle className="text-2xl font-semibold mb-3 text-destructive">Exam Access Error</AlertTitle>
-            <AlertDescription className="text-sm mb-6 whitespace-pre-wrap text-destructive/90">
+            <h2 className="text-2xl font-semibold mb-3 text-destructive">Exam Access Error</h2>
+            <p className="text-sm mb-6 whitespace-pre-wrap text-destructive/90">
                 {displayError}
-            </AlertDescription>
+            </p>
             <Button onClick={handleExitSeb} className="w-full btn-gradient-destructive">Exit SEB</Button>
-        </Alert>
+        </div>
       </div>
     );
   }
 
   if (!examDetails || !studentProfile) {
-    return (
+     return (
        <div className="flex flex-col items-center justify-center text-center min-h-screen w-full bg-background text-foreground p-4">
-         <Alert variant="destructive" className="w-full max-w-lg text-center p-6 sm:p-8 rounded-xl shadow-2xl border border-destructive bg-destructive/5">
+        <div className="w-full max-w-lg text-center p-6 sm:p-8 rounded-xl shadow-2xl border border-destructive bg-destructive/5">
             <ServerCrash className="h-16 w-16 text-destructive mx-auto mb-5" />
-            <AlertTitle className="text-xl font-semibold mb-3 text-destructive">Data Error</AlertTitle>
-            <AlertDescription className="text-sm mb-6 text-destructive/90">Essential exam or student data could not be loaded. Please try again or contact support.</AlertDescription>
+            <h2 className="text-xl font-semibold mb-3 text-destructive">Data Error</h2>
+            <p className="text-sm mb-6 text-destructive/90">Essential exam or student data could not be loaded. Please try again or contact support.</p>
             <Button onClick={handleExitSeb} className="w-full max-w-xs btn-gradient-destructive">Exit SEB</Button>
-        </Alert>
+        </div>
       </div>
     );
   }
@@ -485,14 +472,14 @@ export function SebEntryClientNew() {
               <div key={check.id} className={`flex justify-between items-center p-3 rounded-md border text-sm ${
                 check.status === 'pending' ? 'border-border bg-muted/30 text-muted-foreground' :
                 check.status === 'checking' ? 'border-primary/50 bg-primary/10 text-primary animate-pulse' :
-                check.status === 'passed' ? 'border-green-500/50 bg-green-500/10 text-green-700' : // Adjusted for light theme
-                'border-destructive/50 bg-destructive/10 text-destructive' // Adjusted for light theme
+                check.status === 'passed' ? 'border-green-500/50 bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-300' :
+                'border-destructive/50 bg-red-100 text-destructive dark:bg-destructive/10 dark:text-red-300'
               }`}>
                 <span className="font-medium text-foreground">{check.label}</span>
                 {check.status === 'pending' && <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />}
                 {check.status === 'checking' && <Loader2 className="h-4 w-4 text-primary animate-spin" />}
-                {check.status === 'passed' && <CheckCircle className="h-5 w-5 text-green-600" />}
-                {check.status === 'failed' && <XCircle className="h-5 w-5 text-destructive" />}
+                {check.status === 'passed' && <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />}
+                {check.status === 'failed' && <XCircle className="h-5 w-5 text-destructive dark:text-red-400" />}
               </div>
             ))}
           </CardContent>
@@ -531,14 +518,14 @@ export function SebEntryClientNew() {
      if (!examDetails || !studentProfile || !examDetails.questions) {
         return (
              <div className="flex flex-col items-center justify-center text-center min-h-screen w-full bg-background text-foreground p-4">
-                <Alert variant="destructive" className="w-full max-w-lg text-center p-6 sm:p-8 rounded-xl shadow-2xl border border-destructive bg-destructive/5">
+                <div className="w-full max-w-lg text-center p-6 sm:p-8 rounded-xl shadow-2xl border border-destructive bg-destructive/5">
                     <ServerCrash className="h-16 w-16 text-destructive mx-auto mb-5" />
-                    <AlertTitle className="text-xl font-semibold mb-3 text-destructive">Application Error</AlertTitle>
-                    <AlertDescription className="text-sm mb-6 text-destructive/90">
+                    <h2 className="text-xl font-semibold mb-3 text-destructive">Application Error</h2>
+                    <p className="text-sm mb-6 text-destructive/90">
                         Critical data missing for starting the exam. Please contact support.
-                    </AlertDescription>
+                    </p>
                     <Button onClick={handleExitSeb} className="w-full max-w-xs btn-gradient-destructive">Exit SEB</Button>
-                </Alert>
+                </div>
             </div>
         );
     }
@@ -562,20 +549,21 @@ export function SebEntryClientNew() {
 
   const isExamCompleted = stage === 'examCompleted';
   let examStatusText = "Not Started";
-  let statusTextColor = "text-yellow-600"; 
+  let statusTextColor = "text-yellow-600 dark:text-yellow-400"; 
 
   if (isExamCompleted) {
     examStatusText = "Completed";
-    statusTextColor = "text-green-600";
+    statusTextColor = "text-green-600 dark:text-green-400";
   } else if (stage === 'readyToStart') {
     examStatusText = "Ready to Start";
-    statusTextColor = "text-blue-600";
+    statusTextColor = "text-blue-600 dark:text-blue-400";
   }
 
+  // Full-screen two-column layout for 'readyToStart' and 'examCompleted'
   return (
     <div className="min-h-screen w-full flex flex-col sm:flex-row bg-background text-foreground">
       {/* Left Column - Exam Info */}
-      <div className="w-full sm:w-1/3 bg-slate-50 p-6 sm:p-10 flex flex-col justify-between border-r border-border">
+      <div className="w-full sm:w-1/3 bg-slate-50 dark:bg-slate-900/50 p-6 sm:p-10 flex flex-col justify-between border-r border-border">
         <div>
           <Image src={logoAsset} alt="ZenTest Logo" width={180} height={50} className="mb-6 sm:mb-10 h-16 w-auto" />
           <div className="space-y-3">
@@ -604,7 +592,7 @@ export function SebEntryClientNew() {
       </div>
 
       {/* Right Column - User Info & Actions */}
-      <div className="w-full sm:w-2/3 p-6 sm:p-10 flex flex-col">
+      <div className="w-full sm:w-2/3 p-6 sm:p-10 flex flex-col bg-background">
         <div className="flex justify-end items-start mb-auto">
           <div className="text-right space-y-1 p-3 sm:p-4 bg-card rounded-lg shadow border border-border/50">
             <div className="flex items-center justify-end gap-2 sm:gap-3">
@@ -666,4 +654,3 @@ export function SebEntryClientNew() {
     </div>
   );
 }
-
