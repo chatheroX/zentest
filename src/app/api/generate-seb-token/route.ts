@@ -33,14 +33,11 @@ export async function POST(request: NextRequest) {
   const operationId = `[API GenerateSEBToken POST ${Date.now().toString().slice(-5)}]`;
   console.log(`${operationId} Handler started.`);
 
-  // IMPORTANT: Using NEXT_PUBLIC_JWT_SECRET as per user's .env configuration for deployment.
-  // For better security, consider using a non-public server-side variable if your deployment allows.
   const jwtSecret = process.env.NEXT_PUBLIC_JWT_SECRET;
 
   if (!jwtSecret) {
     const errorMsg = 'CRITICAL: NEXT_PUBLIC_JWT_SECRET is not configured on the server. This is required for token generation.';
     console.error(`${operationId} ${errorMsg}`);
-    // Do not call logErrorToBackend here as it was removed
     return NextResponse.json({ error: 'Server configuration error (JWT secret missing for generation).' }, { status: 500 });
   }
   console.log(`${operationId} NEXT_PUBLIC_JWT_SECRET is available (length: ${jwtSecret.length}).`);
@@ -53,8 +50,9 @@ export async function POST(request: NextRequest) {
     const { studentId, examId } = body;
 
     if (!studentId || !examId) {
-      console.warn(`${operationId} Missing studentId or examId in request body. Body:`, body);
-      return NextResponse.json({ error: 'Missing studentId or examId in request.' }, { status: 400 });
+      const errorMsg = "Missing studentId or examId in request body.";
+      console.warn(`${operationId} ${errorMsg} Body:`, body);
+      return NextResponse.json({ error: errorMsg }, { status: 400 });
     }
     console.log(`${operationId} Extracted studentId: ${studentId}, examId: ${examId}`);
 
@@ -69,9 +67,10 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     const errorMessage = getLocalSafeErrorMessage(error, 'An unexpected error occurred during token generation.');
     console.error(`${operationId} Exception during token generation:`, errorMessage, error);
-    // Do not call logErrorToBackend here as it was removed
+    // Removed call to logErrorToBackend as it was deleted
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
 console.log('[API GenerateSEBToken MODULE SCOPE] Minimal test version loaded successfully.');
+

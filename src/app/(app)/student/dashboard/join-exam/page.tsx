@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import type { Exam, CustomUser } from '@/types/supabase';
 import { getEffectiveExamStatus } from '@/app/(app)/teacher/dashboard/exams/[examId]/details/page';
 import { useAuth } from '@/contexts/AuthContext';
+// Removed: import jwt from 'jsonwebtoken'; - No longer signing on client
+// Removed: import { getSafeErrorMessage, logErrorToBackend } from '@/lib/error-logging';
 
 
 export default function JoinExamPage() {
@@ -92,16 +94,20 @@ export default function JoinExamPage() {
       });
 
       if (!tokenResponse.ok) {
-        let errorBody = { error: `API error: ${tokenResponse.statusText}` };
+        let errorBodyText = `API error: ${tokenResponse.status} ${tokenResponse.statusText}`;
+        let errorBodyJson = null;
         try {
-          errorBody = await tokenResponse.json();
+          errorBodyJson = await tokenResponse.json();
+          if (errorBodyJson && typeof errorBodyJson.error === 'string') {
+            errorBodyText = errorBodyJson.error;
+          }
         } catch (jsonParseError) {
           console.error(`${operationId} Failed to parse error response from /api/generate-seb-token as JSON.`);
+          // errorBodyText remains as the statusText based message
         }
-        const errMsg = (errorBody?.error && typeof errorBody.error === 'string' ? errorBody.error : `Failed to generate secure exam token. Status: ${tokenResponse.status}`);
-        console.error(`${operationId} API Error generating token: ${tokenResponse.status}`, errorBody);
-        toast({ title: "Launch Error", description: errMsg, variant: "destructive" });
-        setLocalError(errMsg);
+        console.error(`${operationId} API Error generating token: ${tokenResponse.status}`, errorBodyJson || tokenResponse.statusText);
+        toast({ title: "Launch Error", description: errorBodyText, variant: "destructive" });
+        setLocalError(errorBodyText);
         setIsLoading(false);
         return;
       }
@@ -119,8 +125,9 @@ export default function JoinExamPage() {
       
       console.log(`${operationId} Received SEB entry JWT from API:`, sebEntryTokenValue ? sebEntryTokenValue.substring(0,20) + "..." : "TOKEN_GENERATION_FAILED_OR_EMPTY");
 
-      // Development Mode Check
-      if (process.env.NEXT_PUBLIC_DEV_MODE_SKIP_SEB_LAUNCH === "true") {
+      const isDevMode = process.env.NEXT_PUBLIC_DEV_MODE_SKIP_SEB_LAUNCH === "true";
+
+      if (isDevMode) {
         console.log(`${operationId} DEV MODE: Skipping SEB launch. Navigating directly to /seb/entry with token in query.`);
         setIsLoading(false);
         router.push(`/seb/entry?token=${sebEntryTokenValue}`);
@@ -129,7 +136,6 @@ export default function JoinExamPage() {
 
       // Production SEB Flow (SEB Launch)
       const appDomain = window.location.origin;
-      // The entry page now expects token as a query param
       const sebEntryPageUrl = `${appDomain}/seb/entry?token=${sebEntryTokenValue}`; 
       
       const domainAndPathForSeb = sebEntryPageUrl.replace(/^https?:\/\//, '');
@@ -273,3 +279,4 @@ export default function JoinExamPage() {
     </div>
   );
 }
+
