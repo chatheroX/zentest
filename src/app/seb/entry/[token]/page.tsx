@@ -1,7 +1,7 @@
 
 // src/app/seb/entry/[token]/page.tsx
 import React, { Suspense } from 'react';
-import { SebEntryClient } from '@/components/seb/seb-entry-client';
+import { SebEntryClientNew } from '@/components/seb/seb-entry-client-new'; // Use the new client component
 import { Loader2, ShieldAlert } from 'lucide-react';
 
 // This is the Server Component part of the page.
@@ -17,13 +17,12 @@ export default function SebEntryTokenPage({ params }: { params: { token: string 
           </h2>
           <div className="flex items-center text-yellow-400">
             <ShieldAlert className="h-5 w-5 mr-2" />
-            <p className="text-sm">Please wait, validating secure entry via token...</p>
+            <p className="text-sm">Please wait, preparing secure entry...</p>
           </div>
         </div>
       }>
-        <SebEntryClient entryTokenFromPath={params.token} />
+        <SebEntryClientNew entryTokenFromPath={params.token} />
       </Suspense>
     </div>
   );
 }
-    

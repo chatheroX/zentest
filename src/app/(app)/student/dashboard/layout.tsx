@@ -6,8 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { LayoutDashboard, Edit3, History, Loader2, AlertTriangle } from 'lucide-react';
 import React, { useCallback, ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button'; // Added Button import for consistency
-import { useRouter } from 'next/navigation'; // Added useRouter for redirect
+import { Button } from '@/components/ui/button'; 
+import { useRouter } from 'next/navigation';
 
 const studentNavItems: NavItem[] = [
   { href: '/student/dashboard/overview', label: 'Overview', icon: LayoutDashboard },
@@ -22,17 +22,13 @@ export default function StudentDashboardLayout({
 }: {
   children: ReactNode;
 }) {
-  const { user, signOut, isLoading: authLoading, authError } = useAuth();
+  const { user, isLoading: authLoading, authError } = useAuth();
   const router = useRouter();
 
-  const handleSignOut = useCallback(async () => {
-    await signOut();
-    // router.replace(AUTH_ROUTE); // AuthContext's route guard will handle this
-  }, [signOut]);
 
   if (authLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-100 dark:bg-slate-900">
+      <div className="flex h-screen w-full items-center justify-center bg-background"> {/* Use theme background */}
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
         <p className="ml-3 text-muted-foreground">Loading student session...</p>
       </div>
@@ -40,11 +36,8 @@ export default function StudentDashboardLayout({
   }
 
   if (!user) {
-    // This state implies middleware allowed access, but client-side AuthContext found no user.
-    // AuthContext's route guard effect should eventually redirect to /auth.
-    // Show a more informative message while that happens.
     return (
-        <div className="flex h-screen w-full items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
+        <div className="flex h-screen w-full items-center justify-center bg-background p-4"> {/* Use theme background */}
             <Card className="p-6 modern-card text-center shadow-xl">
               <CardHeader>
                 <AlertTriangle className="mx-auto h-10 w-10 text-destructive mb-3"/>
@@ -66,7 +59,7 @@ export default function StudentDashboardLayout({
   
   if (user.role !== 'student') {
      return (
-        <div className="flex h-screen w-full items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
+        <div className="flex h-screen w-full items-center justify-center bg-background p-4"> {/* Use theme background */}
              <Card className="p-6 modern-card text-center shadow-xl">
                 <CardHeader>
                     <AlertTriangle className="mx-auto h-10 w-10 text-destructive mb-3"/>
@@ -83,16 +76,13 @@ export default function StudentDashboardLayout({
   return (
     <SidebarProvider 
         defaultOpen 
-        className="bg-slate-100 dark:bg-slate-900 min-h-screen" // Updated to match teacher
+        className="bg-background min-h-screen" 
     > 
       <SidebarElements
         navItems={studentNavItems}
         userRoleDashboard="student"
-        user={user} 
-        signOut={handleSignOut}
-        authLoading={authLoading}
       />
-      <main className="flex-1 flex flex-col overflow-y-auto p-6 md:p-8 bg-transparent min-w-0"> 
+      <main className="flex-1 flex flex-col overflow-y-auto p-6 md:p-8 bg-background min-w-0"> 
         {children}
       </main>
     </SidebarProvider>

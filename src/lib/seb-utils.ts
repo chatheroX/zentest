@@ -1,12 +1,9 @@
 
 'use client';
+import type { FlaggedEvent, FlaggedEventType } from '@/types/supabase';
 
 // Enhanced SEB Utility Functions
 
-/**
- * Checks if the code is running within a Safe Exam Browser environment.
- * It looks for specific keywords in the navigator.userAgent.
- */
 export function isSebEnvironment(): boolean {
   if (typeof window !== 'undefined' && window.navigator) {
     const sebKeywords = ['SEB', 'SafeExamBrowser'];
@@ -14,51 +11,37 @@ export function isSebEnvironment(): boolean {
     // console.log('[SEB Utils] User Agent:', userAgent);
     return sebKeywords.some(keyword => userAgent.includes(keyword));
   }
-  return false; // Default to false if not in a browser environment
+  return false;
 }
 
-/**
- * Checks if the browser is currently online.
- */
 export function isOnline(): boolean {
   if (typeof window !== 'undefined' && window.navigator) {
     return window.navigator.onLine;
   }
-  return true; // Assume online in non-browser environments or if navigator is missing
+  return true; 
 }
 
-/**
- * Heuristic check to see if developer tools are likely open.
- * This is not foolproof and can be bypassed.
- * SEB client configuration is the primary way to block DevTools.
- */
 export function areDevToolsLikelyOpen(): boolean {
   if (typeof window !== 'undefined') {
-    const threshold = 170; // Difference in pixels between outer and inner dimensions
+    const threshold = 170; 
     const devtoolsOpen = (window.outerWidth - window.innerWidth > threshold) ||
                          (window.outerHeight - window.innerHeight > threshold);
     if (devtoolsOpen) {
       console.warn('[SEB Utils] Warning: Developer tools might be open (screen dimension heuristic).');
     }
-    // Advanced check attempt (often unreliable due to browser security)
-    // try {
-    //   const element = new Image();
-    //   Object.defineProperty(element, 'id', {
-    //     get: () => {
-    //       console.warn('[SEB Utils] Developer tools detected via object property inspection (if devtools are inspecting this object).');
-    //       return 'devtools-check';
-    //     },
-    //   });
-    //   console.log('%c', element); // Logging the element might trigger the getter if devtools are inspecting it
-    // } catch (e) { /* Silently fail if this advanced check is blocked */ }
+    // A more involved check (less reliable due to browser variations):
+    // let devtoolsDetected = false;
+    // const el = document.createElement('div');
+    // Object.defineProperty(el, 'id', {
+    //   get: () => { devtoolsDetected = true; }
+    // });
+    // console.log(el); // Trigger the getter if devtools are inspecting console.log
+    // return devtoolsOpen || devtoolsDetected;
     return devtoolsOpen;
   }
   return false;
 }
 
-/**
- * Checks if WebDriver (used by automation tools like Selenium) is active.
- */
 export function isWebDriverActive(): boolean {
   if (typeof window !== 'undefined' && window.navigator) {
     const webDriverActive = !!(navigator as any).webdriver;
@@ -70,88 +53,131 @@ export function isWebDriverActive(): boolean {
   return false;
 }
 
-/**
- * Tries to block common keyboard shortcuts.
- * Note: Effective shortcut blocking is best handled by SEB client configuration.
- * This JavaScript-based blocking is a supplemental layer.
- * @param event The KeyboardEvent.
- */
-export function attemptBlockShortcuts(event: KeyboardEvent): void {
+export function attemptBlockShortcuts(event: KeyboardEvent, onFlagEvent?: (eventData: Pick<FlaggedEvent, 'type' | 'details'>) => void): void {
   const key = event.key.toLowerCase();
-  const ctrlOrMeta = event.ctrlKey || event.metaKey; // Ctrl on Windows/Linux, Cmd on Mac
+  const ctrlOrMeta = event.ctrlKey || event.metaKey;
 
-  // Examples of shortcuts to potentially block (customize as needed)
-  const commonShortcuts = ['c', 'v', 'x', 'a', 'p', 's', 'f', 'r', 't', 'w', 'u', 'i', 'j', 'o', 'n', 'z', 'y'];
+  // More comprehensive list of shortcuts often used for cheating/exiting
+  const commonShortcutsToBlock = [
+    'c', 'v', 'x', 'a', // Clipboard & Select all
+    'p', 's', // Print, Save
+    'f', 'g', // Find, Find next
+    'r', 't', 'w', 'n', // Refresh, New Tab/Window, Close Tab/Window
+    'u', 'i', 'j', 'o', // View Source, DevTools variations, Downloads, History
+    'insert', 'printscreen', 'contextmenu', 'escape', // Other problematic keys
+    'home', 'end', 'pageup', 'pagedown', // Navigation that could be disruptive
+  ];
+  const functionKeysToBlock = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12'];
   
-  if (ctrlOrMeta && commonShortcuts.includes(key)) {
-    console.warn(`[SEB Utils] Attempted to block Ctrl/Cmd+${key} shortcut.`);
-    event.preventDefault();
-    event.stopPropagation();
-    return;
-  }
+  let blocked = false;
+  let detail = '';
 
-  // Block function keys (F1-F12)
-  if (key.startsWith('f') && !isNaN(parseInt(key.substring(1)))) {
-    console.warn(`[SEB Utils] Attempted to block function key: ${event.key}.`);
-    event.preventDefault();
-    event.stopPropagation();
-    return;
+  if (ctrlOrMeta && commonShortcutsToBlock.includes(key)) {
+    blocked = true;
+    detail = `Ctrl/Cmd + ${key}`;
+  } else if (functionKeysToBlock.includes(key)) {
+    blocked = true;
+    detail = event.key;
+  } else if (event.altKey && (key === 'tab' || key === 'f4' || key === 'arrowleft' || key === 'arrowright' || key === 'escape')) {
+    blocked = true;
+    detail = `Alt + ${key}`;
+  } else if (key === 'escape' && !ctrlOrMeta && !event.altKey) { // Standalone Escape
+    blocked = true;
+    detail = 'Escape';
   }
+  // Windows key / Command key (alone or with other keys) is very hard to block from JS.
+  // This needs to be handled by SEB configuration (e.g., "Hooked Keys").
 
-  // Block Alt key combinations (e.g., Alt+Tab, Alt+F4)
-  // This is very hard to reliably block from JS; SEB config is essential here.
-  if (event.altKey && (key === 'tab' || key === 'f4' || key === 'arrowleft' || key === 'arrowright')) {
-    console.warn(`[SEB Utils] Attempted to block Alt+${key} shortcut.`);
+  if (blocked) {
+    console.warn(`[SEB Utils] Attempted to block shortcut: ${detail}`);
     event.preventDefault();
     event.stopPropagation();
-    return;
-  }
-  
-  // Block specific keys like Escape, Tab (if not combined with Alt)
-  if ((key === 'escape' || key === 'tab') && !event.altKey && !event.ctrlKey && !event.metaKey) {
-    // Allow tab for accessibility within forms IF SEB config doesn't handle it.
-    // However, for strict proctoring, SEB should disable tabbing out of specific fields.
-    // This JS block is aggressive if SEB doesn't already restrict tab.
-    // console.warn(`[SEB Utils] Attempted to block standalone key: ${event.key}.`);
-    // event.preventDefault();
-    // event.stopPropagation();
-    // return;
+    onFlagEvent?.({ type: 'shortcut_attempt', details: `Blocked: ${detail}` });
   }
 }
 
-/**
- * Disables the context menu (right-click).
- * @param event The MouseEvent.
- */
-export function disableContextMenu(event: MouseEvent): void {
+export function disableContextMenu(event: MouseEvent, onFlagEvent?: (eventData: Pick<FlaggedEvent, 'type' | 'details'>) => void): void {
   console.warn('[SEB Utils] Context menu (right-click) attempted and blocked.');
   event.preventDefault();
+  onFlagEvent?.({ type: 'shortcut_attempt', details: 'Context menu disabled' });
 }
 
-/**
- * Disables copy and paste events.
- * @param event The ClipboardEvent.
- */
-export function disableCopyPaste(event: ClipboardEvent): void {
-  console.warn(`[SEB Utils] Clipboard event (${event.type}) attempted and blocked.`);
+export function disableCopyPaste(event: ClipboardEvent, onFlagEvent?: (eventData: Pick<FlaggedEvent, 'type' | 'details'>) => void): void {
+  const eventType = event.type as 'copy' | 'paste';
+  console.warn(`[SEB Utils] Clipboard event (${eventType}) attempted and blocked.`);
   event.preventDefault();
+  onFlagEvent?.({ type: eventType === 'copy' ? 'copy_attempt' : 'paste_attempt', details: `Clipboard ${eventType} blocked` });
 }
 
-/**
- * Heuristic check for Virtual Machine environments.
- * This is highly unreliable from client-side JavaScript.
- * SEB provides more robust VM detection mechanisms.
- */
+// Stricter input restriction for "A–Z, Arrow Keys, and Mouse" as per prompt.
+// Mouse input is handled by browser naturally. This focuses on keyboard.
+export function addInputRestrictionListeners(
+  onFlagEvent: (eventData: Pick<FlaggedEvent, 'type' | 'details'>) => void
+): () => void {
+  const handleKeyDown = (event: KeyboardEvent) => {
+    const key = event.key;
+    const keyCode = event.keyCode; // Using keyCode for broader compatibility with some special keys if needed.
+
+    // Allow letters (A-Z, a-z)
+    if ((keyCode >= 65 && keyCode <= 90)) {
+      return;
+    }
+    // Allow Arrow keys
+    if (keyCode >= 37 && keyCode <= 40) {
+      return;
+    }
+    // Allow Backspace and Delete for text editing (implicitly required for typing answers)
+    if (key === 'Backspace' || key === 'Delete' ) {
+        return;
+    }
+    // Allow Space
+    if (key === ' ') {
+        return;
+    }
+    // Allow Tab for navigating between options (accessibility) - though SEB should control tabbing out of exam
+    if (key === 'Tab') {
+        return;
+    }
+    // Allow Enter (e.g., if a question type needed it, or for accessibility with radio buttons)
+    if (key === 'Enter') {
+        return;
+    }
+
+    // Block anything else if no modifier keys (Ctrl, Alt, Meta) are pressed.
+    // Modifiers are allowed through because SEB might allow specific OS shortcuts or for accessibility.
+    // The attemptBlockShortcuts function would handle specific ctrl/meta/alt + key combos.
+    if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+      console.warn(`[SEB Utils - Input Restriction] Disallowed key pressed: ${key} (Code: ${keyCode})`);
+      event.preventDefault(); // Prevent the default action of the key press.
+      event.stopPropagation(); // Stop the event from bubbling up.
+      onFlagEvent({ type: 'disallowed_key_pressed', details: `Key: ${key}` });
+    }
+  };
+
+  document.addEventListener('keydown', handleKeyDown, true); // Use capture phase
+  return () => {
+    document.removeEventListener('keydown', handleKeyDown, true);
+  };
+}
+
+
 export function isVMLikely(): boolean {
-  // Example heuristic (very basic and can have false positives/negatives):
-  // Checking screen resolution or performance metrics is generally not reliable.
   const suspiciousConcurrency = typeof navigator !== 'undefined' && navigator.hardwareConcurrency && navigator.hardwareConcurrency < 2;
   if (suspiciousConcurrency) {
     console.warn('[SEB Utils] Info: Low hardware concurrency detected, which might indicate a VM (unreliable check).');
   }
-  // You could add other checks like WebGL renderer info if desired, but they are also spoofable.
-  // E.g., const gl = document.createElement('canvas').getContext('webgl');
-  // const renderer = gl?.getParameter(gl.getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL);
-  // if (renderer && /virtual|vmware|vbox/i.test(renderer)) { console.warn('[SEB Utils] Suspicious WebGL renderer.'); return true; }
+  // Add more heuristics here if needed, e.g., checking WebGL renderer string for "VMware", "VirtualBox", "Parallels"
+  // const canvas = document.createElement('canvas');
+  // const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  // if (gl) {
+  //   const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+  //   if (debugInfo) {
+  //     const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+  //     if (typeof renderer === 'string' && /virtual|vmware|vbox|parallels|qemu|hyper-v/i.test(renderer)) {
+  //       console.warn(`[SEB Utils] Suspicious WebGL Renderer: ${renderer}`);
+  //       return true;
+  //     }
+  //   }
+  // }
   return suspiciousConcurrency;
 }

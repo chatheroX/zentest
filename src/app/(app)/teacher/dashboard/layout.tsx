@@ -6,8 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { LayoutDashboard, BookOpenCheck, Brain, BarChart3, Loader2, AlertTriangle } from 'lucide-react';
 import { useCallback, ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button'; // Added Button import
-import { useRouter } from 'next/navigation'; // Added useRouter for redirect
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 
 const teacherNavItems: NavItem[] = [
   { href: '/teacher/dashboard/overview', label: 'Overview', icon: LayoutDashboard },
@@ -23,17 +23,13 @@ export default function TeacherDashboardLayout({
 }: {
   children: ReactNode;
 }) {
-  const { user, signOut, isLoading: authLoading, authError } = useAuth();
+  const { user, isLoading: authLoading, authError } = useAuth(); 
   const router = useRouter();
 
-  const handleSignOut = useCallback(async () => {
-    await signOut();
-    // router.replace(AUTH_ROUTE); // AuthContext's route guard will handle this
-  }, [signOut]);
 
   if (authLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-100 dark:bg-slate-900">
+      <div className="flex h-screen w-full items-center justify-center bg-background"> {/* Use theme background */}
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
          <p className="ml-3 text-muted-foreground">Loading teacher session...</p>
       </div>
@@ -42,7 +38,7 @@ export default function TeacherDashboardLayout({
   
   if (!user) {
     return (
-        <div className="flex h-screen w-full items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
+        <div className="flex h-screen w-full items-center justify-center bg-background p-4"> {/* Use theme background */}
             <Card className="p-6 modern-card text-center shadow-xl">
               <CardHeader>
                 <AlertTriangle className="mx-auto h-10 w-10 text-destructive mb-3"/>
@@ -64,7 +60,7 @@ export default function TeacherDashboardLayout({
   
   if (user.role !== 'teacher') {
      return (
-        <div className="flex h-screen w-full items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
+        <div className="flex h-screen w-full items-center justify-center bg-background p-4"> {/* Use theme background */}
              <Card className="p-6 modern-card text-center shadow-xl">
                  <CardHeader>
                     <AlertTriangle className="mx-auto h-10 w-10 text-destructive mb-3"/>
@@ -81,16 +77,13 @@ export default function TeacherDashboardLayout({
   return (
     <SidebarProvider 
         defaultOpen 
-        className="bg-slate-100 dark:bg-slate-900 min-h-screen" // Updated background to a simpler one
+        className="bg-background min-h-screen"  // Use theme background
     > 
       <SidebarElements
         navItems={teacherNavItems}
         userRoleDashboard="teacher"
-        user={user}
-        signOut={handleSignOut}
-        authLoading={authLoading}
       />
-      <main className="flex-1 flex flex-col overflow-y-auto p-6 md:p-8 bg-transparent min-w-0"> 
+      <main className="flex-1 flex flex-col overflow-y-auto p-6 md:p-8 bg-background min-w-0"> 
         {children}
       </main>
     </SidebarProvider>

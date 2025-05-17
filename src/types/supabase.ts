@@ -8,28 +8,29 @@ export type Json =
   | Json[];
 
 export interface QuestionOption {
-  id: string; 
+  id: string;
   text: string;
 }
 
 export interface Question {
-  id: string; 
+  id: string;
   text: string;
   options: QuestionOption[];
-  correctOptionId: string; 
+  correctOptionId: string;
 }
 
 export interface ProctorXTableType {
-  user_id: string; 
-  email: string; 
-  pass: string;  
-  name: string;  
-  role: 'student' | 'teacher'; 
-  avatar_url: string | null; 
-  created_at?: string; 
+  user_id: string;
+  email: string;
+  pass: string;
+  name: string;
+  role: 'student' | 'teacher';
+  avatar_url: string | null;
+  created_at?: string;
 }
 
 export type ExamStatus = 'Published' | 'Ongoing' | 'Completed';
+export type ExamSubmissionStatus = 'In Progress' | 'Completed'; // Added 'In Progress'
 
 export type FlaggedEventType =
   | 'visibility_hidden'
@@ -42,21 +43,21 @@ export type FlaggedEventType =
   | 'paste_attempt'
   | 'shortcut_attempt'
   | 'dev_tools_detected'
-  | 'webdriver_detected';
+  | 'webdriver_detected'
+  | 'disallowed_key_pressed'; // Added for new check
 
 export interface FlaggedEvent {
   type: FlaggedEventType;
-  timestamp: Date; 
-  studentId: string; 
-  examId: string; 
+  timestamp: Date;
+  studentId: string;
+  examId: string;
   details?: string;
 }
 
-// Updated SebEntryTokens Table Type as per user specification
 export interface SebEntryTokenTableType {
   token: string; // Primary Key
   student_user_id: string; // Foreign key to proctorX.user_id (text)
-  exam_id: string; // UUID, Foreign key to ExamX (uuid) - Ensure this matches ExamX.exam_id type
+  exam_id: string; // UUID, Foreign key to ExamX (uuid)
   status: 'pending' | 'claimed' | 'expired'; // text
   created_at: string; // timestamptz
   expires_at: string; // timestamptz
@@ -73,16 +74,16 @@ export interface Database {
       ExamX: {
         Row: {
           exam_id: string; // uuid
-          teacher_id: string; 
+          teacher_id: string;
           title: string;
           description: string | null;
-          duration: number; 
+          duration: number;
           allow_backtracking: boolean;
           questions: Question[] | null;
-          exam_code: string; 
+          exam_code: string;
           status: ExamStatus;
-          start_time: string | null; 
-          end_time: string | null;   
+          start_time: string | null;
+          end_time: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -95,9 +96,9 @@ export interface Database {
           allow_backtracking?: boolean;
           questions?: Question[] | null;
           exam_code: string;
-          status?: ExamStatus; 
-          start_time: string | null; 
-          end_time: string | null;   
+          status?: ExamStatus;
+          start_time: string | null;
+          end_time: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -115,39 +116,39 @@ export interface Database {
       };
       ExamSubmissionsX: {
         Row: {
-          submission_id: string; 
+          submission_id: string;
           exam_id: string; // uuid
-          student_user_id: string; 
-          answers: Json | null; 
-          status: 'In Progress' | 'Completed';
-          score: number | null; 
-          started_at: string;
+          student_user_id: string;
+          answers: Json | null;
+          status: ExamSubmissionStatus; // Updated type
+          score: number | null;
+          started_at: string; // Made non-nullable
           submitted_at: string | null;
-          flagged_events: FlaggedEvent[] | null; 
+          flagged_events: FlaggedEvent[] | null;
         };
         Insert: {
           submission_id?: string;
           exam_id: string; // uuid
           student_user_id: string;
           answers?: Json | null;
-          status?: 'In Progress' | 'Completed';
+          status: ExamSubmissionStatus; // Updated type, made non-nullable
           score?: number | null;
-          started_at?: string;
+          started_at: string; // Made non-nullable
           submitted_at?: string | null;
           flagged_events?: FlaggedEvent[] | null;
         };
         Update: Partial<{
           answers: Json | null;
-          status: 'In Progress' | 'Completed';
+          status: ExamSubmissionStatus; // Updated type
           score: number | null;
           submitted_at: string | null;
           flagged_events: FlaggedEvent[] | null;
         }>;
       };
-      SebEntryTokens: { // Add SebEntryTokens table definition
+      SebEntryTokens: {
         Row: SebEntryTokenTableType;
-        Insert: SebEntryTokenTableType; // All fields are required on insert
-        Update: Partial<Pick<SebEntryTokenTableType, 'status' | 'expires_at'>>; // Typically only status or expiry might be updated
+        Insert: SebEntryTokenTableType;
+        Update: Partial<Pick<SebEntryTokenTableType, 'status' | 'expires_at'>>;
       };
     };
     Views: {
@@ -166,7 +167,7 @@ export interface Database {
 }
 
 export type CustomUser = {
-  user_id: string; 
+  user_id: string;
   email: string;
   name: string | null;
   role: 'student' | 'teacher' | null;
