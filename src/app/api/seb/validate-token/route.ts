@@ -1,57 +1,46 @@
+
 // src/app/api/seb/validate-token/route.ts
 import { NextResponse, type NextRequest } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 
-// Local safe error message getter since error-logging.ts was removed
+// Simplified local error message helper since src/lib/error-logging.ts was removed
 function getLocalSafeErrorMessage(e: any, defaultMessage = "An unknown error occurred."): string {
-  const prefix = "[API ValidateToken getLocalSafeErrorMessage]";
-  console.log(prefix, "Processing error:", e);
   if (e && typeof e === 'object') {
-    if (e.name === 'AbortError') { // Common for fetch timeouts
-      console.log(prefix, "Identified AbortError.");
+    if (e.name === 'AbortError') {
       return "The request timed out. Please check your connection and try again.";
     }
     if (typeof e.message === 'string' && e.message.trim() !== '') {
-      console.log(prefix, "Using e.message:", e.message);
       return e.message;
     }
     try {
       const strError = JSON.stringify(e);
-      if (strError !== '{}' && strError.length > 2) {
-        console.log(prefix, "Using stringified error:", strError);
-        return `Error details: ${strError}`;
-      }
-    } catch (stringifyError) {
-      console.warn(prefix, "Could not stringify error object:", stringifyError);
-    }
+      if (strError !== '{}' && strError.length > 2) return `Error object: ${strError}`;
+    } catch (stringifyError) { /* Fall through */ }
   }
   if (e !== null && e !== undefined) {
     const stringifiedError = String(e);
-    console.log(prefix, "Using String(e):", stringifiedError);
     if (stringifiedError.trim() !== '' && stringifiedError !== '[object Object]') {
       return stringifiedError;
     }
   }
-  console.log(prefix, "Falling back to default message:", defaultMessage);
   return defaultMessage;
 }
 
-
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const jwtSecret = process.env.JWT_SECRET;
 
 const initLogPrefix = '[API ValidateToken Init]';
-if (!supabaseUrl || !supabaseServiceKey || !jwtSecret) {
-  let missingVarsMessage = "CRITICAL: Required server environment variable(s) are missing for token validation: ";
-  if (!supabaseUrl) missingVarsMessage += "NEXT_PUBLIC_SUPABASE_URL ";
-  if (!supabaseServiceKey) missingVarsMessage += "SUPABASE_SERVICE_ROLE_KEY ";
-  if (!jwtSecret) missingVarsMessage += "JWT_SECRET ";
-  missingVarsMessage += "Please check server environment configuration.";
-  console.error(`${initLogPrefix} ${missingVarsMessage}`);
-  // This error occurs at module load time, so requests to this endpoint will fail until fixed.
+let criticalInitError = false;
+let initErrorDetails = "CRITICAL: Server environment variable(s) are missing for token validation: ";
+
+if (!supabaseUrl) { initErrorDetails += "NEXT_PUBLIC_SUPABASE_URL "; criticalInitError = true; }
+if (!supabaseServiceKey) { initErrorDetails += "SUPABASE_SERVICE_ROLE_KEY "; criticalInitError = true; }
+
+if (criticalInitError) {
+  initErrorDetails += "Please check server environment configuration.";
+  console.error(`${initLogPrefix} ${initErrorDetails}`);
 }
 
 const supabaseAdmin = supabaseUrl && supabaseServiceKey
@@ -60,15 +49,21 @@ const supabaseAdmin = supabaseUrl && supabaseServiceKey
 
 export async function GET(request: NextRequest) {
   const operationId = `[API ValidateToken GET ${Date.now().toString().slice(-5)}]`;
-  console.log(`${operationId} Received request.`);
+  console.log(`${operationId} Handler started.`);
+
+  const jwtSecret = process.env.JWT_SECRET;
+
+  if (!jwtSecret) {
+    const errorMsg = 'Server configuration error (JWT secret).';
+    console.error(`${operationId} CRITICAL: JWT_SECRET environment variable is not defined or is empty on the server. This secret is required to validate exam session tokens. Please ensure it is set in your .env file (e.g., .env.local for development) or in your deployment environment variables, and that the server has been restarted.`);
+    // Do not call logErrorToBackend here if it was removed or might also fail
+    return NextResponse.json({ error: errorMsg }, { status: 500 });
+  }
+  console.log(`${operationId} JWT_SECRET is available (length: ${jwtSecret.length}).`);
 
   if (!supabaseAdmin) {
-    console.error(`${operationId} Supabase admin client not initialized. Check server logs for init errors.`);
+    console.error(`${operationId} Supabase admin client not initialized. Check server logs for init errors. Details: ${initErrorDetails}`);
     return NextResponse.json({ error: 'Server configuration error (Supabase client).' }, { status: 500 });
-  }
-  if (!jwtSecret) {
-    console.error(`${operationId} JWT_SECRET is not configured on the server.`);
-    return NextResponse.json({ error: 'Server configuration error (JWT secret).' }, { status: 500 });
   }
 
   try {
@@ -83,13 +78,12 @@ export async function GET(request: NextRequest) {
 
     let decoded: any;
     try {
-      console.log(`${operationId} Attempting to verify JWT with secret (length: ${jwtSecret.length}).`);
+      console.log(`${operationId} Attempting to verify JWT with secret.`);
       decoded = jwt.verify(token, jwtSecret);
     } catch (jwtError: any) {
       let errorMessage = 'Invalid or malformed exam session token.';
-      let errorStatus = 401; // Unauthorized
+      let errorStatus = 401;
 
-      // Check error.name for specific JWT errors
       if (jwtError && typeof jwtError === 'object') {
         if (jwtError.name === 'TokenExpiredError') {
           errorMessage = 'Exam session token has expired.';
@@ -98,11 +92,10 @@ export async function GET(request: NextRequest) {
           errorMessage = `Invalid token signature or payload: ${getLocalSafeErrorMessage(jwtError.message, 'Malformed token')}`;
           console.warn(`${operationId} JWT verification failed: JsonWebTokenError - ${errorMessage}`);
         } else {
-          // For other errors that might not have a 'name' or are unexpected
           errorMessage = `Token validation error: ${getLocalSafeErrorMessage(jwtError, 'Unknown JWT error')}`;
           console.warn(`${operationId} JWT verification failed with other error: ${jwtError.name || 'Unknown error name'} - ${errorMessage}`, jwtError);
         }
-      } else if (jwtError) { // If jwtError is not a typical error object
+      } else {
          const strError = String(jwtError);
          if (strError.trim() !== '' && strError !== '[object Object]') errorMessage = strError;
          console.warn(`${operationId} JWT verification failed with non-standard error:`, errorMessage);
@@ -132,6 +125,7 @@ export async function GET(request: NextRequest) {
     if (submissionError) {
       const dbErrorMsg = getLocalSafeErrorMessage(submissionError, 'Database error checking prior submission.');
       console.error(`${operationId} Supabase error checking prior submission:`, dbErrorMsg, submissionError);
+      // Do not call logErrorToBackend here
       return NextResponse.json({ error: 'Error verifying exam status: ' + dbErrorMsg }, { status: 500 });
     }
 
@@ -150,6 +144,7 @@ export async function GET(request: NextRequest) {
   } catch (e: any) {
     const errorMessage = getLocalSafeErrorMessage(e, 'An unexpected error occurred during token validation.');
     console.error(`${operationId} General exception during token validation:`, errorMessage, e);
+    // Do not call logErrorToBackend here
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
