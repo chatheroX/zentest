@@ -1,6 +1,7 @@
 
 // /src/lib/crypto-utils.ts
 'use client';
+import { getSafeErrorMessage } from '@/lib/error-logging'; // Import helper
 
 // WARNING: THIS IS A DEMONSTRATION AND USES A HARDCODED KEY.
 // DO NOT USE THIS IN PRODUCTION WITHOUT A PROPER KEY MANAGEMENT STRATEGY.
@@ -9,13 +10,12 @@ const VERY_INSECURE_HARDCODED_KEY = 'abcdefghijklmnopqrstuvwxyz123456'; // Exact
 
 async function getKeyMaterial(): Promise<CryptoKey> {
   const enc = new TextEncoder();
-  const keyStringForLog = VERY_INSECURE_HARDCODED_KEY; // Use a var for logging clarity
+  const keyStringForLog = VERY_INSECURE_HARDCODED_KEY; 
   const keyData = enc.encode(keyStringForLog);
 
   if (keyData.byteLength !== 32) {
     const errorMessage = `CRITICAL: Encryption key is not 32 bytes long. Expected 32 bytes, but got ${keyData.byteLength} bytes for key string "${keyStringForLog}" (character length ${keyStringForLog.length}). Please check configuration.`;
     console.error(errorMessage);
-    // Throw the detailed error message
     throw new Error(errorMessage);
   }
 
@@ -23,7 +23,7 @@ async function getKeyMaterial(): Promise<CryptoKey> {
     'raw',
     keyData,
     { name: 'AES-GCM' },
-    false, // 'extractable' should be false for security unless explicitly needed
+    false, 
     ['encrypt', 'decrypt']
   );
 }
@@ -35,7 +35,7 @@ export async function encryptData(data: Record<string, any>): Promise<string | n
   }
   try {
     const key = await getKeyMaterial();
-    const iv = crypto.getRandomValues(new Uint8Array(12)); // Initialization vector
+    const iv = crypto.getRandomValues(new Uint8Array(12)); 
     const encodedData = new TextEncoder().encode(JSON.stringify(data));
 
     const encryptedContent = await crypto.subtle.encrypt(
@@ -52,24 +52,10 @@ export async function encryptData(data: Record<string, any>): Promise<string | n
     resultBuffer.set(iv);
     resultBuffer.set(encryptedBuffer, iv.length);
 
-    // Convert buffer to Base64 string
     return btoa(String.fromCharCode.apply(null, Array.from(resultBuffer)));
   } catch (error: any) {
-    let errorMessage = 'Encryption failed. Unknown error.';
-    if (error && typeof error === 'object') {
-      if (typeof error.message === 'string' && error.message) {
-        errorMessage = `Encryption failed: ${error.message}`;
-      } else {
-        try {
-          errorMessage = `Encryption failed: ${JSON.stringify(error)}`;
-        } catch (e) {
-          errorMessage = 'Encryption failed and error object could not be stringified.';
-        }
-      }
-    } else if (error !== null && error !== undefined) {
-      errorMessage = `Encryption failed: ${String(error)}`;
-    }
-    console.error(errorMessage, error); // Log the derived message and the original error
+    const errorMessage = getSafeErrorMessage(error, 'Encryption failed.');
+    console.error(errorMessage, error); 
     return null;
   }
 }
@@ -82,7 +68,6 @@ export async function decryptData<T = Record<string, any>>(encryptedBase64: stri
   try {
     const key = await getKeyMaterial();
     
-    // Convert Base64 string back to buffer
     const encryptedDataWithIv = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
     
     const iv = encryptedDataWithIv.slice(0, 12);
@@ -100,30 +85,17 @@ export async function decryptData<T = Record<string, any>>(encryptedBase64: stri
     const decodedData = new TextDecoder().decode(decryptedContent);
     return JSON.parse(decodedData) as T;
   } catch (error: any) {
-    let errorMessage = 'Decryption failed. Unknown error.';
+    let errorMessage = getSafeErrorMessage(error, 'Decryption failed.');
     let isOperationError = false;
 
-    if (error && typeof error === 'object') {
-      if (typeof error.message === 'string' && error.message) {
-        errorMessage = `Decryption failed: ${error.message}`;
-      } else {
-        try {
-          errorMessage = `Decryption failed: ${JSON.stringify(error)}`;
-        } catch (e) {
-          errorMessage = 'Decryption failed and error object could not be stringified.';
-        }
-      }
-      // Check for OperationError typically associated with AES-GCM decryption failures
-      if (error.name === 'OperationError') {
-        isOperationError = true;
-      }
-    } else if (error !== null && error !== undefined) {
-      errorMessage = `Decryption failed: ${String(error)}`;
+    if (error && typeof error === 'object' && error.name === 'OperationError') {
+      isOperationError = true;
+      errorMessage = "Decryption failed: Likely incorrect key or tampered/corrupt data (OperationError).";
     }
-
-    console.error(errorMessage, error); // Log the derived message and the original error
+    
+    console.error(errorMessage, error); 
     if (isOperationError) {
-      console.error('Decryption Specific: This was likely an OperationError, often due to an incorrect key or tampered/corrupt data.');
+      console.error('Decryption Specific: This was an OperationError.');
     }
     return null;
   }

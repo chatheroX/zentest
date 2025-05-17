@@ -3,6 +3,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { Database, ErrorLogInsert } from '@/types/supabase';
+import { getSafeErrorMessage } from '@/lib/error-logging'; // Import helper
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -32,35 +33,32 @@ export async function POST(request: NextRequest) {
     if (!supabaseAdmin) detailedErrorForLog += "Supabase admin client not initialized. ";
     detailedErrorForLog += missingVarsMessage;
     console.error(`${operationId} ${detailedErrorForLog}`);
-    // Cannot log this error to DB if DB connection itself is the issue.
     return NextResponse.json({ error: 'Server configuration error for logging.' }, { status: 500 });
   }
 
   try {
-    const logData = (await request.json()) as Omit<ErrorLogInsert, 'timestamp'>; // timestamp is auto-generated or set by client
+    const logData = (await request.json()) as Omit<ErrorLogInsert, 'timestamp' | 'log_id'>; 
 
     if (!logData.location || !logData.error_message) {
       console.warn(`${operationId} Invalid log data received:`, logData);
       return NextResponse.json({ error: 'Missing location or error_message in log data.' }, { status: 400 });
     }
 
-    const dataToInsert: ErrorLogInsert = {
+    const dataToInsert: Omit<ErrorLogInsert, 'log_id' | 'timestamp'> = {
       location: logData.location,
-      error_message: logData.error_message,
+      error_message: logData.error_message, // error_message is already processed by client-side getSafeErrorMessage
       error_details: logData.error_details || null,
       user_context: logData.user_context || null,
-      // timestamp will be handled by DB default or ensure client sends it
     };
     
     console.log(`${operationId} Attempting to insert log:`, dataToInsert);
 
     const { error: insertError } = await supabaseAdmin
       .from('ErrorLogs')
-      .insert(dataToInsert);
+      .insert(dataToInsert); // log_id and timestamp have defaults in DB
 
     if (insertError) {
       console.error(`${operationId} Supabase error during log insert:`, insertError);
-      // Avoid infinite loop if logging this error fails.
       return NextResponse.json({ error: 'Failed to save error log to database: ' + insertError.message }, { status: 500 });
     }
     
@@ -68,8 +66,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Error logged successfully.' }, { status: 200 });
 
   } catch (e: any) {
-    console.error(`${operationId} Exception during error log processing:`, e.message, e);
-    // Avoid infinite loop if logging this error fails.
-    return NextResponse.json({ error: 'An unexpected error occurred during log processing.' }, { status: 500 });
+    const errorMessage = getSafeErrorMessage(e, 'An unexpected error occurred during log processing.');
+    console.error(`${operationId} Exception during error log processing:`, errorMessage, e);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

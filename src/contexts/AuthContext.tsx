@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from 'react';
@@ -6,7 +7,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import Cookies from 'js-cookie';
 import type { CustomUser, ProctorXTableType } from '@/types/supabase';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Button } from '@/components/ui/button'; // Used by AlertDialogTrigger in consuming components
+import { Button } from '@/components/ui/button'; 
+import { getSafeErrorMessage } from '@/lib/error-logging'; // Import helper
 
 const SESSION_COOKIE_NAME = 'proctorprep-user-email';
 const ROLE_COOKIE_NAME = 'proctorprep-user-role';
@@ -15,7 +17,6 @@ const AUTH_ROUTE = '/auth';
 const STUDENT_DASHBOARD_ROUTE = '/student/dashboard/overview';
 const TEACHER_DASHBOARD_ROUTE = '/teacher/dashboard/overview';
 
-// DiceBear Avatar Configuration
 export const DICEBEAR_STYLES: string[] = ['micah', 'adventurer', 'bottts-neutral', 'pixel-art-neutral'];
 export const DICEBEAR_TECH_KEYWORDS: string[] = ['coder', 'debugger', 'techie', 'pixelninja', 'cswizard', 'binary', 'script', 'stack', 'keyboard', 'neonbyte', 'glitch', 'algorithm', 'syntax', 'kernel'];
 
@@ -38,8 +39,8 @@ type AuthContextType = {
   signUp: (email: string, pass: string, name: string, role: CustomUser['role']) => Promise<{ success: boolean; error?: string; user?: CustomUser | null }>;
   signOut: () => Promise<void>;
   updateUserProfile: (data: { name: string; password?: string; avatar_url?: string }) => Promise<{ success: boolean; error?: string }>;
-  showSignOutDialog: boolean; // Added for AlertDialog
-  setShowSignOutDialog: React.Dispatch<React.SetStateAction<boolean>>; // Added for AlertDialog
+  showSignOutDialog: boolean; 
+  setShowSignOutDialog: React.Dispatch<React.SetStateAction<boolean>>; 
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const initialLoadAttempted = React.useRef(false);
-  const [showSignOutDialog, setShowSignOutDialog] = useState(false); // State for AlertDialog
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false); 
 
   const router = useRouter();
   const pathname = usePathname();
@@ -75,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log(`${effectId} Supabase client initialized successfully.`);
       setAuthError(null);
     } catch (e: any) {
-      const errorMsg = e.message || "Failed to initialize Supabase client.";
+      const errorMsg = getSafeErrorMessage(e, "Failed to initialize Supabase client.");
       console.error(`${effectId} CRITICAL: ${errorMsg}`, e);
       setAuthError(errorMsg);
       setSupabase(null);
@@ -114,19 +115,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       console.log(`${effectId} Session cookie found. Fetching user: ${userEmailFromCookie} from DB...`);
-      console.time(`${effectId} Supabase LoadUserFromCookie Query`);
       const { data, error: dbError } = await supabase
         .from('proctorX')
         .select('user_id, email, name, role, avatar_url')
         .eq('email', userEmailFromCookie)
         .single();
-      console.timeEnd(`${effectId} Supabase LoadUserFromCookie Query`);
       console.log(`${effectId} DB query for ${userEmailFromCookie} - Data:`, data, 'Error:', dbError);
 
       if (dbError || !data) {
         let errorDetail = 'User from session cookie not found or DB error.';
         if (dbError && dbError.code === 'PGRST116') errorDetail = 'User from session cookie not found in database.';
-        else if (dbError) errorDetail = `DB Error: ${dbError.message}`;
+        else if (dbError) errorDetail = getSafeErrorMessage(dbError, 'Failed to fetch user data.');
 
         console.warn(`${effectId} ${errorDetail} Email: ${userEmailFromCookie}. Clearing session.`);
         setUser(null);
@@ -148,11 +147,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       else Cookies.remove(ROLE_COOKIE_NAME);
 
     } catch (e: any) {
-      console.error(`${effectId} Exception during user session processing:`, e.message, e);
+      const errorMsg = getSafeErrorMessage(e, "Error processing user session.");
+      console.error(`${effectId} Exception during user session processing:`, errorMsg, e);
       setUser(null);
       Cookies.remove(SESSION_COOKIE_NAME);
       Cookies.remove(ROLE_COOKIE_NAME);
-      setAuthError(e.message || "Error processing user session.");
+      setAuthError(errorMsg);
     } finally {
       console.log(`${effectId} Finished. Setting isLoading to false.`);
       setIsLoading(false);
@@ -207,7 +207,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isStudentDashboardArea = pathname?.startsWith('/student/dashboard');
     const isTeacherDashboardArea = pathname?.startsWith('/teacher/dashboard');
     const isSebSpecificRoute = pathname?.startsWith('/seb/');
-    // PUBLIC_ROUTES should be defined in middleware, but for client-side logic this is a reasonable check
     const PUBLIC_ROUTES_FOR_CLIENT = ['/', '/privacy', '/terms', '/supabase-test', '/unsupported-browser'];
     const isPublicRoute = PUBLIC_ROUTES_FOR_CLIENT.includes(pathname);
     const isProtectedRoute = isStudentDashboardArea || isTeacherDashboardArea;
@@ -241,7 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       console.log(`${effectId} Authenticated user on allowed page: ${pathname}. No redirect needed by context guard this cycle.`);
 
-    } else { // User not authenticated
+    } else { 
       console.log(`${effectId} User not authenticated. Path: ${pathname}`);
       if (isProtectedRoute && !isAuthPg && !isSebSpecificRoute) {
         console.log(`${effectId} Unauthenticated on protected route ${pathname}, redirecting to ${AUTH_ROUTE}`);
@@ -270,18 +269,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true); setAuthError(null);
 
     try {
-      console.time(`${operationId} Supabase SignIn Query`);
       const { data, error: dbError } = await supabase
         .from('proctorX')
         .select('user_id, email, pass, name, role, avatar_url')
         .eq('email', email)
         .single();
-      console.timeEnd(`${operationId} Supabase SignIn Query`);
 
       if (dbError || !data) {
         let errorDetail = 'User with this email not found or DB error.';
         if (dbError && dbError.code === 'PGRST116') errorDetail = 'User with this email not found.';
-        else if (dbError) errorDetail = dbError.message || 'Failed to fetch user data.';
+        else if (dbError) errorDetail = getSafeErrorMessage(dbError, 'Failed to fetch user data.');
         console.warn(`${operationId} Failed to fetch user. Email:`, email, 'Error:', errorDetail);
         setUser(null); setIsLoading(false); return { success: false, error: errorDetail };
       }
@@ -309,8 +306,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null); setIsLoading(false); return { success: false, error: 'Incorrect password.' };
       }
     } catch (e: any) {
-      console.error(`${operationId} Exception during sign in:`, e.message);
-      const errorMsg = e.message || 'An unexpected error occurred during sign in.';
+      const errorMsg = getSafeErrorMessage(e, 'An unexpected error occurred during sign in.');
+      console.error(`${operationId} Exception during sign in:`, errorMsg);
       setUser(null); setAuthError(errorMsg); setIsLoading(false); return { success: false, error: errorMsg };
     }
   }, [supabase]);
@@ -336,8 +333,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('email', email)
         .maybeSingle();
 
-      if (selectError && selectError.code !== 'PGRST116') {
-        const errorMsg = 'Error checking existing user: ' + selectError.message;
+      if (selectError && selectError.code !== 'PGRST116') { // PGRST116 means 0 rows, which is good for new user
+        const errorMsg = getSafeErrorMessage(selectError, 'Error checking existing user.');
         console.error(`${operationId} DB Select Error:`, errorMsg);
         setIsLoading(false); throw new Error(errorMsg);
       }
@@ -360,7 +357,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (insertError || !insertedData) {
-        const errorDetail = insertError?.message || "Could not retrieve user data after insert.";
+        const errorDetail = getSafeErrorMessage(insertError, "Could not retrieve user data after insert.");
         console.error(`${operationId} Insert Error: ${errorDetail}`);
         setUser(null); setIsLoading(false); return { success: false, error: `Registration failed: ${errorDetail}` };
       }
@@ -382,9 +379,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: true, user: newUserData };
 
     } catch (e: any) {
-      console.error(`${operationId} Exception:`, e.message);
-      setUser(null); setAuthError(e.message || 'Unexpected error during sign up.'); setIsLoading(false);
-      return { success: false, error: e.message || 'An unexpected error occurred.' };
+      const errorMsg = getSafeErrorMessage(e, 'Unexpected error during sign up.');
+      console.error(`${operationId} Exception:`, errorMsg);
+      setUser(null); setAuthError(errorMsg); setIsLoading(false);
+      return { success: false, error: errorMsg };
     }
   }, [supabase, generateShortId]);
 
@@ -396,8 +394,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     Cookies.remove(SESSION_COOKIE_NAME, { path: '/' });
     Cookies.remove(ROLE_COOKIE_NAME, { path: '/' });
     setAuthError(null);
-    setIsLoading(false); // Ensure loading is false after sign out completes
-    setShowSignOutDialog(false); // Close dialog after confirmation
+    setIsLoading(false); 
+    setShowSignOutDialog(false); 
 
     if (pathname !== AUTH_ROUTE) {
         console.log(`${operationId} Redirecting to ${AUTH_ROUTE} after sign out.`);
@@ -440,8 +438,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('user_id', user.user_id);
 
       if (updateError) {
-        console.error(`${operationId} Error updating DB:`, updateError.message);
-        setIsLoading(false); return { success: false, error: `Failed to update profile: ${updateError.message}` };
+        const errorMsg = getSafeErrorMessage(updateError, "Failed to update profile.");
+        console.error(`${operationId} Error updating DB:`, errorMsg);
+        setIsLoading(false); return { success: false, error: errorMsg };
       }
 
       setUser(prevUser => prevUser ? ({
@@ -453,16 +452,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false); return { success: true };
 
     } catch (e: any) {
-      console.error(`${operationId} Exception:`, e.message);
-      setAuthError(e.message || 'Unexpected error during profile update.'); setIsLoading(false);
-      return { success: false, error: e.message || 'An unexpected error occurred.' };
+      const errorMsg = getSafeErrorMessage(e, 'Unexpected error during profile update.');
+      console.error(`${operationId} Exception:`, errorMsg);
+      setAuthError(errorMsg); setIsLoading(false);
+      return { success: false, error: errorMsg };
     }
   }, [supabase, user]);
 
-  // Memoize context value to prevent unnecessary re-renders of consuming components
   const contextValue = useMemo(() => ({
     user, isLoading, authError, supabase, signIn, signUp,
-    signOut: () => setShowSignOutDialog(true), // Trigger dialog instead of direct sign out
+    signOut: () => setShowSignOutDialog(true), 
     updateUserProfile,
     showSignOutDialog, setShowSignOutDialog
   }), [user, isLoading, authError, supabase, signIn, signUp, updateUserProfile, showSignOutDialog, setShowSignOutDialog]);

@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 import jwt from 'jsonwebtoken';
+import { getSafeErrorMessage } from '@/lib/error-logging'; // Import helper
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -53,23 +54,22 @@ export async function GET(request: NextRequest) {
       decoded = jwt.verify(token, jwtSecret);
     } catch (jwtError: any) {
       let errorMessage = 'Invalid or malformed exam session token.';
-      let errorStatus = 401;
+      let errorStatus = 401; // Default to 401 for auth errors
 
-      // Check error type by its 'name' property
-      if (jwtError && typeof jwtError === 'object' && typeof jwtError.name === 'string') {
+      if (jwtError && typeof jwtError === 'object') {
         if (jwtError.name === 'TokenExpiredError') {
           errorMessage = 'Exam session token has expired.';
           console.warn(`${operationId} JWT verification failed: TokenExpiredError`);
-        } else if (jwtError.name === 'JsonWebTokenError') {
-          errorMessage = `Invalid token: ${jwtError.message || 'Malformed token'}`;
-          console.warn(`${operationId} JWT verification failed: JsonWebTokenError - ${jwtError.message}`);
+        } else if (jwtError.name === 'JsonWebTokenError') { // Catches other JWT specific errors
+          errorMessage = `Invalid token: ${getSafeErrorMessage(jwtError, 'Malformed token')}`;
+          console.warn(`${operationId} JWT verification failed: JsonWebTokenError - ${getSafeErrorMessage(jwtError)}`);
         } else {
           // For other errors that might have a name and message
-          errorMessage = `Token validation error: ${jwtError.message || jwtError.name}`;
-          console.warn(`${operationId} JWT verification failed with other error: ${jwtError.name} - ${jwtError.message}`);
+          errorMessage = `Token validation error: ${getSafeErrorMessage(jwtError, 'Unknown JWT error')}`;
+          console.warn(`${operationId} JWT verification failed with other error: ${jwtError.name || 'Unknown name'} - ${getSafeErrorMessage(jwtError)}`);
         }
       } else {
-         console.warn(`${operationId} JWT verification failed with non-standard error object:`, jwtError);
+         console.warn(`${operationId} JWT verification failed with non-standard error object:`, getSafeErrorMessage(jwtError));
       }
       return NextResponse.json({ error: errorMessage }, { status: errorStatus });
     }
@@ -108,12 +108,7 @@ export async function GET(request: NextRequest) {
     }, { status: 200 });
 
   } catch (e: any) {
-    let errorMessage = 'An unexpected error occurred during token validation.';
-    if (e && typeof e === 'object' && typeof e.message === 'string') {
-        errorMessage = e.message;
-    } else if (e) {
-        errorMessage = String(e);
-    }
+    const errorMessage = getSafeErrorMessage(e, 'An unexpected error occurred during token validation.');
     console.error(`${operationId} Exception during token validation:`, errorMessage, e);
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }

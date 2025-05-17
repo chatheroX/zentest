@@ -4,41 +4,59 @@
 
 import type { ErrorLogInsert } from '@/types/supabase';
 
+// Helper function to safely extract error messages
+export function getSafeErrorMessage(e: any, fallbackMessage = "An unknown error occurred."): string {
+  if (e && typeof e === 'object') {
+    if (e.name === 'AbortError') { // Common for fetch timeouts
+      return "The request timed out. Please check your connection and try again.";
+    }
+    if (typeof e.message === 'string' && e.message.trim() !== '') {
+      return e.message;
+    }
+    // Try to stringify if it's an object but no message, or message is empty
+    try {
+      const strError = JSON.stringify(e);
+      if (strError !== '{}') return `Error object: ${strError}`;
+    } catch (stringifyError) {
+      // Fall through if stringify fails
+    }
+  }
+  if (e !== null && e !== undefined && String(e).trim() !== '') {
+    return String(e);
+  }
+  return fallbackMessage;
+}
+
 export async function logErrorToBackend(error: any, location: string, userContext?: object) {
   try {
-    let errorMessage = 'Unknown error structure';
-    if (error && typeof error.message === 'string') {
-      errorMessage = error.message;
-    } else if (typeof error === 'string') {
-      errorMessage = error;
-    } else {
-      errorMessage = JSON.stringify(error); // Fallback for non-standard errors
-    }
+    const errorMessage = getSafeErrorMessage(error, "Could not determine error message for logging.");
 
     let errorName = 'UnknownError';
-    if (error && typeof error.name === 'string') {
-      errorName = error.name;
-    }
-
     let errorStack: string | undefined;
-    if (error && typeof error.stack === 'string') {
-      errorStack = error.stack;
-    }
+    let originalMessageForDetails: string | undefined;
 
-    const isErrorConstructorValid = typeof Error === 'function';
-    const isInstanceOfError = isErrorConstructorValid && error instanceof Error;
+    if (error && typeof error === 'object') {
+      if (typeof error.name === 'string') {
+        errorName = error.name;
+      }
+      if (typeof error.stack === 'string') {
+        errorStack = error.stack;
+      }
+      if (typeof error.message === 'string') {
+        originalMessageForDetails = error.message;
+      }
+    }
 
     const errorDetailsPayload = {
       name: errorName,
       stack: errorStack,
-      isInstanceOfError: isInstanceOfError,
-      originalMessage: isInstanceOfError ? (error as Error).message : undefined,
-      rawErrorObject: isInstanceOfError ? undefined : error, // Log the raw error if not an Error instance
+      originalMessage: originalMessageForDetails,
+      rawErrorObjectString: !(error && typeof error === 'object' && typeof error.message === 'string') ? String(error) : undefined,
     };
 
     const payload: Omit<ErrorLogInsert, 'log_id' | 'timestamp'> = {
       location,
-      error_message: errorMessage,
+      error_message: errorMessage, // Use the safely extracted message
       error_details: errorDetailsPayload,
       user_context: userContext || null,
     };
@@ -50,14 +68,10 @@ export async function logErrorToBackend(error: any, location: string, userContex
     });
 
     if (!response.ok) {
-      // Log a simpler error to console if logging to backend fails, to avoid loops
-      console.error(`[${location}] Failed to log error to backend API. Status: ${response.status}. Original error:`, error);
+      console.error(`[${location}] Failed to log error to backend API. Status: ${response.status}. Original error:`, getSafeErrorMessage(error));
     }
   } catch (loggingError: any) {
-    let loggingErrorMessage = "Critical: Exception in logErrorToBackend itself.";
-    if (loggingError && typeof loggingError.message === 'string') {
-        loggingErrorMessage += `: ${loggingError.message}`;
-    }
-    console.error(`[${location}] ${loggingErrorMessage}`, { originalError: error, loggingErrorDetails: loggingError });
+    const safeLoggingErrorMessage = getSafeErrorMessage(loggingError, "Critical: Exception in logErrorToBackend itself.");
+    console.error(`[${location}] ${safeLoggingErrorMessage}`, { originalError: getSafeErrorMessage(error), loggingErrorDetails: getSafeErrorMessage(loggingError) });
   }
 }
