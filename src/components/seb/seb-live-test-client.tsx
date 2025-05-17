@@ -12,7 +12,29 @@ import { isSebEnvironment, attemptBlockShortcuts, disableContextMenu, disableCop
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; 
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { logErrorToBackend } from '@/lib/error-logging'; // Import shared logger
+import { logErrorToBackend } from '@/lib/error-logging'; 
+
+// Helper function to safely extract error messages
+function getSafeErrorMessage(e: any, defaultMessage: string): string {
+  if (e && typeof e === 'object') {
+    if (e.name === 'AbortError') {
+      return "The request timed out. Please check your connection and try again.";
+    }
+    if (typeof e.message === 'string' && e.message.trim() !== '') {
+      return e.message;
+    }
+    try {
+      const strError = JSON.stringify(e);
+      if (strError !== '{}') return strError;
+    } catch (stringifyError) {
+      // Fall through
+    }
+  }
+  if (e !== null && e !== undefined && String(e).trim() !== '') {
+    return String(e);
+  }
+  return defaultMessage;
+}
 
 
 export function SebLiveTestClient() {
@@ -28,6 +50,7 @@ export function SebLiveTestClient() {
   const [pageIsLoading, setPageIsLoading] = useState(true); 
   const [pageError, setPageError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [examActuallyStarted, setExamActuallyStarted] = useState(false);
 
   const examIdFromUrl = searchParams?.get('examId');
   const studentIdFromUrl = searchParams?.get('studentId'); 
@@ -54,7 +77,7 @@ export function SebLiveTestClient() {
       console.error(`${effectId} ${sbError}`);
       setPageError(sbError + " SEB will quit.");
       toast({ title: "Internal Error", description: "Service connection failed. Quitting SEB.", variant: "destructive", duration: 7000 });
-      logErrorToBackend(new Error(sbError), 'SebLiveTestClient-Init-SupabaseNull');
+      logErrorToBackend(new Error(sbError), 'SebLiveTestClient-Init-SupabaseNull', { examIdFromUrl, studentIdFromUrl });
       setPageIsLoading(false);
       setTimeout(handleSebQuit, 6000);
       return;
@@ -64,7 +87,7 @@ export function SebLiveTestClient() {
     if (!isSebEnvironment()) {
       setPageError("CRITICAL: Not in SEB environment. This page is restricted.");
       toast({ title: "SEB Required", description: "Redirecting...", variant: "destructive", duration: 4000 });
-      logErrorToBackend(new Error("Not in SEB environment"), 'SebLiveTestClient-Init-NotSEB');
+      logErrorToBackend(new Error("Not in SEB environment"), 'SebLiveTestClient-Init-NotSEB', { examIdFromUrl, studentIdFromUrl });
       setPageIsLoading(false);
       setTimeout(() => router.replace('/unsupported-browser'), 3000);
       return;
@@ -76,7 +99,7 @@ export function SebLiveTestClient() {
                              isWebDriverActive() ? "WebDriver (automation) detected." : "Unknown integrity issue.";
       setPageError(`Critical system integrity check failed: ${integrityError}. Cannot proceed. SEB will quit.`);
       toast({ title: "Security Alert", description: `Integrity check failed: ${integrityError}. Quitting SEB.`, variant: "destructive", duration: 7000 });
-      logErrorToBackend(new Error(integrityError), 'SebLiveTestClient-Init-IntegrityFail');
+      logErrorToBackend(new Error(integrityError), 'SebLiveTestClient-Init-IntegrityFail', { examIdFromUrl, studentIdFromUrl });
       setPageIsLoading(false);
       setTimeout(handleSebQuit, 6000);
       return;
@@ -101,11 +124,11 @@ export function SebLiveTestClient() {
         ]);
 
         if (examRes.error || !examRes.data) {
-          const errorMsg = (examRes.error && typeof examRes.error.message === 'string') ? examRes.error.message : "Exam not found.";
+           const errorMsg = getSafeErrorMessage(examRes.error, "Exam not found.");
           throw new Error(errorMsg);
         }
         if (studentRes.error || !studentRes.data) {
-          const errorMsg = (studentRes.error && typeof studentRes.error.message === 'string') ? studentRes.error.message : "Student profile not found.";
+          const errorMsg = getSafeErrorMessage(studentRes.error, "Student profile not found.");
           throw new Error(errorMsg);
         }
 
@@ -130,14 +153,17 @@ export function SebLiveTestClient() {
           .select();
         
         if (submissionUpsertError) {
-          console.warn(`${effectId} Error upserting 'In Progress' submission (might be okay if already set):`, submissionUpsertError.message);
+          const upsertErrorMsg = getSafeErrorMessage(submissionUpsertError, "Could not accurately record exam start time, but proceeding.");
+          console.warn(`${effectId} Error upserting 'In Progress' submission:`, upsertErrorMsg);
+          // Non-fatal, proceed with exam
         }
         setPageError(null);
+        setExamActuallyStarted(true); // Indicate exam can now render
       } catch (e: any) {
-        console.error(`${effectId} Error fetching data:`, e.message);
-        const errorMessage = (e && typeof e.message === 'string') ? e.message : String(e);
-        setPageError(errorMessage || "Failed to load exam data.");
-        toast({ title: "Exam Load Error", description: (errorMessage || "Unknown error") + " SEB will quit.", variant: "destructive", duration: 7000 });
+        const errorMsg = getSafeErrorMessage(e, "Failed to load exam data.");
+        console.error(`${effectId} Error fetching data:`, errorMsg, e);
+        setPageError(errorMsg + " SEB will quit.");
+        toast({ title: "Exam Load Error", description: errorMsg + " SEB will quit.", variant: "destructive", duration: 7000 });
         await logErrorToBackend(e, 'SebLiveTestClient-FetchData-Exception', { examIdFromUrl, studentIdFromUrl });
         setTimeout(handleSebQuit, 6000);
       } finally {
@@ -150,6 +176,7 @@ export function SebLiveTestClient() {
         fetchData();
     } else {
         console.log(`${effectId} Exam/student data already present. Skipping fetch. Setting isLoading to false.`);
+        setExamActuallyStarted(true);
         setPageIsLoading(false); 
     }
 
@@ -157,7 +184,7 @@ export function SebLiveTestClient() {
 
 
   useEffect(() => {
-    if (!isSebEnvironment() || pageError || !examDetails || !enabled) return; // Added enabled check from props
+    if (!isSebEnvironment() || pageError || !examDetails || !examActuallyStarted) return;
 
     const effectId = `[SebLiveTestClient SecurityListeners ${Date.now().toString().slice(-4)}]`;
     console.log(`${effectId} Adding SEB security event listeners.`);
@@ -184,7 +211,7 @@ export function SebLiveTestClient() {
       document.removeEventListener('paste', disableCopyPaste);
       window.removeEventListener('beforeunload', beforeUnloadHandler);
     };
-  }, [pageError, examDetails, toast, enabled]); // Added enabled to dependency array
+  }, [pageError, examDetails, toast, examActuallyStarted]); 
 
 
   const handleActualSubmit = useCallback(async (answers: Record<string, string>, flaggedEvents: FlaggedEvent[], submissionType: 'submit' | 'timeup') => {
@@ -195,7 +222,7 @@ export function SebLiveTestClient() {
         return;
     }
     
-    const submissionPayload = { // Omit<ExamSubmissionInsert, 'submission_id' | 'started_at' | 'score'>
+    const submissionPayload = { 
         exam_id: examDetails.exam_id,
         student_user_id: studentIdFromUrl,
         answers: answers,
@@ -217,7 +244,7 @@ export function SebLiveTestClient() {
         let errorResponseData = null;
         try {
             errorResponseData = await response.json();
-            errorMsg = (errorResponseData && typeof errorResponseData.error === 'string') ? errorResponseData.error : errorMsg;
+            errorMsg = getSafeErrorMessage(errorResponseData, errorMsg);
         } catch (e) {
             errorMsg = response.statusText || errorMsg;
             console.warn(`${operationId} Could not parse error response as JSON. Status: ${response.status}, StatusText: ${response.statusText}`);
@@ -238,10 +265,10 @@ export function SebLiveTestClient() {
       setTimeout(handleSebQuit, 9000); 
 
     } catch(e: any) {
-      console.error(`${operationId} Submission API error:`, e.message, e);
-      const errorMessage = (e && typeof e.message === 'string') ? e.message : String(e);
-      setPageError("Failed to submit exam: " + errorMessage + ". Please contact support. SEB will quit.");
-      toast({ title: "Submission Error", description: errorMessage + ". Quitting SEB.", variant: "destructive", duration: 10000 });
+      const errorMsg = getSafeErrorMessage(e, "Failed to submit exam.");
+      console.error(`${operationId} Submission API error:`, errorMsg, e);
+      setPageError("Failed to submit exam: " + errorMsg + ". Please contact support. SEB will quit.");
+      toast({ title: "Submission Error", description: errorMsg + ". Quitting SEB.", variant: "destructive", duration: 10000 });
       await logErrorToBackend(e, 'SebLiveTestClient-ActualSubmit-Exception', { studentIdFromUrl, examId: examDetails.exam_id });
       setTimeout(handleSebQuit, 9000);
     }
@@ -286,13 +313,13 @@ export function SebLiveTestClient() {
     );
   }
   
-  if (!examDetails || !studentProfile) { 
+  if (!examDetails || !studentProfile || !examActuallyStarted) { 
      return (
        <div className="flex items-center justify-center min-h-screen bg-background text-foreground p-4">
         <Alert variant="destructive" className="w-full max-w-md text-center p-8 rounded-xl shadow-2xl border">
            <ServerCrash className="h-16 w-16 text-destructive mx-auto mb-5" />
             <AlertTitle className="text-2xl font-semibold mb-3">Exam Data Unavailable</AlertTitle>
-            <AlertDescription className="text-sm mb-6">Could not load exam or student content. This might be due to an issue with the provided Exam ID or Student ID. SEB will attempt to quit.</AlertDescription>
+            <AlertDescription className="text-sm mb-6">Could not load exam or student content. This might be due to an issue with the provided Exam ID or Student ID, or the exam hasn't properly started. SEB will attempt to quit.</AlertDescription>
              <Button onClick={handleSebQuit} className="w-full btn-gradient-destructive">Exit SEB</Button>
         </Alert>
       </div>
@@ -335,7 +362,8 @@ export function SebLiveTestClient() {
       studentName={studentProfile.name}
       studentRollNumber={studentProfile.user_id} 
       studentAvatarUrl={studentProfile.avatar_url}
-      examStarted={true} 
+      examStarted={examActuallyStarted} 
     />
   );
 }
+
