@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Card can still be used for security checks section
 import { Loader2, AlertTriangle, PlayCircle, ShieldCheck, XCircle, Info, LogOut, ServerCrash, CheckCircle, Ban, CircleSlash, BookOpen, UserCircle2, CalendarDays, ListChecks, ShieldX } from 'lucide-react';
 import type { Exam, CustomUser, FlaggedEvent } from '@/types/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -20,9 +20,8 @@ import logoAsset from '../../../logo.png';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
 
-// Local getSafeErrorMessage helper
+// Local getSafeErrorMessage helper (copied here since error-logging.ts was removed)
 function getLocalSafeErrorMessage(e: any, defaultMessage = "An unknown error occurred."): string {
-  const prefix = "[SebEntryClientNew getLocalSafeErrorMessage]";
   if (e && typeof e === 'object') {
     if (e.name === 'AbortError') {
       return "The request timed out. Please check your connection and try again.";
@@ -33,9 +32,7 @@ function getLocalSafeErrorMessage(e: any, defaultMessage = "An unknown error occ
     try {
       const strError = JSON.stringify(e);
       if (strError !== '{}' && strError.length > 2) return `Error details: ${strError}`;
-    } catch (stringifyError) {
-      // Fall through
-    }
+    } catch (stringifyError) { /* Fall through */ }
   }
   if (e !== null && e !== undefined) {
     const stringifiedError = String(e);
@@ -46,10 +43,10 @@ function getLocalSafeErrorMessage(e: any, defaultMessage = "An unknown error occ
   return defaultMessage;
 }
 
+
 type SebStage =
   | 'initializing'
   | 'validatingToken'       // For production JWT flow
-  | 'devModeEntry'          // For development direct entry
   | 'fetchingDetails'
   | 'readyToStart'
   | 'performingSecurityChecks'
@@ -100,8 +97,6 @@ export function SebEntryClientNew() {
   const [activityFlagsDuringExam, setActivityFlagsDuringExam] = useState<FlaggedEvent[]>([]);
   
   const entryTokenFromQuery = searchParams?.get('token');
-  const examIdFromQueryDev = searchParams?.get('examId');
-  const studentIdFromQueryDev = searchParams?.get('studentId');
   const isDevModeActive = process.env.NEXT_PUBLIC_DEV_MODE_SKIP_SEB_LAUNCH === "true";
 
   const handleExitSeb = useCallback(() => {
@@ -111,7 +106,7 @@ export function SebEntryClientNew() {
 
   useEffect(() => {
     const effectId = `[SebEntryClientNew InitEffect ${Date.now().toString().slice(-5)}]`;
-    console.log(`${effectId} Current stage: ${stage}. IsDevMode: ${isDevModeActive}. Token: ${entryTokenFromQuery ? 'Present' : 'N/A'}. DevParams: examId=${examIdFromQueryDev}, studentId=${studentIdFromQueryDev}`);
+    console.log(`${effectId} Current stage: ${stage}. IsDevMode: ${isDevModeActive}. Token: ${entryTokenFromQuery ? 'Present' : 'N/A'}`);
 
     async function validateAndFetch() {
       if (authContextLoading) {
@@ -122,20 +117,16 @@ export function SebEntryClientNew() {
 
       if (stage === 'initializing') {
         console.log(`${effectId} Stage: initializing. Performing initial checks.`);
+        // In dev mode, SEB environment check is lenient during security checks, not here.
+        // This page MUST be entered with a token now, dev mode just changes SEB launch.
         if (!isDevModeActive && !isSebEnvironment()) {
-          const errorMsg = "This page must be accessed within Safe Exam Browser.";
+          const errorMsg = "This page must be accessed within Safe Exam Browser (production mode).";
           console.error(`${effectId} CRITICAL (Prod Mode): ${errorMsg}`);
           setPageError(errorMsg);
           setStage('error');
           return;
         }
-        if (isDevModeActive && examIdFromQueryDev && studentIdFromQueryDev && !entryTokenFromQuery) {
-          console.log(`${effectId} DEV MODE: Direct entry with examId and studentId. Skipping token validation.`);
-          setValidatedExamId(examIdFromQueryDev);
-          setValidatedStudentId(studentIdFromQueryDev);
-          setStage('fetchingDetails'); // Directly move to fetching details
-          return;
-        }
+
         if (!entryTokenFromQuery) {
           const errorMsg = "CRITICAL: SEB entry token missing from URL query parameters.";
           console.error(`${effectId} ${errorMsg}`);
@@ -143,12 +134,12 @@ export function SebEntryClientNew() {
           setStage('error');
           return;
         }
-        console.log(`${effectId} Initial checks passed (or dev mode detected), moving to validatingToken stage.`);
+        console.log(`${effectId} Token found, moving to validatingToken stage.`);
         setStage('validatingToken');
         return;
       }
 
-      if (stage === 'validatingToken' && entryTokenFromQuery) { // Ensure token exists for this stage
+      if (stage === 'validatingToken' && entryTokenFromQuery) { 
         console.log(`${effectId} Stage: validatingToken. Token: ${entryTokenFromQuery.substring(0, 10)}...`);
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
@@ -166,23 +157,24 @@ export function SebEntryClientNew() {
           
           console.log(`${effectId} Token validation API response status: ${res.status}`);
           let responseBody;
-          try {
-            responseBody = await res.json();
-          } catch (jsonError) {
-             const rawText = await res.text().catch(() => "Could not read response text.");
-             const parseErrorMsg = `Failed to parse token validation API response as JSON. Status: ${res.status}. Response text (partial): ${rawText.substring(0,150)}`;
-             console.error(`${effectId} ${parseErrorMsg}`);
-             throw new Error(parseErrorMsg);
-          }
-          
+          let apiErrorMsg = `Token validation API request failed with status: ${res.status}.`;
+
           if (!res.ok) {
-            const apiErrorMsg = getLocalSafeErrorMessage(responseBody?.error || responseBody, `Token validation API request failed with status: ${res.status}.`);
-            console.error(`${effectId} Token validation API error (parsed JSON or fallback): ${apiErrorMsg}`, responseBody);
+            try {
+              responseBody = await res.json();
+              apiErrorMsg = getLocalSafeErrorMessage(responseBody?.error || responseBody, apiErrorMsg);
+            } catch (jsonParseError) {
+              const rawText = await res.text().catch(() => "Could not read response text.");
+              apiErrorMsg = `Failed to parse token validation API error response as JSON. Status: ${res.status}. Response: ${rawText.substring(0,150)}`;
+            }
+            console.error(`${effectId} Token validation API error: ${apiErrorMsg}`, responseBody);
             throw new Error(apiErrorMsg);
           }
           
+          responseBody = await res.json(); // Assuming res.ok means valid JSON
+          
           if (responseBody.error) { 
-            const apiErrorMsg = getLocalSafeErrorMessage(responseBody.error, `Token validation failed.`);
+            apiErrorMsg = getLocalSafeErrorMessage(responseBody.error, `Token validation failed.`);
             console.error(`${effectId} Token validation API reported an error: ${apiErrorMsg}`);
             throw new Error(apiErrorMsg);
           }
@@ -253,7 +245,7 @@ export function SebEntryClientNew() {
               setIsDataReadyForExam(true);
               setStage('readyToStart');
           } else {
-              const noQuestionsError = "This exam currently has no questions. Please contact support.";
+              const noQuestionsError = "This exam currently has no questions. Please contact your instructor.";
               console.error(`${effectId} ${noQuestionsError}`);
               setPageError(`Cannot start exam: ${noQuestionsError}`);
               setStage('error');
@@ -271,7 +263,7 @@ export function SebEntryClientNew() {
     if (stage === 'initializing' || stage === 'validatingToken' || stage === 'fetchingDetails') {
         validateAndFetch();
     }
-  }, [stage, entryTokenFromQuery, examIdFromQueryDev, studentIdFromQueryDev, isDevModeActive, supabase, authContextLoading, validatedExamId, validatedStudentId, handleExitSeb, toast]);
+  }, [stage, entryTokenFromQuery, isDevModeActive, supabase, authContextLoading, validatedExamId, validatedStudentId, handleExitSeb, toast]);
 
 
   const runSecurityChecks = useCallback(async () => {
@@ -292,8 +284,9 @@ export function SebEntryClientNew() {
 
     const currentChecksConfig = INITIAL_SECURITY_CHECKS.map(c => {
         let isCritical = c.isCritical;
+        // In dev mode, SEB environment check is non-critical
         if (isDevModeActive && c.id === 'sebEnv') {
-            isCritical = false; // Make SEB environment check non-critical in dev mode
+            isCritical = false; 
         }
         return { ...c, status: 'pending' as 'pending' | 'checking' | 'passed' | 'failed', details: undefined, isCritical };
     });
@@ -331,8 +324,15 @@ export function SebEntryClientNew() {
       setStage('startingExamSession');
     } else {
       const failedCritical = currentChecksConfig.find(c => c.status === 'failed' && c.isCritical);
-      const errorMsg = `Critical security check failed: ${failedCritical?.details || failedCritical?.label || 'Unknown Check'}. Cannot start exam.`;
-      console.error(`${operationId} ${errorMsg}`);
+      let errorMsg = `Critical security check failed: ${failedCritical?.details || failedCritical?.label || 'Unknown Check'}. Cannot start exam.`;
+      if(isDevModeActive && failedCritical?.id === 'sebEnv'){
+         errorMsg = `SEB Environment check failed (dev mode: non-critical). Other critical checks might have passed.`;
+         // For dev mode, even if SEB check fails, if it's the *only* critical fail, we might allow proceeding
+         // but this logic path means *another* critical check failed.
+         console.warn(`${operationId} Dev mode with SEB check failed, but allowing proceed if it was the only one. Current state: allCriticalPassed is ${allCriticalPassed}. This implies another critical check failed.`);
+      }
+      
+      console.error(`${operationId} Security checks evaluation: ${errorMsg}`);
       setPageError(errorMsg);
       setStage('securityChecksFailed');
       setShowExitSebButton(true);
@@ -530,11 +530,11 @@ export function SebEntryClientNew() {
                 check.status === 'passed' ? 'border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400' : 
                 'border-destructive/50 bg-red-500/10 text-red-700 dark:text-red-400' 
               )}>
-                <span className="font-medium text-foreground">{check.label}</span> {/* Updated text color */}
+                <span className="font-medium text-foreground">{check.label}</span>
                 {check.status === 'pending' && <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />}
                 {check.status === 'checking' && <Loader2 className="h-4 w-4 text-primary animate-spin" />}
-                {check.status === 'passed' && <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-500" />} {/* Adjusted icon color */}
-                {check.status === 'failed' && <ShieldX className="h-5 w-5 text-destructive dark:text-red-500" />} {/* Adjusted icon color */}
+                {check.status === 'passed' && <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-500" />}
+                {check.status === 'failed' && <ShieldX className="h-5 w-5 text-destructive dark:text-red-500" />}
               </div>
             ))}
           </CardContent>
@@ -623,7 +623,7 @@ export function SebEntryClientNew() {
   return (
     <div className="min-h-screen w-full flex flex-col sm:flex-row bg-background text-foreground">
       {/* Left Column - Exam Info */}
-      <div className="w-full sm:w-1/3 p-6 sm:p-10 flex flex-col justify-between bg-slate-50 dark:bg-slate-800/30 border-r border-border/30">
+      <div className="w-full sm:w-1/3 p-6 sm:p-10 flex flex-col justify-between bg-slate-50 border-r border-border/30">
         <div>
           <Image src={logoAsset} alt="ZenTest Logo" width={180} height={50} className="mb-6 sm:mb-10 h-16 w-auto" />
           <div className="space-y-3">
@@ -684,9 +684,9 @@ export function SebEntryClientNew() {
             <h3 className="text-sm sm:text-md font-medium text-muted-foreground mb-1.5">Status</h3>
             <p className={cn(
                 "text-3xl sm:text-4xl font-bold tabular-nums", 
-                isExamEffectivelyCompleted ? "text-green-600 dark:text-green-500" : // Adjusted colors for light theme
-                (stage === 'readyToStart' && isDataReadyForExam) ? "text-blue-600 dark:text-blue-500" : 
-                "text-yellow-600 dark:text-yellow-500" 
+                isExamEffectivelyCompleted ? "text-green-600" : 
+                (stage === 'readyToStart' && isDataReadyForExam) ? "text-blue-600" : 
+                "text-yellow-600" 
               )}
             >
               {examStatusText}

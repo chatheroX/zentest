@@ -56,7 +56,10 @@ export default function JoinExamPage() {
         .single();
 
       if (examFetchError || !exam) {
-        const errMsg = (examFetchError?.message && typeof examFetchError.message === 'string' ? examFetchError.message : "Exam code not found or error fetching exam.");
+        let errMsg = "Exam code not found or error fetching exam.";
+        if (examFetchError?.message && typeof examFetchError.message === 'string') {
+          errMsg = examFetchError.message;
+        }
         toast({ title: "Invalid Code", description: errMsg, variant: "destructive" });
         setLocalError(errMsg);
         setIsLoading(false);
@@ -81,15 +84,6 @@ export default function JoinExamPage() {
         return;
       }
       
-      // Development Mode Check
-      if (process.env.NEXT_PUBLIC_DEV_MODE_SKIP_SEB_LAUNCH === "true") {
-        console.log(`${operationId} DEV MODE: Skipping SEB launch and JWT generation. Navigating directly to /seb/entry with params.`);
-        setIsLoading(false);
-        router.push(`/seb/entry?examId=${exam.exam_id}&studentId=${studentUser.user_id}`);
-        return;
-      }
-
-      // Production SEB Flow (JWT Generation and SEB Launch)
       console.log(`${operationId} Requesting SEB entry JWT from API for student: ${studentUser.user_id}, exam: ${exam.exam_id}`);
       const tokenResponse = await fetch('/api/generate-seb-token', {
         method: 'POST',
@@ -102,10 +96,9 @@ export default function JoinExamPage() {
         try {
           errorBody = await tokenResponse.json();
         } catch (jsonParseError) {
-          // If response is not JSON, use statusText
           console.error(`${operationId} Failed to parse error response from /api/generate-seb-token as JSON.`);
         }
-        const errMsg = (errorBody?.error && typeof errorBody.error === 'string' ? errorBody.error : `Failed to generate secure exam token from API. Status: ${tokenResponse.status}`);
+        const errMsg = (errorBody?.error && typeof errorBody.error === 'string' ? errorBody.error : `Failed to generate secure exam token. Status: ${tokenResponse.status}`);
         console.error(`${operationId} API Error generating token: ${tokenResponse.status}`, errorBody);
         toast({ title: "Launch Error", description: errMsg, variant: "destructive" });
         setLocalError(errMsg);
@@ -126,7 +119,17 @@ export default function JoinExamPage() {
       
       console.log(`${operationId} Received SEB entry JWT from API:`, sebEntryTokenValue ? sebEntryTokenValue.substring(0,20) + "..." : "TOKEN_GENERATION_FAILED_OR_EMPTY");
 
+      // Development Mode Check
+      if (process.env.NEXT_PUBLIC_DEV_MODE_SKIP_SEB_LAUNCH === "true") {
+        console.log(`${operationId} DEV MODE: Skipping SEB launch. Navigating directly to /seb/entry with token in query.`);
+        setIsLoading(false);
+        router.push(`/seb/entry?token=${sebEntryTokenValue}`);
+        return;
+      }
+
+      // Production SEB Flow (SEB Launch)
       const appDomain = window.location.origin;
+      // The entry page now expects token as a query param
       const sebEntryPageUrl = `${appDomain}/seb/entry?token=${sebEntryTokenValue}`; 
       
       const domainAndPathForSeb = sebEntryPageUrl.replace(/^https?:\/\//, '');
@@ -210,6 +213,7 @@ export default function JoinExamPage() {
             <CardTitle className="text-2xl font-semibold text-foreground">Enter Exam Code</CardTitle>
             <CardDescription className="text-muted-foreground/90 pt-1">
               This will attempt to launch the exam directly in Safe Exam Browser using a secure token.
+              (Dev mode will open in current browser)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-2">
@@ -238,9 +242,9 @@ export default function JoinExamPage() {
             )}
             <Alert variant="default" className="mt-6 bg-primary/10 border-primary/30 text-primary dark:text-primary/80 dark:bg-primary/15 dark:border-primary/40">
               <ShieldAlert className="h-5 w-5 text-primary" />
-              <AlertTitle className="font-semibold text-primary">SEB Required</AlertTitle>
+              <AlertTitle className="font-semibold text-primary">SEB Recommended for Production</AlertTitle>
               <AlertDescription className="text-primary/90 dark:text-primary/80 text-sm">
-                This exam will open in Safe Exam Browser (SEB). Ensure SEB is installed and configured.
+                For actual exams, this will open in Safe Exam Browser (SEB). Ensure SEB is installed and configured.
                 Your browser will ask for permission to open SEB.
               </AlertDescription>
             </Alert>
@@ -249,10 +253,10 @@ export default function JoinExamPage() {
             <Button type="submit" className="w-full btn-gradient py-3 text-base rounded-md" disabled={isLoading || authLoading || !examCode.trim()}>
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Preparing SEB Launch...
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Preparing Exam Entry...
                 </>
               ) : (
-                'Proceed to SEB Launch'
+                'Proceed to Exam Entry'
               )}
             </Button>
           </CardFooter>
@@ -260,7 +264,7 @@ export default function JoinExamPage() {
       </Card>
        <div className="text-center max-w-lg mx-auto">
         <p className="text-xs text-muted-foreground">
-          Having trouble? Ensure you have the latest version of Safe Exam Browser installed. You can download it from 
+          Having trouble with SEB? Ensure you have the latest version installed. You can download it from 
           <a href="https://safeexambrowser.org/download_en.html" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline ml-1">
             safeexambrowser.org <ExternalLink className="inline h-3 w-3"/>
           </a>.
