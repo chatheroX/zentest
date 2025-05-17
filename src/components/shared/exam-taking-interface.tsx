@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, AlertTriangle, Clock, Check, X, Bookmark, ChevronLeft, ChevronRight, LogOut, CheckCircle } from 'lucide-react';
 import { useActivityMonitor, type FlaggedEvent } from '@/hooks/use-activity-monitor';
 import { addInputRestrictionListeners } from '@/lib/seb-utils';
-import { useToast as useGlobalToast } from '@/hooks/use-toast'; // Renamed to avoid conflict if local toast is used
+import { useToast as useGlobalToast } from '@/hooks/use-toast';
 import type { Question, Exam, QuestionOption } from '@/types/supabase';
 import { cn } from "@/lib/utils";
 import logoAsset from '../../../logo.png';
@@ -197,73 +197,76 @@ export function ExamTakingInterface({
 
   if (parentIsLoading && !isSubmittingInternally) { 
     return (
-      <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-md p-6 text-center text-white">
-          <Loader2 className="h-16 w-16 text-blue-400 animate-spin mb-6" />
+      <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-slate-900/80 dark:bg-slate-900/80 backdrop-blur-md p-6 text-center text-white dark:text-white">
+          <Loader2 className="h-16 w-16 text-blue-400 dark:text-blue-400 animate-spin mb-6 stroke-width-1.5" />
           <h2 className="text-xl font-medium mb-2">Submitting Exam...</h2>
-          <p className="text-sm text-slate-300">Please wait.</p>
+          <p className="text-sm text-slate-300 dark:text-slate-300">Please wait.</p>
       </div>
     );
   }
   if (isSubmittingInternally && !parentIsLoading) { 
      return (
-      <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-md p-6 text-center text-white">
-          <Loader2 className="h-16 w-16 text-blue-400 animate-spin mb-6" />
+      <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-slate-900/80 dark:bg-slate-900/80 backdrop-blur-md p-6 text-center text-white dark:text-white">
+          <Loader2 className="h-16 w-16 text-blue-400 dark:text-blue-400 animate-spin mb-6 stroke-width-1.5" />
           <h2 className="text-xl font-medium mb-2">Processing Submission...</h2>
-          <p className="text-sm text-slate-300">Please wait.</p>
+          <p className="text-sm text-slate-300 dark:text-slate-300">Please wait.</p>
       </div>
     );
   }
 
+  // Main container defaults to bg-background and text-foreground from SEB layout
   return (
-    <div className="min-h-screen w-full flex flex-col text-slate-100"> {/* Removed bg-seb-gradient, assuming parent provides it */}
-      <header className="h-20 px-4 sm:px-6 flex items-center justify-between border-b border-white/20 glass-pane shrink-0">
+    <div className="min-h-screen w-full flex flex-col">
+      {/* Header: Glassmorphic style for light theme */}
+      <header className="h-20 px-4 sm:px-6 flex items-center justify-between border-b border-border/40 bg-card/80 backdrop-blur-md shadow-sm shrink-0">
         <div className="flex items-center gap-2">
           <Image src={logoAsset} alt="ZenTest Logo" width={180} height={50} className="h-16 w-auto" />
         </div>
         <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10 border-2 border-blue-400/70">
+          <Avatar className="h-10 w-10 border-2 border-primary/60">
             <AvatarImage src={studentAvatarUrl || undefined} alt={studentName || 'Student'} />
-            <AvatarFallback className="bg-slate-700 text-slate-200">
+            <AvatarFallback className="bg-muted text-muted-foreground">
                 {(studentName || "S").charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-sm font-medium text-slate-100">{studentName || (isDemoMode ? "Demo Teacher" : "Test Student")}</p>
-            <p className="text-xs text-slate-300">ID: {studentRollNumber || (isDemoMode ? "T00000" : "S00000")}</p>
+            <p className="text-sm font-medium text-foreground">{studentName || (isDemoMode ? "Demo Teacher" : "Test Student")}</p>
+            <p className="text-xs text-muted-foreground">ID: {studentRollNumber || (isDemoMode ? "T00000" : "S00000")}</p>
           </div>
         </div>
       </header>
 
-      <div className="h-14 px-4 sm:px-6 flex items-center justify-between border-b border-white/20 glass-pane shrink-0">
-        <div className="flex items-center gap-2 text-slate-200">
-          <Clock size={20} className="text-blue-300" />
+      {/* Timer and Submit Button Bar: Glassmorphic style */}
+      <div className="h-14 px-4 sm:px-6 flex items-center justify-between border-b border-border/40 bg-card/80 backdrop-blur-md shadow-sm shrink-0">
+        <div className="flex items-center gap-2 text-foreground">
+          <Clock size={20} className="text-primary stroke-width-1.5" />
           <span className="font-medium text-sm">Time remaining:</span>
-          <span className="font-semibold text-md tabular-nums text-blue-300">{formatTime(timeLeftSeconds)}</span>
+          <span className="font-semibold text-md tabular-nums text-primary">{formatTime(timeLeftSeconds)}</span>
         </div>
         <AlertDialog open={showSubmitConfirm} onOpenChange={setShowSubmitConfirm}>
             <AlertDialogTrigger asChild>
                  <Button
                     variant="destructive"
                     disabled={parentIsLoading || isSubmittingInternally}
-                    className="px-6 py-2 text-sm rounded-md font-medium shadow-md hover:shadow-lg transition-all bg-red-600 hover:bg-red-700 text-white"
+                    className="px-6 py-2 text-sm rounded-md font-medium shadow-md hover:shadow-lg transition-all btn-gradient-destructive"
                     >
-                    <LogOut className="mr-2 h-4 w-4"/>
+                    <LogOut className="mr-2 h-4 w-4 stroke-width-1.5"/>
                     Submit Exam
                 </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="glass-pane text-slate-100 border-slate-600">
+            <AlertDialogContent className="glass-card border-border"> {/* Use glass-card for dialog */}
                 <AlertDialogHeader>
-                <AlertDialogTitle className="text-slate-50">Confirm Submission</AlertDialogTitle>
-                <AlertDialogDescription className="text-slate-300">
+                <AlertDialogTitle className="text-foreground">Confirm Submission</AlertDialogTitle>
+                <AlertDialogDescription className="text-muted-foreground">
                     Are you sure you want to submit the exam? This action cannot be undone.
                     {Object.keys(answers).length < totalQuestions &&
                         ` You have ${totalQuestions - Object.keys(answers).length} unanswered question(s).`}
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                <AlertDialogCancel className="bg-slate-700 hover:bg-slate-600 text-slate-100 border-slate-500" disabled={isSubmittingInternally}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmAndSubmitExam} className="bg-red-600 hover:bg-red-700 text-white" disabled={isSubmittingInternally || parentIsLoading}>
-                    {(isSubmittingInternally || parentIsLoading) && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
+                <AlertDialogCancel className="btn-outline-subtle" disabled={isSubmittingInternally}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmAndSubmitExam} className="btn-gradient-destructive" disabled={isSubmittingInternally || parentIsLoading}>
+                    {(isSubmittingInternally || parentIsLoading) && <Loader2 className="animate-spin mr-2 h-4 w-4 stroke-width-1.5" />}
                     Yes, Submit Exam
                 </AlertDialogAction>
                 </AlertDialogFooter>
@@ -271,23 +274,26 @@ export function ExamTakingInterface({
         </AlertDialog>
       </div>
 
+      {/* Main Content Area: Question display */}
       <main className="flex-1 flex flex-col py-6 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-24 overflow-y-auto">
-        <div className="w-full glass-pane p-6 sm:p-8 mb-6">
+        {/* Question Text Card: Glassmorphic style */}
+        <div className="w-full bg-card/80 backdrop-blur-md border border-border/40 rounded-lg shadow-lg p-6 sm:p-8 mb-6">
           <div className="mb-4 flex justify-between items-center">
-            <p className="text-lg sm:text-xl font-semibold text-blue-300">
-              Question {currentQuestionIndex + 1} <span className="text-sm font-normal text-slate-400">of {totalQuestions}</span>
+            <p className="text-lg sm:text-xl font-semibold text-primary">
+              Question {currentQuestionIndex + 1} <span className="text-sm font-normal text-muted-foreground">of {totalQuestions}</span>
             </p>
-            <Button variant="ghost" size="icon" onClick={handleToggleMarkForReview} title={markedForReview[currentQuestion?.id || ''] ? "Unmark for Review" : "Mark for Review"} disabled={parentIsLoading || isSubmittingInternally} className="text-slate-300 hover:text-yellow-400">
-                <Bookmark className={cn("h-5 w-5", markedForReview[currentQuestion?.id || ''] ? "fill-yellow-400 text-yellow-500" : "")} />
+            <Button variant="ghost" size="icon" onClick={handleToggleMarkForReview} title={markedForReview[currentQuestion?.id || ''] ? "Unmark for Review" : "Mark for Review"} disabled={parentIsLoading || isSubmittingInternally} className="text-muted-foreground hover:text-yellow-500">
+                <Bookmark className={cn("h-5 w-5 stroke-width-1.5", markedForReview[currentQuestion?.id || ''] ? "fill-yellow-400 text-yellow-500" : "")} />
             </Button>
           </div>
-          <h2 className="text-xl sm:text-2xl font-medium text-slate-100 leading-relaxed">
+          <h2 className="text-xl sm:text-2xl font-medium text-foreground leading-relaxed">
             {currentQuestion?.text}
           </h2>
         </div>
 
+        {/* Options Card: Glassmorphic style */}
         {currentQuestion && (
-          <div className="w-full glass-pane p-6 sm:p-8">
+          <div className="w-full bg-card/80 backdrop-blur-md border border-border/40 rounded-lg shadow-lg p-6 sm:p-8">
             <RadioGroup
               key={currentQuestion.id}
               value={answers[currentQuestion.id] || ''}
@@ -303,18 +309,18 @@ export function ExamTakingInterface({
                   key={option.id}
                   htmlFor={`opt-${currentQuestion.id}-${option.id}`}
                   className={cn(
-                    "flex items-center space-x-3 p-4 border rounded-lg transition-all duration-150 ease-in-out cursor-pointer text-base text-slate-100",
-                    "hover:shadow-lg hover:border-blue-400/70",
+                    "flex items-center space-x-3 p-4 border rounded-lg transition-all duration-150 ease-in-out cursor-pointer text-base text-foreground",
+                    "hover:shadow-md hover:border-primary/70",
                     answers[currentQuestion.id] === option.id
-                      ? "bg-blue-500/30 border-blue-400 ring-2 ring-blue-400/80 text-blue-200"
-                      : "bg-white/5 border-slate-600 hover:bg-white/10",
+                      ? "bg-primary/20 border-primary ring-2 ring-primary/80 text-primary-foreground" // Adjusted for light theme selection
+                      : "bg-background/50 border-border hover:bg-muted/50",
                     (parentIsLoading || isSubmittingInternally) && "cursor-not-allowed opacity-70"
                   )}
                 >
                   <RadioGroupItem
                     value={option.id}
                     id={`opt-${currentQuestion.id}-${option.id}`}
-                    className="h-5 w-5 border-slate-400 text-blue-300 focus:ring-blue-300 disabled:opacity-50 shrink-0"
+                    className="h-5 w-5 border-muted-foreground text-primary focus:ring-primary disabled:opacity-50 shrink-0 stroke-width-1.5"
                     disabled={parentIsLoading || isSubmittingInternally}
                   />
                   <span className="font-medium leading-snug">{option.text}</span>
@@ -325,17 +331,18 @@ export function ExamTakingInterface({
         )}
       </main>
 
-      <footer className="h-20 px-4 sm:px-6 flex items-center justify-between border-t border-white/20 glass-pane shrink-0">
+      {/* Footer: Navigation, Glassmorphic style */}
+      <footer className="h-20 px-4 sm:px-6 flex items-center justify-between border-t border-border/40 bg-card/80 backdrop-blur-md shadow-sm shrink-0">
         <Button
           variant="outline"
           onClick={handlePreviousQuestion}
           disabled={currentQuestionIndex === 0 || !allowBacktracking || parentIsLoading || isSubmittingInternally}
-          className="px-6 py-3 text-md rounded-lg shadow-sm bg-white/10 hover:bg-white/20 border-slate-400 text-slate-100"
+          className="px-6 py-3 text-md rounded-lg shadow-sm btn-outline-subtle"
         >
-          <ChevronLeft className="mr-2 h-5 w-5" /> Previous
+          <ChevronLeft className="mr-2 h-5 w-5 stroke-width-1.5" /> Previous
         </Button>
 
-        <div className="flex-1 mx-4 overflow-x-auto whitespace-nowrap scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent py-2">
+        <div className="flex-1 mx-4 overflow-x-auto whitespace-nowrap scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent py-2">
           <div className="flex items-center justify-center gap-2 px-2">
             {questions.map((q, index) => (
               <Button
@@ -345,11 +352,11 @@ export function ExamTakingInterface({
                 className={cn(
                   "h-10 w-10 text-sm rounded-md shrink-0 font-medium shadow",
                   currentQuestionIndex === index
-                    ? "bg-blue-500 text-white hover:bg-blue-600"
-                    : "bg-slate-700/50 border-slate-600 text-slate-200 hover:bg-slate-600/70",
-                  answers[q.id] && currentQuestionIndex !== index ? "bg-green-600/40 border-green-500 text-green-100 hover:bg-green-600/60" : "",
-                  markedForReview[q.id] && currentQuestionIndex !== index && !answers[q.id] ? "bg-purple-600/40 border-purple-500 text-purple-100 hover:bg-purple-600/60" : "",
-                  markedForReview[q.id] && currentQuestionIndex !== index && answers[q.id] ? "bg-purple-600/40 border-purple-500 text-purple-100 ring-2 ring-green-500 hover:bg-purple-600/60" : "",
+                    ? "btn-primary-solid" // Use primary solid for current
+                    : "bg-card border-border text-foreground hover:bg-muted",
+                  answers[q.id] && currentQuestionIndex !== index ? "bg-green-500/20 border-green-500 text-green-700 hover:bg-green-500/30" : "",
+                  markedForReview[q.id] && currentQuestionIndex !== index && !answers[q.id] ? "bg-purple-500/20 border-purple-500 text-purple-700 hover:bg-purple-500/30" : "",
+                  markedForReview[q.id] && currentQuestionIndex !== index && answers[q.id] ? "bg-purple-500/20 border-purple-500 text-purple-700 ring-2 ring-green-500 hover:bg-purple-500/30" : "",
                   (!allowBacktracking && index < currentQuestionIndex) && "opacity-60 cursor-not-allowed"
                 )}
                 onClick={() => handleQuestionNavigation(index)}
@@ -366,10 +373,10 @@ export function ExamTakingInterface({
           onClick={handleNextQuestion}
           disabled={currentQuestionIndex === totalQuestions - 1 || parentIsLoading || isSubmittingInternally}
           className={cn(
-            "px-6 py-3 text-md rounded-lg font-medium shadow-sm bg-blue-500 hover:bg-blue-600 text-white"
+            "px-6 py-3 text-md rounded-lg font-medium shadow-sm btn-primary-solid"
           )}
         >
-          Next <ChevronRight className="ml-2 h-5 w-5" />
+          Next <ChevronRight className="ml-2 h-5 w-5 stroke-width-1.5" />
         </Button>
       </footer>
     </div>

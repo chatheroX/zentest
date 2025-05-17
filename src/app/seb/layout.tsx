@@ -1,8 +1,7 @@
+
 // src/app/seb/layout.tsx
 import React from 'react';
-
-// Removed AuthProvider - it's in RootLayout
-// Removed Toaster - moved to individual pages to ensure context
+import { Toaster } from "@/components/ui/toaster"; // Moved Toaster to individual pages
 
 export default function SebLayout({
   children,
@@ -10,15 +9,9 @@ export default function SebLayout({
   children: React.ReactNode;
 }) {
   return (
-    // This layout is minimal. Apply gradient here.
-    // The <html> and <body> tags are managed by the root layout (src/app/layout.tsx)
-    // This div will be inside the body.
-    <div className="bg-seb-gradient text-slate-100 min-h-screen flex flex-col">
-      {/*
-        The previous <main> tag has been moved into the page components (entry/page.tsx, live-test/page.tsx)
-        to allow them to control their specific structure within this gradient background.
-        This layout now only provides the gradient background and basic text color.
-      */}
+    // Ensures SEB pages use the standard light background and dark text
+    // The main structural elements (like <main>) are now in the page components
+    <div className="bg-background text-foreground min-h-screen flex flex-col">
       {children}
     </div>
   );

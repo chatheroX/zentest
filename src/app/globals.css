@@ -5,8 +5,8 @@
 
 body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-  /* Default to light theme gradient; dark theme overrides this */
-  @apply bg-gradient-to-br from-slate-50 via-gray-100 to-slate-100 dark:from-slate-900 dark:via-gray-950 dark:to-slate-900;
+  /* Default to light theme, ensuring --background is white/light */
+  @apply bg-background text-foreground;
 }
 
 @layer base {
@@ -123,7 +123,8 @@ body {
     @apply border-border;
   }
   body {
-    @apply text-foreground; /* Primary text color from vars */
+    /* Ensure body uses light theme by default */
+    @apply bg-background text-foreground;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -136,8 +137,6 @@ body {
 /* Modern Card Style - Refined for light theme, adaptive for dark */
 .modern-card {
   @apply bg-card text-card-foreground rounded-lg border border-border/60 shadow-lg transition-shadow hover:shadow-xl dark:border-border/40;
-  /* Consider adding a very subtle gradient or inner shadow for depth if desired */
-  /* background-image: linear-gradient(to bottom right, hsl(var(--card)), hsl(var(--card) / 0.95)); */
 }
 
 /* Primary Button Style (Solid Primary Color) - Blue Theme */
@@ -169,14 +168,15 @@ body {
 
 /* Glassmorphism Card Style - Enhanced for modals on standard backgrounds */
 .glass-card {
-  @apply bg-card/80 dark:bg-card/75 backdrop-blur-md border border-border/40 dark:border-border/20 shadow-2xl rounded-xl transition-all duration-300 hover:shadow-primary/20;
+  /* Adjusted for light theme, less reliant on blur when background is solid */
+  @apply bg-card/95 dark:bg-card/85 border border-border/50 dark:border-border/30 shadow-2xl rounded-xl transition-all duration-300 hover:shadow-primary/20;
 }
 
 .sidebar-glass {
-   @apply bg-[hsl(var(--sidebar-background)/0.7)] dark:bg-[hsl(var(--sidebar-background)/0.8)] backdrop-blur-lg border-r border-sidebar-border/50 dark:border-sidebar-border/30 shadow-xl;
+   @apply bg-[hsl(var(--sidebar-background)/0.9)] dark:bg-[hsl(var(--sidebar-background)/0.85)] backdrop-blur-md border-r border-sidebar-border/60 dark:border-sidebar-border/40 shadow-xl;
 }
 
-/* Ensure body uses light mode by default if html.dark is not present */
+
 html:not(.dark) {
   color-scheme: light;
 }
@@ -184,18 +184,19 @@ html.dark {
   color-scheme: dark;
 }
 
-/* SEB Gradient Background - Used for SEB specific layouts */
-.bg-seb-gradient {
-  background-image: linear-gradient(rgb(236, 213, 207), rgb(201, 164, 208), rgb(162, 117, 208), rgb(115, 70, 206), rgb(37, 15, 203));
-}
+/* SEB Gradient Background - REMOVED as per user request for white background */
+/* .bg-seb-gradient { ... } */
 
-/* Glassmorphism Pane Style - For elements on top of the SEB gradient */
+/* Glassmorphism Pane Style - Adjusted for light theme cards in SEB */
 .glass-pane {
-  @apply bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-lg;
-  /* Text color inside these panes needs to be light for readability on the gradient */
+  /* Reverts to a standard card look for light theme, no strong glass effect on white */
+  @apply bg-card text-card-foreground p-6 rounded-lg border border-border/60 shadow-lg;
+  /* For dark theme, a subtle glass effect can still be applied if needed */
+  @apply dark:bg-slate-800/50 dark:backdrop-blur-sm dark:border-slate-700/50 dark:text-slate-100;
 }
-.glass-pane-light { /* A lighter variant if needed for better contrast for elements */
-  @apply bg-white/20 backdrop-blur-md border border-white/30 rounded-xl shadow-lg;
+.glass-pane-light { 
+  @apply bg-card text-card-foreground p-6 rounded-lg border border-border/60 shadow-lg;
+  @apply dark:bg-slate-700/60 dark:backdrop-blur-sm dark:border-slate-600/50 dark:text-slate-100;
 }
     
 /* Input field enhancements for better visibility on different backgrounds */
@@ -213,10 +214,10 @@ h2 { @apply text-2xl sm:text-3xl; }
 h3 { @apply text-xl sm:text-2xl; }
 h4 { @apply text-lg sm:text-xl; }
 
-/* Specific adjustments for lists within glass panes on SEB gradient */
+/* Specific adjustments for lists within glass panes on SEB gradient - now for cards */
 .seb-rules-list li {
-  @apply text-slate-100;
+  @apply text-muted-foreground; /* Darker text for light background */
 }
 .seb-rules-list svg {
-  @apply text-blue-300; /* Or another light contrasting color */
+  @apply text-primary; /* Primary color for icons on light background */
 }
