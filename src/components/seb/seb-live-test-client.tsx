@@ -207,11 +207,22 @@ export function SebLiveTestClient() {
         body: JSON.stringify(submissionPayload),
       });
 
-      const result = await response.json();
-
       if (!response.ok) {
-        throw new Error(result.error || `Failed to submit with status: ${response.status}`);
+        let errorMsg = `Failed to submit with status: ${response.status}`;
+        try {
+            // Attempt to parse error from server if available
+            const errorResult = await response.json();
+            errorMsg = errorResult.error || errorMsg;
+        } catch (e) {
+            // If JSON parsing fails (e.g. server sent plain text error), use statusText
+            errorMsg = response.statusText || errorMsg;
+            console.warn(`${operationId} Could not parse error response as JSON. Status: ${response.status}, StatusText: ${response.statusText}`);
+        }
+        throw new Error(errorMsg);
       }
+      
+      const result = await response.json(); // Safe to call .json() as response.ok was true
+      console.log(`${operationId} Submission API success, result:`, result);
       
       setIsSubmitted(true);
       if (typeof window !== 'undefined') sessionStorage.setItem(`exam-${examDetails.exam_id}-finished`, 'true');
@@ -219,7 +230,7 @@ export function SebLiveTestClient() {
       // SEB quit is handled by the success UI in the render block after setIsSubmitted(true)
 
     } catch(e: any) {
-      console.error(`${operationId} Submission API error:`, e);
+      console.error(`${operationId} Submission API error:`, e.message, e);
       setPageError("Failed to submit exam: " + e.message + ". Please contact support. SEB will quit.");
       toast({ title: "Submission Error", description: e.message + ". Quitting SEB.", variant: "destructive", duration: 10000 });
       setTimeout(handleSebQuit, 9000);
@@ -237,15 +248,15 @@ export function SebLiveTestClient() {
 
   if (pageIsLoading) { // This covers authContextIsLoading implicitly due to the useEffect logic
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 to-slate-950 p-4 text-center">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-4 text-center">
         <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
-        <h2 className="text-xl font-medium text-slate-200 mb-1">
+        <h2 className="text-xl font-medium text-foreground mb-1">
           {authContextIsLoading ? "Initializing secure context..." : 
            (!examIdFromUrl || !studentIdFromUrl) ? "Verifying exam parameters..." :
            "Loading Live Exam Environment..."}
         </h2>
-         <div className="flex items-center text-yellow-400 mt-4">
-             <ShieldAlert className="h-5 w-5 mr-2" />
+         <div className="flex items-center text-muted-foreground/80 mt-4">
+             <ShieldAlert className="h-5 w-5 mr-2 text-primary" />
              <p className="text-sm">Secure Exam Environment Active. Please wait.</p>
          </div>
       </div>
@@ -254,14 +265,14 @@ export function SebLiveTestClient() {
   
   if (pageError) { 
      return (
-       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-red-800 to-red-950 p-4">
+       <div className="flex items-center justify-center min-h-screen bg-destructive/10 text-destructive-foreground p-4">
         <Card className="w-full max-w-md modern-card text-center shadow-xl bg-card/80 backdrop-blur-lg border-destructive">
           <CardHeader className="pt-8 pb-4">
             <XCircle className="h-16 w-16 text-destructive mx-auto mb-5" />
             <CardTitle className="text-2xl text-destructive">Exam Session Error</CardTitle>
           </CardHeader>
           <CardContent className="pb-6">
-            <p className="text-sm text-muted-foreground mb-6">{pageError}</p>
+            <p className="text-sm text-card-foreground mb-6">{pageError}</p>
              <Button onClick={handleSebQuit} className="w-full btn-gradient-destructive">Exit SEB</Button>
           </CardContent>
         </Card>
@@ -273,7 +284,7 @@ export function SebLiveTestClient() {
      // This state should ideally be caught by pageError if fetching failed,
      // but as a fallback:
      return (
-       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 to-slate-950 p-4">
+       <div className="flex items-center justify-center min-h-screen bg-background text-foreground p-4">
         <Card className="w-full max-w-md modern-card text-center shadow-xl bg-card/80 backdrop-blur-lg">
            <CardHeader className="pt-8 pb-4">
             <ServerCrash className="h-16 w-16 text-orange-500 mx-auto mb-5" />
@@ -290,20 +301,20 @@ export function SebLiveTestClient() {
 
   if (isSubmitted) {
     return (
-      <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-gradient-to-br from-green-800/80 via-emerald-900/80 to-teal-900/80 backdrop-blur-md p-6 text-center">
-        <Card className="w-full max-w-lg modern-card shadow-2xl p-8 bg-card/90 dark:bg-card/85">
+      <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-background/90 backdrop-blur-md p-6 text-center">
+        <Card className="w-full max-w-lg modern-card shadow-2xl p-8 bg-card">
           <CardHeader className="pb-5">
-            <CheckCircle className="h-20 w-20 text-green-400 mx-auto mb-5" />
-            <h2 className="text-2xl font-semibold text-slate-100">Exam Submitted Successfully!</h2>
+            <CheckCircle className="h-20 w-20 text-green-500 dark:text-green-400 mx-auto mb-5" />
+            <h2 className="text-2xl font-semibold text-foreground">Exam Submitted Successfully!</h2>
             <p className="text-muted-foreground mt-2 text-sm">
               Your responses for "{examDetails.title}" have been recorded.
             </p>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-slate-400">You may now exit Safe Exam Browser.</p>
+            <p className="text-sm text-muted-foreground">You may now exit Safe Exam Browser.</p>
           </CardContent>
           <CardFooter className="mt-6">
-            <Button onClick={handleSebQuit} className="btn-gradient-positive w-full py-3 text-base rounded-lg shadow-lg hover:shadow-green-500/30">
+            <Button onClick={handleSebQuit} className="btn-gradient-positive w-full py-3 text-base rounded-lg shadow-lg">
                 <LogOut className="mr-2 h-4 w-4"/> Exit SEB
             </Button>
           </CardFooter>

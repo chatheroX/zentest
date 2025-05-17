@@ -159,21 +159,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
   useEffect(() => {
-    const effectId = `[AuthContext Initial User Load Effect ${Date.now().toString().slice(-4)}]`;
-    console.log(`${effectId} Running. Supabase: ${!!supabase}, AuthError: ${authError}, InitialLoadAttempted: ${initialLoadAttempted.current}`);
+    const effectId = `[AuthContext UserLoadTriggerEffect ${Date.now().toString().slice(-4)}]`;
+    console.log(`${effectId} Running. Supabase: ${!!supabase}, AuthError: ${authError}, InitialLoadAttempted: ${initialLoadAttempted.current}, isLoading: ${isLoading}`);
     
     if (authError) {
-      console.log(`${effectId} Aborting due to critical authError: '${authError}'. isLoading is already false.`);
+      if (isLoading) {
+        console.warn(`${effectId} AuthError present ('${authError}'), ensuring isLoading is false.`);
+        setIsLoading(false);
+      }
       return;
     }
-    if (supabase && !initialLoadAttempted.current) {
-      initialLoadAttempted.current = true;
-      console.log(`${effectId} Supabase client available & first attempt. Calling loadUserFromCookie.`);
-      loadUserFromCookie();
-    } else if (!supabase && !authError) { 
-        console.log(`${effectId} Supabase client not yet available. Waiting.`);
+
+    if (supabase) {
+      if (!initialLoadAttempted.current) {
+        initialLoadAttempted.current = true;
+        console.log(`${effectId} Supabase client available & first attempt. Calling loadUserFromCookie.`);
+        loadUserFromCookie();
+      } else {
+        // Initial load already attempted.
+        // If isLoading is true here, it implies loadUserFromCookie might still be running (which is fine and will set it false)
+        // OR it was reset. This safeguard helps if it was reset and loadUserFromCookie determined no active session.
+        if (isLoading && !user && Cookies.get(SESSION_COOKIE_NAME) === undefined) {
+             console.warn(`${effectId} Post-initial load: isLoading is true but no user/cookie. Forcing isLoading to false.`);
+             setIsLoading(false);
+        }
+      }
+    } else if (!isLoading) { 
+        // Supabase not available, no authError, AND isLoading is already false.
+        // This implies Supabase client initialization failed without setting authError,
+        // or this effect ran after such a failure.
+        console.error(`${effectId} Supabase client not available, no authError, and isLoading is false. This indicates an initialization issue. Setting authError.`);
+        setAuthError("Supabase client failed to initialize properly.");
     }
-  }, [supabase, authError, loadUserFromCookie]);
+    // If supabase is null, authError is null, and isLoading is true, we are still waiting for the Supabase client init effect to complete.
+  }, [supabase, authError, loadUserFromCookie, user, isLoading]);
 
   const getRedirectPathForRole = useCallback((userRole: CustomUser['role'] | null) => {
     if (userRole === 'teacher') return TEACHER_DASHBOARD_ROUTE;
