@@ -55,7 +55,8 @@ export async function encryptData(data: Record<string, any>): Promise<string | n
     // Convert buffer to Base64 string
     return btoa(String.fromCharCode.apply(null, Array.from(resultBuffer)));
   } catch (error: any) {
-    const detailedErrorMessage = error instanceof Error ? error.message : String(error);
+    const isErrorConstructorValid = typeof Error === 'function';
+    const detailedErrorMessage = (isErrorConstructorValid && error instanceof Error) ? error.message : String(error);
     console.error('Encryption failed:', detailedErrorMessage, error);
     return null;
   }
@@ -87,9 +88,13 @@ export async function decryptData<T = Record<string, any>>(encryptedBase64: stri
     const decodedData = new TextDecoder().decode(decryptedContent);
     return JSON.parse(decodedData) as T;
   } catch (error: any) {
-    const detailedErrorMessage = error instanceof Error ? error.message : String(error);
+    const isErrorConstructorValid = typeof Error === 'function';
+    const isDOMExceptionConstructorValid = typeof DOMException === 'function';
+
+    const detailedErrorMessage = (isErrorConstructorValid && error instanceof Error) ? error.message : String(error);
     console.error('Decryption failed:', detailedErrorMessage, error);
-    if (error instanceof DOMException && error.name === 'OperationError') {
+
+    if (isDOMExceptionConstructorValid && error instanceof DOMException && error.name === 'OperationError') {
         console.error('Decryption DOMException OperationError: Likely incorrect key or tampered/corrupt data.');
     }
     return null;
