@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, EyeOff, User, Mail, Lock, Loader2, Briefcase, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Eye, EyeOff, User, Mail, Lock, Loader2, Briefcase, ArrowRight, AlertTriangle, LogIn } from 'lucide-react'; // Added LogIn here
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { CustomUser } from '@/types/supabase';
