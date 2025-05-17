@@ -192,7 +192,7 @@ html.dark {
 /* Glass Pane style adjusted for Light Theme - behaves more like a standard card */
 /* Used for rules list in SEB entry, and header/footer/question card in exam interface */
 .glass-pane {
-  @apply bg-card/80 backdrop-blur-md text-card-foreground p-3 sm:p-4 rounded-lg border border-border/50 shadow-lg;
+  @apply bg-card/80 backdrop-blur-md text-card-foreground p-3 sm:p-0 rounded-lg border border-border/50 shadow-lg;
   @apply dark:bg-slate-800/60 dark:backdrop-blur-md dark:border-slate-700/50 dark:text-slate-100;
 }
     
