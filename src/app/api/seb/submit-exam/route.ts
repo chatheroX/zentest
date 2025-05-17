@@ -7,15 +7,31 @@ import type { Database, ExamSubmissionInsert } from '@/types/supabase';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Enhanced logging for environment variables
+const initLogPrefix = '[API SubmitExam Init]';
+console.log(`${initLogPrefix} NEXT_PUBLIC_SUPABASE_URL: ${supabaseUrl ? supabaseUrl.substring(0, 20) + '...' : 'NOT SET'}`);
+console.log(`${initLogPrefix} SUPABASE_SERVICE_ROLE_KEY: ${supabaseServiceKey ? 'SET (value hidden)' : 'NOT SET'}`);
+
 if (!supabaseUrl || !supabaseServiceKey) {
-  console.error("CRITICAL: Supabase URL or Service Key missing for exam submission API.");
+  let missingVarsMessage = "CRITICAL: Required Supabase environment variable(s) are missing: ";
+  if (!supabaseUrl) missingVarsMessage += "NEXT_PUBLIC_SUPABASE_URL ";
+  if (!supabaseServiceKey) missingVarsMessage += "SUPABASE_SERVICE_ROLE_KEY ";
+  missingVarsMessage += "Please check server environment configuration.";
+  console.error(`${initLogPrefix} ${missingVarsMessage}`);
 }
-const supabaseAdmin = supabaseUrl && supabaseServiceKey 
-  ? createClient<Database>(supabaseUrl, supabaseServiceKey) 
+
+const supabaseAdmin = supabaseUrl && supabaseServiceKey
+  ? createClient<Database>(supabaseUrl, supabaseServiceKey)
   : null;
 
 export async function POST(request: NextRequest) {
   if (!supabaseAdmin) {
+    // This log helps confirm which specific variable(s) caused supabaseAdmin to be null.
+    let detailedErrorForLog = "Supabase admin client not initialized for submission. ";
+    if (!supabaseUrl) detailedErrorForLog += "NEXT_PUBLIC_SUPABASE_URL is missing. ";
+    if (!supabaseServiceKey) detailedErrorForLog += "SUPABASE_SERVICE_ROLE_KEY is missing. ";
+    detailedErrorForLog += "Check server environment variables.";
+    console.error(`[API Submit Exam] ${detailedErrorForLog}`);
     return NextResponse.json({ error: 'Server configuration error for submission.' }, { status: 500 });
   }
 

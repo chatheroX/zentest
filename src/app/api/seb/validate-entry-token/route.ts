@@ -1,3 +1,4 @@
+
 // src/app/api/seb/validate-entry-token/route.ts
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -7,12 +8,22 @@ import { parseISO, isValid as isValidDate } from 'date-fns'; // Import date-fns 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Enhanced logging for environment variables
+const initLogPrefix = '[API ValidateEntryToken Init]';
+console.log(`${initLogPrefix} NEXT_PUBLIC_SUPABASE_URL: ${supabaseUrl ? supabaseUrl.substring(0, 20) + '...' : 'NOT SET'}`);
+console.log(`${initLogPrefix} SUPABASE_SERVICE_ROLE_KEY: ${supabaseServiceKey ? 'SET (value hidden)' : 'NOT SET'}`);
+
 if (!supabaseUrl || !supabaseServiceKey) {
-  console.error("CRITICAL: Supabase URL or Service Key missing for API route /api/seb/validate-entry-token.");
+  let missingVarsMessage = "CRITICAL: Required Supabase environment variable(s) are missing: ";
+  if (!supabaseUrl) missingVarsMessage += "NEXT_PUBLIC_SUPABASE_URL ";
+  if (!supabaseServiceKey) missingVarsMessage += "SUPABASE_SERVICE_ROLE_KEY ";
+  missingVarsMessage += "Please check server environment configuration.";
+  console.error(`${initLogPrefix} ${missingVarsMessage}`);
+  // Note: The client will still receive a generic "Server configuration error" for security.
 }
 
-const supabaseAdmin = supabaseUrl && supabaseServiceKey 
-  ? createClient<Database>(supabaseUrl, supabaseServiceKey) 
+const supabaseAdmin = supabaseUrl && supabaseServiceKey
+  ? createClient<Database>(supabaseUrl, supabaseServiceKey)
   : null;
 
 export async function POST(request: NextRequest) {
@@ -20,7 +31,12 @@ export async function POST(request: NextRequest) {
   console.log(`${operationId} Received request.`);
 
   if (!supabaseAdmin) {
-    console.error(`${operationId} Supabase admin client not initialized. Check server environment variables.`);
+    // This log helps confirm which specific variable(s) caused supabaseAdmin to be null.
+    let detailedErrorForLog = "Supabase admin client not initialized. ";
+    if (!supabaseUrl) detailedErrorForLog += "NEXT_PUBLIC_SUPABASE_URL is missing. ";
+    if (!supabaseServiceKey) detailedErrorForLog += "SUPABASE_SERVICE_ROLE_KEY is missing. ";
+    detailedErrorForLog += "Check server environment variables.";
+    console.error(`${operationId} ${detailedErrorForLog}`);
     return NextResponse.json({ error: 'Server configuration error for token validation.' }, { status: 500 });
   }
 
