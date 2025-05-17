@@ -1,29 +1,57 @@
 
 // src/app/api/generate-seb-token/route.ts
 import { NextResponse, type NextRequest } from 'next/server';
-// Removed: import jwt from 'jsonwebtoken';
-// Removed: import { getSafeErrorMessage, logErrorToBackend } from '@/lib/error-logging';
+import jwt from 'jsonwebtoken';
+import { getSafeErrorMessage, logErrorToBackend } from '@/lib/error-logging';
 
 export async function POST(request: NextRequest) {
-  const operationId = `[API GenerateSEBToken MinimalTest ${Date.now().toString().slice(-5)}]`;
-  console.log(`${operationId} Minimal test handler invoked.`);
+  const operationId = `[API GenerateSEBToken ${Date.now().toString().slice(-5)}]`;
+  console.log(`${operationId} Handler started.`);
+
+  const jwtSecret = process.env.JWT_SECRET;
+
+  if (!jwtSecret) {
+    const errorMsg = "CRITICAL: JWT_SECRET is not defined in server environment variables.";
+    console.error(`${operationId} ${errorMsg}`);
+    // Do not await logErrorToBackend here to ensure response is sent
+    logErrorToBackend(new Error(errorMsg), 'API-GenerateSEBToken-NoSecret', { location: operationId });
+    return NextResponse.json({ error: 'Server configuration error: JWT secret missing.' }, { status: 500 });
+  }
+  console.log(`${operationId} JWT_SECRET is available.`);
 
   try {
-    // Attempt to parse the body just to see if this part works, but don't rely on its content for this test.
-    try {
-      await request.json();
-      console.log(`${operationId} Request body parsed (or was empty).`);
-    } catch (parseError) {
-      console.warn(`${operationId} Could not parse request body, but proceeding with minimal response. Error:`, parseError);
+    const body = await request.json();
+    console.log(`${operationId} Request body parsed:`, body);
+
+    const { studentId, examId } = body;
+
+    if (!studentId || !examId) {
+      const errorMsg = "Missing studentId or examId in request body.";
+      console.warn(`${operationId} ${errorMsg} Request body:`, body);
+      // Do not await logErrorToBackend
+      logErrorToBackend(new Error(errorMsg), 'API-GenerateSEBToken-MissingParams', { body, location: operationId });
+      return NextResponse.json({ error: errorMsg }, { status: 400 });
     }
+    console.log(`${operationId} studentId: ${studentId}, examId: ${examId}`);
 
-    console.log(`${operationId} Attempting to return a hardcoded success response.`);
-    return NextResponse.json({ token: "test_token_from_minimal_api" }, { status: 200 });
+    const payload = { studentId, examId };
+    console.log(`${operationId} Attempting to sign JWT with payload:`, payload);
 
-  } catch (e: any) {
-    // This catch is for truly unexpected errors even in this minimal setup.
-    console.error(`${operationId} Unhandled exception in minimal handler:`, e);
-    // Try to send a JSON response, but this might also fail if the issue is fundamental.
-    return NextResponse.json({ error: "Minimal API handler failed unexpectedly.", details: (e && typeof e.message === 'string') ? e.message : String(e) }, { status: 500 });
+    const token = jwt.sign(payload, jwtSecret, { expiresIn: '1h' });
+    console.log(`${operationId} JWT signed successfully. Token (first 20 chars): ${token.substring(0, 20)}...`);
+
+    return NextResponse.json({ token }, { status: 200 });
+
+  } catch (error: any) {
+    // Use the robust error message extraction pattern
+    const errorMessage = (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string')
+      ? error.message
+      : String(error);
+
+    console.error(`${operationId} Error during token generation:`, errorMessage, error);
+    // Do not await logErrorToBackend
+    logErrorToBackend(error, 'API-GenerateSEBToken-CatchAll', { rawError: error, extractedMessage: errorMessage, location: operationId });
+    
+    return NextResponse.json({ error: `Failed to generate token: ${errorMessage}` }, { status: 500 });
   }
 }
