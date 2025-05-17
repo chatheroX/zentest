@@ -4,7 +4,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { SidebarElements, NavItem } from '@/components/shared/dashboard-sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { LayoutDashboard, BookOpenCheck, Brain, BarChart3, Loader2, AlertTriangle } from 'lucide-react';
-import { useCallback, ReactNode } from 'react';
+import React, { useCallback, ReactNode, useState, useEffect } from 'react'; // Added useState, useEffect
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
@@ -23,13 +23,17 @@ export default function TeacherDashboardLayout({
 }: {
   children: ReactNode;
 }) {
-  const { user, isLoading: authLoading, authError } = useAuth(); 
+  const { user, isLoading: authLoading, authError, signOut } = useAuth(); // Added signOut
   const router = useRouter();
+  const [hasMounted, setHasMounted] = useState(false);
 
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   if (authLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background"> {/* Use theme background */}
+      <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
          <p className="ml-3 text-muted-foreground">Loading teacher session...</p>
       </div>
@@ -38,7 +42,7 @@ export default function TeacherDashboardLayout({
   
   if (!user) {
     return (
-        <div className="flex h-screen w-full items-center justify-center bg-background p-4"> {/* Use theme background */}
+        <div className="flex h-screen w-full items-center justify-center bg-background p-4">
             <Card className="p-6 modern-card text-center shadow-xl">
               <CardHeader>
                 <AlertTriangle className="mx-auto h-10 w-10 text-destructive mb-3"/>
@@ -60,7 +64,7 @@ export default function TeacherDashboardLayout({
   
   if (user.role !== 'teacher') {
      return (
-        <div className="flex h-screen w-full items-center justify-center bg-background p-4"> {/* Use theme background */}
+        <div className="flex h-screen w-full items-center justify-center bg-background p-4">
              <Card className="p-6 modern-card text-center shadow-xl">
                  <CardHeader>
                     <AlertTriangle className="mx-auto h-10 w-10 text-destructive mb-3"/>
@@ -73,15 +77,27 @@ export default function TeacherDashboardLayout({
         </div>
     );
   }
+
+  if (!hasMounted) {
+    // Render a simplified layout for the main content until client is mounted
+    return (
+        <main className="flex-1 flex flex-col overflow-y-auto p-6 md:p-8 bg-background min-w-0">
+            {children}
+        </main>
+    );
+  }
   
   return (
     <SidebarProvider 
         defaultOpen 
-        className="bg-background min-h-screen"  // Use theme background
+        className="bg-background min-h-screen"
     > 
       <SidebarElements
         navItems={teacherNavItems}
         userRoleDashboard="teacher"
+        user={user}
+        signOut={signOut}
+        authLoading={authLoading}
       />
       <main className="flex-1 flex flex-col overflow-y-auto p-6 md:p-8 bg-background min-w-0"> 
         {children}
