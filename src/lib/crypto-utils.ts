@@ -55,9 +55,21 @@ export async function encryptData(data: Record<string, any>): Promise<string | n
     // Convert buffer to Base64 string
     return btoa(String.fromCharCode.apply(null, Array.from(resultBuffer)));
   } catch (error: any) {
-    const isErrorConstructorValid = typeof Error === 'function';
-    const detailedErrorMessage = (isErrorConstructorValid && error instanceof Error) ? error.message : String(error);
-    console.error('Encryption failed:', detailedErrorMessage, error);
+    let errorMessage = 'Encryption failed. Unknown error.';
+    if (error && typeof error === 'object') {
+      if (typeof error.message === 'string' && error.message) {
+        errorMessage = `Encryption failed: ${error.message}`;
+      } else {
+        try {
+          errorMessage = `Encryption failed: ${JSON.stringify(error)}`;
+        } catch (e) {
+          errorMessage = 'Encryption failed and error object could not be stringified.';
+        }
+      }
+    } else if (error !== null && error !== undefined) {
+      errorMessage = `Encryption failed: ${String(error)}`;
+    }
+    console.error(errorMessage, error); // Log the derived message and the original error
     return null;
   }
 }
@@ -88,14 +100,30 @@ export async function decryptData<T = Record<string, any>>(encryptedBase64: stri
     const decodedData = new TextDecoder().decode(decryptedContent);
     return JSON.parse(decodedData) as T;
   } catch (error: any) {
-    const isErrorConstructorValid = typeof Error === 'function';
-    const isDOMExceptionConstructorValid = typeof DOMException === 'function';
+    let errorMessage = 'Decryption failed. Unknown error.';
+    let isOperationError = false;
 
-    const detailedErrorMessage = (isErrorConstructorValid && error instanceof Error) ? error.message : String(error);
-    console.error('Decryption failed:', detailedErrorMessage, error);
+    if (error && typeof error === 'object') {
+      if (typeof error.message === 'string' && error.message) {
+        errorMessage = `Decryption failed: ${error.message}`;
+      } else {
+        try {
+          errorMessage = `Decryption failed: ${JSON.stringify(error)}`;
+        } catch (e) {
+          errorMessage = 'Decryption failed and error object could not be stringified.';
+        }
+      }
+      // Check for OperationError typically associated with AES-GCM decryption failures
+      if (error.name === 'OperationError') {
+        isOperationError = true;
+      }
+    } else if (error !== null && error !== undefined) {
+      errorMessage = `Decryption failed: ${String(error)}`;
+    }
 
-    if (isDOMExceptionConstructorValid && error instanceof DOMException && error.name === 'OperationError') {
-        console.error('Decryption DOMException OperationError: Likely incorrect key or tampered/corrupt data.');
+    console.error(errorMessage, error); // Log the derived message and the original error
+    if (isOperationError) {
+      console.error('Decryption Specific: This was likely an OperationError, often due to an incorrect key or tampered/corrupt data.');
     }
     return null;
   }

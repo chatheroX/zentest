@@ -7,13 +7,9 @@ import jwt from 'jsonwebtoken';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const jwtSecret = process.env.JWT_SECRET;
+const jwtSecret = process.env.JWT_SECRET; // Server-side secret
 
 const initLogPrefix = '[API Validate JWT Token Init]';
-console.log(`${initLogPrefix} NEXT_PUBLIC_SUPABASE_URL: ${supabaseUrl ? supabaseUrl.substring(0, 20) + '...' : 'NOT SET'}`);
-console.log(`${initLogPrefix} SUPABASE_SERVICE_ROLE_KEY: ${supabaseServiceKey ? 'SET (value hidden)' : 'NOT SET'}`);
-console.log(`${initLogPrefix} JWT_SECRET: ${jwtSecret ? 'SET (value hidden)' : 'NOT SET'}`);
-
 let missingVarsMessage = "CRITICAL: Required server environment variable(s) are missing: ";
 let criticalError = false;
 if (!supabaseUrl) { missingVarsMessage += "NEXT_PUBLIC_SUPABASE_URL "; criticalError = true; }
@@ -29,15 +25,15 @@ const supabaseAdmin = supabaseUrl && supabaseServiceKey
   ? createClient<Database>(supabaseUrl, supabaseServiceKey)
   : null;
 
-export async function GET(request: NextRequest) { // Changed to GET to match frontend fetch
+export async function GET(request: NextRequest) {
   const operationId = `[API Validate JWT Token ${Date.now().toString().slice(-5)}]`;
   console.log(`${operationId} Received request.`);
 
   if (criticalError || !supabaseAdmin || !jwtSecret) {
     let detailedErrorForLog = "Server configuration error for token validation. ";
     if (!supabaseAdmin) detailedErrorForLog += "Supabase admin client not initialized. ";
-    if (!jwtSecret) detailedErrorForLog += "JWT_SECRET is missing. ";
-    detailedErrorForLog += missingVarsMessage; // Add the specific missing vars
+    if (!jwtSecret) detailedErrorForLog += "JWT_SECRET (server-side) is missing. ";
+    detailedErrorForLog += missingVarsMessage;
     console.error(`${operationId} ${detailedErrorForLog}`);
     return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
   }
@@ -56,11 +52,26 @@ export async function GET(request: NextRequest) { // Changed to GET to match fro
     try {
       decoded = jwt.verify(token, jwtSecret);
     } catch (jwtError: any) {
-      console.warn(`${operationId} JWT verification failed for token ${token.substring(0, 20) + "..."}:`, jwtError.message);
-      if (jwtError.name === 'TokenExpiredError') {
-        return NextResponse.json({ error: 'Exam session token has expired.' }, { status: 401 });
+      let errorMessage = 'Invalid or malformed exam session token.';
+      let errorStatus = 401;
+
+      // Check error type by its 'name' property
+      if (jwtError && typeof jwtError === 'object' && typeof jwtError.name === 'string') {
+        if (jwtError.name === 'TokenExpiredError') {
+          errorMessage = 'Exam session token has expired.';
+          console.warn(`${operationId} JWT verification failed: TokenExpiredError`);
+        } else if (jwtError.name === 'JsonWebTokenError') {
+          errorMessage = `Invalid token: ${jwtError.message || 'Malformed token'}`;
+          console.warn(`${operationId} JWT verification failed: JsonWebTokenError - ${jwtError.message}`);
+        } else {
+          // For other errors that might have a name and message
+          errorMessage = `Token validation error: ${jwtError.message || jwtError.name}`;
+          console.warn(`${operationId} JWT verification failed with other error: ${jwtError.name} - ${jwtError.message}`);
+        }
+      } else {
+         console.warn(`${operationId} JWT verification failed with non-standard error object:`, jwtError);
       }
-      return NextResponse.json({ error: 'Invalid or malformed exam session token.' }, { status: 401 });
+      return NextResponse.json({ error: errorMessage }, { status: errorStatus });
     }
     
     const { studentId, examId } = decoded;
@@ -77,7 +88,7 @@ export async function GET(request: NextRequest) { // Changed to GET to match fro
       .select('status')
       .eq('student_user_id', studentId)
       .eq('exam_id', examId)
-      .eq('status', 'Completed') // Only check for 'Completed' status
+      .eq('status', 'Completed') 
       .maybeSingle();
 
     if (submissionError) {
@@ -85,19 +96,25 @@ export async function GET(request: NextRequest) { // Changed to GET to match fro
       return NextResponse.json({ error: 'Error verifying exam status: ' + submissionError.message }, { status: 500 });
     }
 
-    if (submissionData) { // If a 'Completed' record exists
+    if (submissionData) { 
       console.warn(`${operationId} Exam ${examId} already completed by student ${studentId}.`);
-      return NextResponse.json({ error: 'Exam already submitted.' }, { status: 403 }); // Forbidden
+      return NextResponse.json({ error: 'Exam already submitted.' }, { status: 403 }); 
     }
 
     console.log(`${operationId} Token ${token.substring(0, 10) + "..."} successfully validated. No prior completion found.`);
     return NextResponse.json({
-      studentId: studentId, // Ensure correct property name mapping if needed
+      studentId: studentId, 
       examId: examId,
     }, { status: 200 });
 
   } catch (e: any) {
-    console.error(`${operationId} Exception during token validation:`, e.message, e);
-    return NextResponse.json({ error: 'An unexpected error occurred during token validation.' }, { status: 500 });
+    let errorMessage = 'An unexpected error occurred during token validation.';
+    if (e && typeof e === 'object' && typeof e.message === 'string') {
+        errorMessage = e.message;
+    } else if (e) {
+        errorMessage = String(e);
+    }
+    console.error(`${operationId} Exception during token validation:`, errorMessage, e);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
