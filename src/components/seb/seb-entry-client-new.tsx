@@ -192,7 +192,7 @@ export function SebEntryClientNew({ entryTokenFromPath }: SebEntryClientNewProps
       updatedChecks[i] = { ...check, status: 'checking' };
       setSecurityChecks([...updatedChecks]); 
 
-      await new Promise(resolve => setTimeout(resolve, 500)); // Increased delay for UI to show "checking"
+      await new Promise(resolve => setTimeout(resolve, 700)); // UI delay for "checking"
 
       try {
         const passed = await check.checkFn();
@@ -270,9 +270,14 @@ export function SebEntryClientNew({ entryTokenFromPath }: SebEntryClientNewProps
   useEffect(() => {
     if (stage === 'startingExamSession') {
         console.log('[SebEntryClientNew useEffect for startingExamSession] Stage is startingExamSession, calling handleStartExamSession.');
+        if (!examDetails || !validatedStudentId || !supabase) { // Re-check before calling
+            setPageError("Data error before starting exam session.");
+            setStage('error');
+            return;
+        }
         handleStartExamSession();
     }
-  }, [stage, handleStartExamSession]);
+  }, [stage, handleStartExamSession, examDetails, validatedStudentId, supabase]);
 
 
   const handleExamSubmitOrTimeUp = useCallback(async (answers: Record<string, string>, flaggedEventsFromInterface: FlaggedEvent[], submissionType: 'submit' | 'timeup') => {
@@ -308,9 +313,9 @@ export function SebEntryClientNew({ entryTokenFromPath }: SebEntryClientNewProps
       const result = await response.json();
       if (!response.ok) {
         console.error(`[SebEntryClientNew handleExamSubmitOrTimeUp] API submission failed. Status: ${response.status}, Result:`, result);
-        if (result.error && result.error.includes("already completed")) { // Specific check for re-submission attempt
+        if (result.error && result.error.includes("already completed")) { 
             toast({ title: "Exam Already Completed", description: "This exam was already marked as completed.", duration: 6000 });
-            setStage('examCompleted'); // Move to completed state
+            setStage('examCompleted'); 
             setShowExitSebButton(true);
             setIsSubmittingViaApi(false);
             return;
@@ -346,20 +351,20 @@ export function SebEntryClientNew({ entryTokenFromPath }: SebEntryClientNewProps
     if (authContextLoading && stage === 'initializing') message = "Initializing secure context...";
     
     return (
-      <div className="flex flex-col items-center justify-center text-center min-h-screen w-full bg-slate-900 text-slate-100">
+      <div className="flex flex-col items-center justify-center text-center min-h-screen w-full bg-background text-foreground">
         <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
-        <h2 className="text-xl font-medium text-slate-200 mb-2">{message}</h2>
+        <h2 className="text-xl font-medium text-foreground mb-2">{message}</h2>
       </div>
     );
   }
 
   if (stage === 'error' || (!examDetails && !['initializing', 'validatingToken', 'fetchingDetails'].includes(stage)) || (!studentProfile && !['initializing', 'validatingToken', 'fetchingDetails'].includes(stage))) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen w-full bg-slate-900 text-slate-100 p-4">
-        <div className="w-full max-w-lg text-center bg-slate-800 p-8 rounded-xl shadow-2xl border border-destructive">
+      <div className="flex flex-col items-center justify-center min-h-screen w-full bg-background text-foreground p-4">
+        <div className="w-full max-w-lg text-center bg-card p-8 rounded-xl shadow-2xl border border-destructive">
             <XCircle className="h-16 w-16 text-destructive mx-auto mb-5" />
             <h2 className="text-2xl font-semibold text-destructive mb-3">Exam Access Error</h2>
-            <p className="text-sm text-slate-300 mb-6 whitespace-pre-wrap">
+            <p className="text-sm text-muted-foreground mb-6 whitespace-pre-wrap">
                 {pageError || "Could not load necessary exam information. This might be due to an invalid token, network issues, or configuration problems."}
             </p>
             <Button onClick={handleExitSeb} className="w-full btn-gradient-destructive">Exit SEB</Button>
@@ -370,43 +375,42 @@ export function SebEntryClientNew({ entryTokenFromPath }: SebEntryClientNewProps
   
   if (!examDetails || !studentProfile) {
     return (
-        <div className="flex flex-col items-center justify-center text-center min-h-screen w-full bg-slate-900 text-slate-100">
+        <div className="flex flex-col items-center justify-center text-center min-h-screen w-full bg-background text-foreground">
             <ServerCrash className="h-16 w-16 text-destructive mx-auto mb-5" />
             <h2 className="text-xl font-semibold text-destructive mb-3">Data Error</h2>
-            <p className="text-sm text-slate-300 mb-6">Essential exam or student data could not be loaded after validation. Please try again or contact support.</p>
+            <p className="text-sm text-muted-foreground mb-6">Essential exam or student data could not be loaded after validation. Please try again or contact support.</p>
             <Button onClick={handleExitSeb} className="w-full max-w-xs btn-gradient-destructive">Exit SEB</Button>
         </div>
     );
   }
 
-
   if (stage === 'performingSecurityChecks' || stage === 'securityChecksFailed') {
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen w-full bg-slate-900 text-slate-100 p-4">
-            <div className="w-full max-w-lg text-center bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700">
+        <div className="flex flex-col items-center justify-center min-h-screen w-full bg-background text-foreground p-4">
+            <div className="w-full max-w-lg text-center bg-card p-8 rounded-xl shadow-2xl border border-border">
                 <ShieldCheck className="h-16 w-16 text-primary mx-auto mb-5" />
-                <h2 className="text-2xl font-semibold text-slate-100 mb-2">Security System Check</h2>
-                <p className="text-sm text-slate-400 mb-6">Verifying your exam environment. Please wait.</p>
+                <h2 className="text-2xl font-semibold text-foreground mb-2">Security System Check</h2>
+                <p className="text-sm text-muted-foreground mb-6">Verifying your exam environment. Please wait.</p>
                 <div className="space-y-3 text-left">
                     {securityChecks.map(check => (
                         <div key={check.id} className={`flex justify-between items-center p-3 rounded-md border text-sm ${
-                            check.status === 'pending' ? 'border-slate-600 bg-slate-700/30 text-slate-400' :
-                            check.status === 'checking' ? 'border-blue-500 bg-blue-500/20 text-blue-300 animate-pulse' :
-                            check.status === 'passed' ? 'border-green-500 bg-green-500/20 text-green-300' :
-                            'border-red-500 bg-red-500/20 text-red-300'
+                            check.status === 'pending' ? 'border-border bg-muted/50 text-muted-foreground' :
+                            check.status === 'checking' ? 'border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-400 animate-pulse' :
+                            check.status === 'passed' ? 'border-green-500 bg-green-500/10 text-green-700 dark:text-green-400' :
+                            'border-red-500 bg-red-500/10 text-red-700 dark:text-red-400'
                         }`}>
                             <span className="font-medium">{check.label}</span>
-                            {check.status === 'pending' && <Loader2 className="h-4 w-4 text-slate-400 animate-spin" />}
-                            {check.status === 'checking' && <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />}
-                            {check.status === 'passed' && <CheckCircle className="h-5 w-5 text-green-400" />}
-                            {check.status === 'failed' && <XCircle className="h-5 w-5 text-red-400" />}
+                            {check.status === 'pending' && <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />}
+                            {check.status === 'checking' && <Loader2 className="h-4 w-4 text-blue-600 dark:text-blue-400 animate-spin" />}
+                            {check.status === 'passed' && <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />}
+                            {check.status === 'failed' && <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />}
                         </div>
                     ))}
                 </div>
                 {stage === 'securityChecksFailed' && pageError && (
-                     <Alert variant="destructive" className="mt-6 text-left bg-red-900/50 border-red-700 text-red-300">
+                     <Alert variant="destructive" className="mt-6 text-left">
                         <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle className="text-red-200">Security Check Failed!</AlertTitle>
+                        <AlertTitle>Security Check Failed!</AlertTitle>
                         <AlertDescription>{pageError}</AlertDescription>
                     </Alert>
                 )}
@@ -427,9 +431,9 @@ export function SebEntryClientNew({ entryTokenFromPath }: SebEntryClientNewProps
   
   if (stage === 'startingExamSession') {
      return (
-      <div className="flex flex-col items-center justify-center text-center min-h-screen w-full bg-slate-900 text-slate-100">
+      <div className="flex flex-col items-center justify-center text-center min-h-screen w-full bg-background text-foreground">
         <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
-        <h2 className="text-xl font-medium text-slate-200 mb-2">Preparing your exam session...</h2>
+        <h2 className="text-xl font-medium text-foreground mb-2">Preparing your exam session...</h2>
       </div>
     );
   }
@@ -461,19 +465,19 @@ export function SebEntryClientNew({ entryTokenFromPath }: SebEntryClientNewProps
 
   // Full-screen Semi-Landing Page Layout
   return (
-    <div className="min-h-screen w-full flex bg-slate-900 text-slate-100">
+    <div className="min-h-screen w-full flex bg-background text-foreground">
       {/* Left Column */}
-      <div className="w-1/3 bg-slate-800 p-8 flex flex-col justify-between border-r border-slate-700 shadow-lg">
+      <div className="w-1/3 bg-muted/30 p-8 flex flex-col justify-between border-r border-border shadow-md">
         <div>
           <Image src={logoAsset} alt="ZenTest Logo" width={160} height={45} className="mb-10 h-auto" />
           <div className="space-y-4">
             <h2 className="text-2xl font-semibold text-primary flex items-center gap-2"><BookOpen className="h-6 w-6"/>Exam Details</h2>
-            <p className="text-lg font-bold text-slate-100">{examDetails.title}</p>
-            {examDetails.description && <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">{examDetails.description}</p>}
+            <p className="text-lg font-bold text-foreground">{examDetails.title}</p>
+            {examDetails.description && <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{examDetails.description}</p>}
           </div>
         </div>
         {showExitSebButton && (
-            <Button variant="outline" onClick={handleExitSeb} className="w-full mt-8 btn-outline-subtle border-slate-600 text-slate-300 hover:bg-slate-700">
+            <Button variant="outline" onClick={handleExitSeb} className="w-full mt-8 btn-outline-subtle">
                 <LogOut className="mr-2 h-4 w-4" /> Exit SEB
             </Button>
         )}
@@ -482,16 +486,16 @@ export function SebEntryClientNew({ entryTokenFromPath }: SebEntryClientNewProps
       {/* Right Column */}
       <div className="w-2/3 p-8 flex flex-col">
         <div className="flex justify-end items-start mb-auto">
-          <div className="text-right space-y-1 p-4 bg-slate-800/50 rounded-lg shadow">
+          <div className="text-right space-y-1 p-4 bg-card rounded-lg shadow border border-border">
             <div className="flex items-center justify-end gap-3">
                 <div>
-                    <p className="text-md font-semibold text-slate-100">{studentProfile.name}</p>
-                    <p className="text-xs text-slate-400">ID: {studentProfile.user_id}</p>
-                    {studentProfile.email && <p className="text-xs text-slate-400">{studentProfile.email}</p>}
+                    <p className="text-md font-semibold text-foreground">{studentProfile.name}</p>
+                    <p className="text-xs text-muted-foreground">ID: {studentProfile.user_id}</p>
+                    {studentProfile.email && <p className="text-xs text-muted-foreground">{studentProfile.email}</p>}
                 </div>
                 <Avatar className="h-12 w-12 border-2 border-primary/40">
                     <AvatarImage src={studentProfile.avatar_url || undefined} alt={studentProfile.name || 'Student'} />
-                    <AvatarFallback className="bg-slate-700 text-slate-300">
+                    <AvatarFallback className="bg-muted text-muted-foreground">
                         {(studentProfile.name || "S").charAt(0).toUpperCase()}
                     </AvatarFallback>
                 </Avatar>
@@ -500,17 +504,17 @@ export function SebEntryClientNew({ entryTokenFromPath }: SebEntryClientNewProps
         </div>
 
         <div className="flex flex-col items-center justify-center text-center space-y-6 my-auto">
-            <div className="p-6 bg-slate-800/50 rounded-xl shadow-xl border border-slate-700">
-                 <h3 className="text-xl font-medium text-slate-300 mb-1">Exam Duration</h3>
+            <div className="p-6 bg-card rounded-xl shadow-xl border border-border">
+                 <h3 className="text-xl font-medium text-muted-foreground mb-1">Exam Duration</h3>
                  <p className="text-4xl font-bold text-primary tabular-nums">{examDetails.duration} minutes</p>
             </div>
-             <div className="p-6 bg-slate-800/50 rounded-xl shadow-xl border border-slate-700">
-                 <h3 className="text-xl font-medium text-slate-300 mb-1">Status</h3>
-                 <p className={cn("text-4xl font-bold tabular-nums", isExamCompleted ? 'text-green-400' : 'text-yellow-400')}>
+             <div className="p-6 bg-card rounded-xl shadow-xl border border-border">
+                 <h3 className="text-xl font-medium text-muted-foreground mb-1">Status</h3>
+                 <p className={cn("text-4xl font-bold tabular-nums", isExamCompleted ? 'text-green-600' : 'text-yellow-600')}>
                     {examStatusText}
                 </p>
             </div>
-            <div className="p-4 bg-slate-800/50 rounded-lg shadow border border-slate-700 text-sm text-slate-300">
+            <div className="p-4 bg-card rounded-lg shadow border border-border text-sm text-muted-foreground">
                  <p className="flex items-center gap-2"><ListChecks className="h-5 w-5 text-primary"/> Questions: {examDetails.questions?.length || 0}</p>
                  <p className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-primary"/> Start Time: {isValidDate(parseISO(examDetails.start_time)) ? format(parseISO(examDetails.start_time), "MMM d, yyyy, hh:mm a") : "N/A"}</p>
             </div>
@@ -527,7 +531,7 @@ export function SebEntryClientNew({ entryTokenFromPath }: SebEntryClientNewProps
                         </Button>
                     </div>
                 </TooltipTrigger>
-                <TooltipContent className="bg-slate-700 text-slate-100 border-slate-600 shadow-lg rounded-md">
+                <TooltipContent className="bg-popover text-popover-foreground border-border shadow-lg rounded-md">
                     <p>You have already completed and submitted this exam.</p>
                 </TooltipContent>
                 </Tooltip>
@@ -546,4 +550,3 @@ export function SebEntryClientNew({ entryTokenFromPath }: SebEntryClientNewProps
     </div>
   );
 }
-

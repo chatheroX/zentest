@@ -1,7 +1,7 @@
 
 import type {Metadata} from 'next';
-import {GeistSans} from 'geist/font/sans';
-import {GeistMono} from 'geist/font/mono';
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="light">
+    <html lang="en"> {/* Removed className="light" to default to light theme from globals.css */}
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased flex flex-col min-h-screen`}>
         <AuthProvider>
           {children}

@@ -29,7 +29,7 @@ interface ExamTakingInterfaceProps {
   studentName?: string | null;
   studentRollNumber?: string | null;
   studentAvatarUrl?: string | null;
-  examStarted: boolean; // Added to ensure it's explicitly started
+  examStarted: boolean; 
 }
 
 export function ExamTakingInterface({
@@ -79,7 +79,7 @@ export function ExamTakingInterface({
         examId: examDetails.exam_id,
     };
     setActivityFlags((prev) => [...prev, newEvent]);
-    if (!isDemoMode) { // Only show toast if not in demo mode
+    if (!isDemoMode) { 
       toast({
         title: "Activity Alert",
         description: `${newEvent.type.replace(/_/g, ' ')} detected. ${newEvent.details || ''}`,
@@ -94,10 +94,10 @@ export function ExamTakingInterface({
     if (parentIsLoading || !examStarted) return; 
     toast({ title: isDemoMode ? "Demo Time's Up!" : "Time's Up!", description: isDemoMode ? "The demo exam duration has ended." : "Auto-submitting your exam.", variant: isDemoMode ? "default" : "destructive" });
     await onTimeUpRef.current(answers, activityFlags); 
-  }, [answers, activityFlags, isDemoMode, toast, parentIsLoading, examStarted, onTimeUpRef]); // Added examStarted
+  }, [answers, activityFlags, isDemoMode, toast, parentIsLoading, examStarted, onTimeUpRef]); 
 
   useEffect(() => {
-    if (!examStarted) return; // Don't start timer if exam hasn't explicitly started
+    if (!examStarted) return; 
 
     if (timeLeftSeconds <= 0) {
       handleTimeUpCallback();
@@ -113,22 +113,22 @@ export function ExamTakingInterface({
       });
     }, 1000);
     return () => clearInterval(intervalId);
-  }, [timeLeftSeconds, handleTimeUpCallback, examStarted]); // Added examStarted
+  }, [timeLeftSeconds, handleTimeUpCallback, examStarted]); 
 
 
   useActivityMonitor({
     studentId: userIdForActivityMonitor,
     examId: examDetails.exam_id,
-    enabled: !isDemoMode && examStarted, // Enable only if not demo and exam started
+    enabled: !isDemoMode && examStarted, 
     onFlagEvent: (event) => handleFlagEvent({ type: event.type, details: event.details }),
   });
 
   useEffect(() => {
-    if (isDemoMode || !examStarted) return; // Don't restrict input in demo mode or if exam not started
+    if (isDemoMode || !examStarted) return; 
 
     const cleanupInputRestriction = addInputRestrictionListeners(handleFlagEvent);
     return cleanupInputRestriction;
-  }, [isDemoMode, handleFlagEvent, examStarted]); // Added examStarted
+  }, [isDemoMode, handleFlagEvent, examStarted]); 
 
 
   const handleInternalAnswerChange = useCallback((questionId: string, optionId: string) => {
@@ -190,36 +190,36 @@ export function ExamTakingInterface({
 
   if (parentIsLoading) { 
     return (
-      <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-md p-6 text-center">
+      <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-background/90 backdrop-blur-md p-6 text-center">
           <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
-          <h2 className="text-xl font-medium text-slate-100 mb-2">Submitting Exam...</h2>
-          <p className="text-sm text-slate-300">Please wait.</p>
+          <h2 className="text-xl font-medium text-foreground mb-2">Submitting Exam...</h2>
+          <p className="text-sm text-muted-foreground">Please wait.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-slate-900 text-slate-100"> {/* Ensure full screen dark bg */}
-      <header className="h-20 px-4 sm:px-6 flex items-center justify-between border-b border-slate-700 bg-slate-800 shadow-md shrink-0">
+    <div className="min-h-screen w-full flex flex-col bg-background text-foreground">
+      <header className="h-20 px-4 sm:px-6 flex items-center justify-between border-b border-border bg-card shadow-sm shrink-0">
         <div className="flex items-center gap-2">
-          <Image src={logoAsset} alt="ZenTest Logo" width={160} height={45} className="h-auto" />
+          <Image src={logoAsset} alt="ZenTest Logo" width={160} height={45} className="h-16 w-auto" /> {/* Logo size updated */}
         </div>
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10 border-2 border-primary/50">
             <AvatarImage src={studentAvatarUrl || undefined} alt={studentName || 'Student'} />
-            <AvatarFallback className="bg-slate-700 text-slate-300">
+            <AvatarFallback className="bg-muted text-muted-foreground">
                 {(studentName || "S").charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-sm font-medium text-slate-100">{studentName || (isDemoMode ? "Demo Teacher" : "Test Student")}</p>
-            <p className="text-xs text-slate-400">ID: {studentRollNumber || (isDemoMode ? "T00000" : "S00000")}</p>
+            <p className="text-sm font-medium text-card-foreground">{studentName || (isDemoMode ? "Demo Teacher" : "Test Student")}</p>
+            <p className="text-xs text-muted-foreground">ID: {studentRollNumber || (isDemoMode ? "T00000" : "S00000")}</p>
           </div>
         </div>
       </header>
 
-      <div className="h-14 px-4 sm:px-6 flex items-center justify-between border-b border-slate-700 bg-slate-800 shadow-sm shrink-0">
-        <div className="flex items-center gap-2 text-slate-300">
+      <div className="h-14 px-4 sm:px-6 flex items-center justify-between border-b border-border bg-card shadow-sm shrink-0">
+        <div className="flex items-center gap-2 text-muted-foreground">
           <Clock size={20} className="text-primary" />
           <span className="font-medium text-sm">Time remaining:</span>
           <span className="font-semibold text-md tabular-nums text-primary">{formatTime(timeLeftSeconds)}</span>
@@ -235,17 +235,17 @@ export function ExamTakingInterface({
                     Submit Exam
                 </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="bg-slate-800 border-slate-700 text-slate-100 shadow-xl rounded-lg">
+            <AlertDialogContent className="bg-popover border-border text-popover-foreground shadow-xl rounded-lg">
                 <AlertDialogHeader>
-                <AlertDialogTitle className="text-slate-50">Confirm Submission</AlertDialogTitle>
-                <AlertDialogDescription className="text-slate-300">
+                <AlertDialogTitle className="text-foreground">Confirm Submission</AlertDialogTitle>
+                <AlertDialogDescription className="text-muted-foreground">
                     Are you sure you want to submit the exam? This action cannot be undone.
                     {Object.keys(answers).length < totalQuestions && 
                         ` You have ${totalQuestions - Object.keys(answers).length} unanswered question(s).`}
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                <AlertDialogCancel className="btn-outline-subtle border-slate-600 text-slate-300 hover:bg-slate-700">Cancel</AlertDialogCancel>
+                <AlertDialogCancel className="btn-outline-subtle">Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={confirmAndSubmitExam} className="btn-gradient-destructive">
                     Yes, Submit Exam
                 </AlertDialogAction>
@@ -254,23 +254,23 @@ export function ExamTakingInterface({
         </AlertDialog>
       </div>
 
-      <main className="flex-1 flex flex-col py-6 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-24 overflow-y-auto bg-slate-900">
-        <div className="w-full bg-slate-800 shadow-xl rounded-lg p-6 sm:p-8 mb-6 border border-slate-700">
+      <main className="flex-1 flex flex-col py-6 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-24 overflow-y-auto bg-background">
+        <div className="w-full bg-card shadow-xl rounded-lg p-6 sm:p-8 mb-6 border border-border">
           <div className="mb-4 flex justify-between items-center">
             <p className="text-lg sm:text-xl font-semibold text-primary">
-              Question {currentQuestionIndex + 1} <span className="text-sm font-normal text-slate-400">of {totalQuestions}</span>
+              Question {currentQuestionIndex + 1} <span className="text-sm font-normal text-muted-foreground">of {totalQuestions}</span>
             </p>
-            <Button variant="ghost" size="icon" onClick={handleToggleMarkForReview} title={markedForReview[currentQuestion?.id || ''] ? "Unmark for Review" : "Mark for Review"} disabled={parentIsLoading} className="text-slate-400 hover:text-yellow-400">
+            <Button variant="ghost" size="icon" onClick={handleToggleMarkForReview} title={markedForReview[currentQuestion?.id || ''] ? "Unmark for Review" : "Mark for Review"} disabled={parentIsLoading} className="text-muted-foreground hover:text-yellow-500">
                 <Bookmark className={cn("h-5 w-5", markedForReview[currentQuestion?.id || ''] ? "fill-yellow-400 text-yellow-500" : "")} />
             </Button>
           </div>
-          <h2 className="text-xl sm:text-2xl font-medium text-slate-50 leading-relaxed">
+          <h2 className="text-xl sm:text-2xl font-medium text-card-foreground leading-relaxed">
             {currentQuestion?.text}
           </h2>
         </div>
 
         {currentQuestion && (
-          <div className="w-full bg-slate-800 shadow-xl rounded-lg p-6 sm:p-8 border border-slate-700">
+          <div className="w-full bg-card shadow-xl rounded-lg p-6 sm:p-8 border border-border">
             <RadioGroup
               key={currentQuestion.id}
               value={answers[currentQuestion.id] || ''}
@@ -286,18 +286,18 @@ export function ExamTakingInterface({
                   key={option.id}
                   htmlFor={`opt-${currentQuestion.id}-${option.id}`}
                   className={cn(
-                    "flex items-center space-x-3 p-4 border rounded-lg transition-all duration-150 ease-in-out cursor-pointer text-base text-slate-200",
+                    "flex items-center space-x-3 p-4 border rounded-lg transition-all duration-150 ease-in-out cursor-pointer text-base text-foreground",
                     "hover:shadow-lg hover:border-primary/70",
                     answers[currentQuestion.id] === option.id
-                      ? "bg-primary/20 border-primary ring-2 ring-primary/80 text-slate-50"
-                      : "bg-slate-700/50 border-slate-600 hover:bg-slate-700",
+                      ? "bg-primary/10 border-primary ring-2 ring-primary/80 text-primary" // Selected option style for light theme
+                      : "bg-background border-border hover:bg-accent/50",
                     parentIsLoading && "cursor-not-allowed opacity-70"
                   )}
                 >
                   <RadioGroupItem
                     value={option.id}
                     id={`opt-${currentQuestion.id}-${option.id}`}
-                    className="h-5 w-5 border-slate-500 text-primary focus:ring-primary disabled:opacity-50 shrink-0"
+                    className="h-5 w-5 border-muted-foreground text-primary focus:ring-primary disabled:opacity-50 shrink-0"
                     disabled={parentIsLoading}
                   />
                   <span className="font-medium leading-snug">{option.text}</span>
@@ -308,12 +308,12 @@ export function ExamTakingInterface({
         )}
       </main>
 
-      <footer className="h-20 px-4 sm:px-6 flex items-center justify-between border-t border-slate-700 bg-slate-800 shadow-top shrink-0">
+      <footer className="h-20 px-4 sm:px-6 flex items-center justify-between border-t border-border bg-card shadow-top shrink-0">
         <Button
           variant="outline"
           onClick={handlePreviousQuestion}
           disabled={currentQuestionIndex === 0 || !allowBacktracking || parentIsLoading}
-          className="btn-outline-subtle border-slate-600 text-slate-300 hover:bg-slate-700 px-6 py-3 text-md rounded-lg shadow-sm hover:shadow-md"
+          className="btn-outline-subtle px-6 py-3 text-md rounded-lg shadow-sm hover:shadow-md"
         >
           <ChevronLeft className="mr-2 h-5 w-5" /> Previous
         </Button>
@@ -329,10 +329,10 @@ export function ExamTakingInterface({
                   "h-10 w-10 text-sm rounded-md shrink-0 font-medium shadow",
                   currentQuestionIndex === index 
                     ? "bg-primary text-primary-foreground hover:bg-primary/90" 
-                    : "btn-outline-subtle border-slate-600 text-slate-300 hover:bg-slate-700",
-                  answers[q.id] && currentQuestionIndex !== index ? "bg-green-600/30 border-green-500/70 text-green-200" : "",
-                  markedForReview[q.id] && currentQuestionIndex !== index && !answers[q.id] ? "bg-purple-600/30 border-purple-500/70 text-purple-200" : "",
-                  markedForReview[q.id] && currentQuestionIndex !== index && answers[q.id] ? "bg-purple-600/30 border-purple-500/70 text-purple-200 ring-2 ring-green-500/70" : "", 
+                    : "btn-outline-subtle text-muted-foreground",
+                  answers[q.id] && currentQuestionIndex !== index ? "bg-green-100 border-green-300 text-green-700 hover:bg-green-200" : "",
+                  markedForReview[q.id] && currentQuestionIndex !== index && !answers[q.id] ? "bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-200" : "",
+                  markedForReview[q.id] && currentQuestionIndex !== index && answers[q.id] ? "bg-purple-100 border-purple-300 text-purple-700 ring-2 ring-green-300 hover:bg-purple-200" : "", 
                   (!allowBacktracking && index < currentQuestionIndex) && "opacity-60 cursor-not-allowed"
                 )}
                 onClick={() => handleQuestionNavigation(index)}

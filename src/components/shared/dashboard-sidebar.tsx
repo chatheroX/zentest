@@ -22,7 +22,8 @@ import type { LucideIcon } from 'lucide-react';
 import type { CustomUser } from '@/types/supabase';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from '@/lib/utils';
-import logoAsset from '../../../logo.png'; // Import the logo
+import logoAsset from '../../../logo.png'; 
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 export interface NavItem {
   href: string;
@@ -36,7 +37,7 @@ interface SidebarElementsProps {
   navItems: NavItem[];
   userRoleDashboard: 'student' | 'teacher';
   user: CustomUser | null;
-  signOut: () => Promise<void>;
+  signOut: () => Promise<void>; // signOut comes from AuthContext now
   authLoading: boolean;
   className?: string;
 }
@@ -99,10 +100,10 @@ export function SidebarElements({ navItems, userRoleDashboard, user, signOut, au
         collapsible="icon"
         className={cn("sidebar-glass", className)}
     >
-      <SidebarHeader className="p-3 border-b border-sidebar-border/60 h-20 flex items-center"> {/* Increased header height */}
+      <SidebarHeader className="p-3 border-b border-sidebar-border/60 h-20 flex items-center">
         <div className="flex items-center justify-between w-full group-data-[collapsible=icon]:justify-center">
           <Link href="/" className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
-            <Image src={logoAsset} alt="ZenTest Logo" width={114} height={32} className="h-16 w-auto" /> {/* Changed h-8 to h-16 */}
+            <Image src={logoAsset} alt="ZenTest Logo" width={160} height={45} className="h-16 w-auto" />
           </Link>
            <SidebarTrigger className="text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:hidden" />
            <SidebarTrigger className="text-muted-foreground hover:text-foreground hidden group-data-[collapsible=icon]:flex" />
@@ -124,7 +125,7 @@ export function SidebarElements({ navItems, userRoleDashboard, user, signOut, au
                         children: "My Profile",
                          className: "group-data-[collapsible=icon]:block hidden bg-popover text-popover-foreground border-border shadow-sm rounded-sm"
                     }}
-                    className="text-sm font-medium text-sidebar-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:text-primary-foreground data-[active=true]:shadow-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md transition-all duration-200 ease-in-out data-[active=true]:hover:bg-sidebar-primary/90"
+                    className="text-sm font-medium text-sidebar-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:shadow-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md transition-all duration-200 ease-in-out data-[active=true]:hover:bg-sidebar-primary/90"
                      data-sidebar="menu-button"
                 >
                     <Link href={`/${userRoleDashboard}/dashboard/profile`} className="gap-2.5">
@@ -141,7 +142,7 @@ export function SidebarElements({ navItems, userRoleDashboard, user, signOut, au
                         children: "Settings",
                          className: "group-data-[collapsible=icon]:block hidden bg-popover text-popover-foreground border-border shadow-sm rounded-sm"
                     }}
-                    className="text-sm font-medium text-sidebar-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:text-primary-foreground data-[active=true]:shadow-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md transition-all duration-200 ease-in-out data-[active=true]:hover:bg-sidebar-primary/90"
+                    className="text-sm font-medium text-sidebar-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:shadow-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md transition-all duration-200 ease-in-out data-[active=true]:hover:bg-sidebar-primary/90"
                      data-sidebar="menu-button"
                 >
                     <Link href={`/${userRoleDashboard}/dashboard/settings`} className="gap-2.5">
@@ -169,21 +170,38 @@ export function SidebarElements({ navItems, userRoleDashboard, user, signOut, au
                         {user.name || user.email}
                         </p>
                         <p className="text-xs text-muted-foreground capitalize truncate" title={user.role && user.user_id ? `${user.role} - ID: ${user.user_id}` : user.role || 'N/A'}>
-                          {user.role || 'N/A'} {user.user_id && `- ID: ${user.user_id}`}
+                          {user.role || 'N/A'} {user.user_id && `- ID: ${user.user_id.substring(0,6)}..`}
                         </p>
                     </div>
                 </div>
-                 <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={signOut}
-                    disabled={authLoading}
-                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 rounded-full"
-                    aria-label="Logout"
-                    title="Logout"
-                >
-                    {authLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-                 </Button>
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={authLoading}
+                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 rounded-full"
+                            aria-label="Logout"
+                            title="Logout"
+                        >
+                        {authLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="bg-popover border-border">
+                        <AlertDialogHeader>
+                        <AlertDialogTitle className="text-foreground">Confirm Logout</AlertDialogTitle>
+                        <AlertDialogDescription className="text-muted-foreground">
+                            Are you sure you want to log out?
+                        </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                        <AlertDialogCancel className="btn-outline-subtle">Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={signOut} className="btn-gradient-destructive">
+                            Logout
+                        </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         )}
         {!user && authLoading && (

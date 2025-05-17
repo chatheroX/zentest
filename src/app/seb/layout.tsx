@@ -12,8 +12,8 @@ export default function SebLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark"> {/* Force dark theme for SEB context */}
-      <body className="font-sans antialiased bg-slate-900 text-slate-100 min-h-screen flex flex-col"> {/* Ensure full screen dark background */}
+    <html lang="en"> {/* Removed className="dark" to default to light theme */}
+      <body className="font-sans antialiased bg-background text-foreground min-h-screen flex flex-col"> {/* Use theme variables */}
         <AuthProvider> {/* Crucial: Wrap children with AuthProvider */}
           <main className="flex-1 flex flex-col">{children}</main> {/* Ensure children can take full height */}
           <Toaster /> {/* Toasts can provide feedback within SEB */}

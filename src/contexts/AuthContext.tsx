@@ -6,6 +6,8 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useRouter, usePathname } from 'next/navigation';
 import Cookies from 'js-cookie';
 import type { CustomUser, ProctorXTableType } from '@/types/supabase';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"; // Import AlertDialog components
+import { Button } from '@/components/ui/button'; // For trigger if needed outside sidebar
 
 const SESSION_COOKIE_NAME = 'proctorprep-user-email';
 const ROLE_COOKIE_NAME = 'proctorprep-user-role';
@@ -35,7 +37,7 @@ type AuthContextType = {
   supabase: ReturnType<typeof createSupabaseBrowserClient> | null;
   signIn: (email: string, pass: string) => Promise<{ success: boolean; error?: string; user?: CustomUser | null }>;
   signUp: (email: string, pass: string, name: string, role: CustomUser['role']) => Promise<{ success: boolean; error?: string; user?: CustomUser | null }>;
-  signOut: () => Promise<void>;
+  signOut: () => Promise<void>; // Will be wrapped by confirmation dialog
   updateUserProfile: (data: { name: string; password?: string; avatar_url?: string }) => Promise<{ success: boolean; error?: string }>;
 };
 
@@ -51,7 +53,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Effect for Supabase client initialization
   useEffect(() => {
     const effectId = `[AuthContext SupabaseClientInitEffect ${Date.now().toString().slice(-4)}]`;
     console.log(`${effectId} Running...`);
@@ -157,7 +158,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [supabase, user, isLoading]);
 
 
-  // Effect for initial user loading
   useEffect(() => {
     const effectId = `[AuthContext Initial User Load Effect ${Date.now().toString().slice(-4)}]`;
     console.log(`${effectId} Running. Supabase: ${!!supabase}, AuthError: ${authError}, InitialLoadAttempted: ${initialLoadAttempted.current}`);
@@ -180,7 +180,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return STUDENT_DASHBOARD_ROUTE;
   }, []);
 
-  // Effect for route protection and redirection (client-side)
   useEffect(() => {
     const effectId = `[AuthContext Route Guard Effect ${Date.now().toString().slice(-4)}]`;
     console.log(`${effectId} Running. isLoading: ${isLoading}, Path: ${pathname}, User: ${user?.email}, Role: ${user?.role}, ContextAuthError: ${authError}`);
@@ -193,11 +192,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isAuthPg = pathname === AUTH_ROUTE;
     const isStudentDashboardArea = pathname?.startsWith('/student/dashboard');
     const isTeacherDashboardArea = pathname?.startsWith('/teacher/dashboard');
-    const isExamSessionPage = pathname?.startsWith('/exam-session/');
-    const isPublicRoute = ['/', '/privacy', '/terms', '/supabase-test'].includes(pathname);
+    const isExamSessionPage = pathname?.startsWith('/exam-session/'); // Retained for completeness
+    const isSebSpecificRoute = pathname?.startsWith('/seb/');
+    const PUBLIC_ROUTES = ['/', '/privacy', '/terms', '/supabase-test', '/unsupported-browser'];
 
+    const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
-    if (user && user.user_id) { // User IS authenticated
+    if (user && user.user_id) { 
       const targetDashboard = getRedirectPathForRole(user.role);
       console.log(`${effectId} User authenticated (${user.email}, Role: ${user.role}). Target dashboard: ${targetDashboard}`);
       
@@ -225,16 +226,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       console.log(`${effectId} Authenticated user on allowed page: ${pathname}. No redirect needed by context guard this cycle.`);
 
-    } else { // User is NOT authenticated (user is null)
+    } else { 
       console.log(`${effectId} User not authenticated. Path: ${pathname}`);
       const isProtectedRoute = isStudentDashboardArea || isTeacherDashboardArea || isExamSessionPage;
       
-      if (isProtectedRoute && !isAuthPg) { 
+      if (isProtectedRoute && !isAuthPg && !isSebSpecificRoute) { 
         console.log(`${effectId} Unauthenticated on protected route ${pathname}, redirecting to ${AUTH_ROUTE}`);
         router.replace(AUTH_ROUTE);
         return; 
       }
-      console.log(`${effectId} User not authenticated and on public or ${AUTH_ROUTE} page: ${pathname}. No redirect by context guard.`);
+      console.log(`${effectId} User not authenticated and on public, SEB, or ${AUTH_ROUTE} page: ${pathname}. No redirect by context guard.`);
     }
     console.log(`${effectId} End of effect run. No redirect initiated by this pass or conditions not met.`);
   }, [user, isLoading, pathname, router, authError, getRedirectPathForRole]);
@@ -287,7 +288,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (userData.role) Cookies.set(ROLE_COOKIE_NAME, userData.role, { expires: 7, path: '/' });
         else Cookies.remove(ROLE_COOKIE_NAME);
         
-        // No direct navigation here, let the useEffect handle it after state updates.
         console.log(`${operationId} Success. User set in context: ${userData.email}, Role: ${userData.role}. Routing effect will handle navigation.`);
         setIsLoading(false);
         return { success: true, user: userData };
@@ -300,7 +300,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const errorMsg = e.message || 'An unexpected error occurred during sign in.';
       setUser(null); setAuthError(errorMsg); setIsLoading(false); return { success: false, error: errorMsg };
     }
-  }, [supabase, getRedirectPathForRole]); // Removed router from deps here
+  }, [supabase]);
 
   const signUp = useCallback(async (email: string, pass: string, name: string, role: CustomUser['role']): Promise<{ success: boolean; error?: string; user?: CustomUser | null }> => {
     const operationId = `[AuthContext signUp ${Date.now().toString().slice(-4)}]`;
@@ -364,7 +364,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       Cookies.set(SESSION_COOKIE_NAME, newUserData.email, { expires: 7, path: '/' });
       Cookies.set(ROLE_COOKIE_NAME, newUserData.role, { expires: 7, path: '/' });
       
-      // No direct navigation here, let the useEffect handle it.
       console.log(`${operationId} Success. User set: ${newUserData.email}. Routing effect will handle navigation.`);
       setIsLoading(false);
       return { success: true, user: newUserData };
@@ -374,10 +373,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null); setAuthError(e.message || 'Unexpected error during sign up.'); setIsLoading(false);
       return { success: false, error: e.message || 'An unexpected error occurred.' };
     }
-  }, [supabase, generateShortId, getRedirectPathForRole]); // Removed router from deps here
+  }, [supabase, generateShortId]);
 
-  const signOut = useCallback(async () => {
-    const operationId = `[AuthContext signOut ${Date.now().toString().slice(-4)}]`;
+  const performSignOut = useCallback(async () => {
+    const operationId = `[AuthContext performSignOut ${Date.now().toString().slice(-4)}]`;
     console.log(`${operationId} Signing out. Current path: ${pathname}`);
     
     setUser(null);
@@ -447,8 +446,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [supabase, user]);
 
   const contextValue = useMemo(() => ({
-    user, isLoading, authError, supabase, signIn, signUp, signOut, updateUserProfile,
-  }), [user, isLoading, authError, supabase, signIn, signUp, signOut, updateUserProfile]);
+    user, isLoading, authError, supabase, signIn, signUp, signOut: performSignOut, updateUserProfile,
+  }), [user, isLoading, authError, supabase, signIn, signUp, performSignOut, updateUserProfile]);
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }
