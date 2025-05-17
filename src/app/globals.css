@@ -1,94 +1,119 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  @apply bg-gradient-to-br from-slate-50 via-gray-100 to-slate-100 dark:from-slate-900 dark:via-gray-950 dark:to-slate-900;
 }
 
 @layer base {
   :root {
-    --background: 0 0% 94%; /* Light Gray #F0F0F0 */
-    --foreground: 220 10% 20%; /* Darker gray/blue text */
+    /* Modern Light Theme - Blue Accent (#2B70E0) */
+    --background: 0 0% 100%; /* Primary page background - white */
+    --foreground: 220 15% 25%; /* Primary text color - dark grey */
 
-    --card: 0 0% 100%; /* White */
-    --card-foreground: 220 10% 20%;
+    --card: 0 0% 100%; /* Card background - white */
+    --card-foreground: 220 15% 20%; /* Text on cards */
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 10% 20%;
+    --popover-foreground: 220 15% 20%;
 
-    --primary: 231 48% 48%; /* Deep Blue #3F51B5 */
-    --primary-foreground: 0 0% 98%; /* White */
-
-    --secondary: 0 0% 85%; /* Darker gray for number buttons */
-    --secondary-foreground: 0 0% 10%; /* Dark text for secondary buttons */
-
-    --muted: 0 0% 90%; /* Display background inside card */
-    --muted-foreground: 0 0% 40%; /* Text for expression in display */
-
-    --accent: 258 44% 63%; /* Soft Purple #9575CD for operator buttons */
-    --accent-foreground: 0 0% 98%; /* White text on accent buttons */
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 0 0% 85%;
-    --input: 0 0% 85%;
-    --ring: 231 48% 48%; /* Deep blue for focus rings */
+    /* Primary Blue Accent (#2B70E0 -> HSL: 217, 76%, 52%) */
+    --primary: 217 76% 52%;
+    --primary-foreground: 0 0% 100%; /* White text on primary blue elements */
     
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
+    /* Secondary elements */
+    --secondary: 220 15% 93.5%; /* Light grey for secondary backgrounds */
+    --secondary-foreground: 220 15% 30%; /* Text on secondary elements */
 
-    /* Sidebar variables - kept for consistency but not actively used by calculator */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Muted elements */
+    --muted: 220 15% 96.5%; /* Lighter grey for muted backgrounds/borders */
+    --muted-foreground: 220 10% 45%; /* Softer muted text */
+
+    /* General Accent (lighter blue for harmony) */
+    --accent: 217 70% 70%;
+    --accent-foreground: 0 0% 100%; /* White text on accent elements */
+
+    --destructive: 0 70% 55%; /* A clear red */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 88%; /* Subtle borders - light grey */
+    --input: 220 15% 93%; /* Input field background */
+    --ring: 217 76% 55%; /* Focus ring - primary blue */
+    
+    --radius: 0.75rem; /* Softer, more rounded corners (12px) */
+
+    /* Gradient Button Colors (Blue Theme) */
+    --gradient-primary-start: 217 76% 52%;
+    --gradient-primary-end: 217 70% 60%; 
+    --gradient-destructive-start: 0 70% 55%;
+    --gradient-destructive-end: 0 80% 65%;
+    --gradient-positive-start: 140 60% 45%;
+    --gradient-positive-end: 150 70% 55%;
+
+    /* Sidebar specific theme variables - Blue Theme */
+    --sidebar-background: 0 0% 98%; /* Very light, almost white */
+    --sidebar-foreground: 220 15% 35%; /* Text in sidebar */
+    --sidebar-primary: 217 76% 52%; /* Active item background (blue) */
+    --sidebar-primary-foreground: 0 0% 100%; /* Active item text (white) */
+    --sidebar-accent: 217 76% 95%; /* Hover background for sidebar items (very light blue) */
+    --sidebar-accent-foreground: 217 76% 30%; /* Hover text color (darker blue) */
+    --sidebar-border: 220 15% 88%; /* Sidebar border */
+    --sidebar-ring: 217 76% 55%; /* Focus ring for sidebar items */
+    --sidebar-group-text: 220 10% 55%; /* "MAIN MENU" text color */
   }
 
   .dark {
-    /* Dark theme remains, though calculator primarily uses light theme aesthetics */
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --background: 220 15% 12%; /* Dark background */
+    --foreground: 220 10% 92%; /* Light text */
+
+    --card: 220 15% 18%; /* Dark card background */
+    --card-foreground: 220 10% 92%;
+
+    --popover: 220 15% 15%;
+    --popover-foreground: 220 10% 92%;
+
+    /* Primary Blue Accent for Dark Mode */
+    --primary: 217 76% 60%; /* Slightly lighter blue for dark mode */
+    --primary-foreground: 0 0% 100%; /* White text */
     
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --secondary: 220 15% 25%; 
+    --secondary-foreground: 220 10% 85%;
+
+    --muted: 220 15% 22%;
+    --muted-foreground: 220 10% 60%;
+
+    /* General Accent for Dark Mode */
+    --accent: 217 70% 65%; 
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 65% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 30%; 
+    --input: 220 15% 17%;
+    --ring: 217 76% 65%; /* Lighter blue ring for dark mode */
+    
+    /* Gradient Button Colors Dark (Blue Theme) */
+    --gradient-primary-start: 217 76% 60%;
+    --gradient-primary-end: 217 70% 68%;
+    --gradient-destructive-start: 0 65% 60%;
+    --gradient-destructive-end: 0 75% 70%;
+    --gradient-positive-start: 140 50% 50%;
+    --gradient-positive-end: 150 60% 60%;
+
+    /* Sidebar Dark Theme - Blue Theme */
+    --sidebar-background: 220 15% 15%; /* Darker sidebar */
+    --sidebar-foreground: 220 10% 88%;
+    --sidebar-primary: 217 76% 60%; /* Active item blue */
+    --sidebar-primary-foreground: 0 0% 100%; /* White text on active */
+    --sidebar-accent: 217 76% 25%; /* Hover background (darker subtle blue) */
+    --sidebar-accent-foreground: 217 76% 85%; /* Lighter blue text on hover */
+    --sidebar-border: 220 15% 28%;
+    --sidebar-ring: 217 76% 70%;
+    --sidebar-group-text: 220 10% 65%;
   }
 }
 
@@ -97,6 +122,62 @@ body {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground; /* Primary text color from vars */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  main {
+    flex-grow: 1;
   }
 }
+
+/* Modern Card Style (opaque white, soft shadow) - examam.io inspired */
+.modern-card {
+  @apply bg-card text-card-foreground rounded-lg border border-border/60 shadow-lg transition-shadow hover:shadow-xl dark:border-border/40;
+}
+
+/* Primary Button Style (Solid Primary Color) - Blue Theme */
+.btn-primary-solid {
+  @apply bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring shadow-md hover:shadow-lg transition-all duration-200 ease-in-out;
+}
+
+/* New Gradient Button Style - Blue Theme */
+.btn-gradient {
+  @apply text-primary-foreground font-semibold bg-gradient-to-r from-[hsl(var(--gradient-primary-start))] to-[hsl(var(--gradient-primary-end))] hover:from-[hsl(var(--gradient-primary-start),0.9)] hover:to-[hsl(var(--gradient-primary-end),0.9)] focus-visible:ring-ring shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-0.5 active:translate-y-0;
+}
+.btn-gradient-destructive {
+  @apply text-white font-semibold bg-gradient-to-r from-[hsl(var(--gradient-destructive-start))] to-[hsl(var(--gradient-destructive-end))] hover:from-[hsl(var(--gradient-destructive-start),0.9)] hover:to-[hsl(var(--gradient-destructive-end),0.9)] focus-visible:ring-ring shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-0.5 active:translate-y-0;
+}
+.btn-gradient-positive {
+   @apply text-white font-semibold bg-gradient-to-r from-[hsl(var(--gradient-positive-start))] to-[hsl(var(--gradient-positive-end))] hover:from-[hsl(var(--gradient-positive-start),0.9)] hover:to-[hsl(var(--gradient-positive-end),0.9)] focus-visible:ring-ring shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-0.5 active:translate-y-0;
+}
+.btn-outline-subtle {
+  @apply border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:border-gray-400 dark:hover:border-gray-500;
+}
+
+/* Sidebar specific styling for active items and hover - Blue Theme */
+[data-sidebar="menu-button"][data-active="true"] {
+   @apply bg-sidebar-primary text-sidebar-primary-foreground shadow-md hover:bg-sidebar-primary/90;
+}
+[data-sidebar="menu-button"]:not([data-active="true"]):hover {
+  @apply bg-sidebar-accent text-sidebar-accent-foreground shadow-[0_0_15px_0_hsl(var(--primary)/0.5)]; /* Glowing hover effect */
+}
+
+/* Glassmorphism Card Style - Enhanced for more depth */
+.glass-card {
+  @apply bg-card/60 dark:bg-card/70 backdrop-blur-lg border border-white/30 dark:border-white/10 shadow-2xl rounded-xl transition-all duration-300 hover:shadow-primary/20;
+}
+.sidebar-glass {
+   @apply bg-[hsl(var(--sidebar-background)/0.7)] dark:bg-[hsl(var(--sidebar-background)/0.8)] backdrop-blur-lg border-r border-sidebar-border/50 dark:border-sidebar-border/30 shadow-xl;
+}
+
+/* Ensure body uses light mode by default if html.dark is not present */
+html:not(.dark) {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+    

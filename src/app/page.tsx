@@ -1,181 +1,113 @@
-'use client';
 
-import { useState } from 'react';
-import type React from 'react';
-import CalculatorDisplay from '@/components/calculator-display';
-import Keypad from '@/components/keypad';
+import React from 'react';
+import { AppHeader } from '@/components/shared/header';
+import { AppFooter } from '@/components/shared/footer';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CircleCheckBig, BookOpenText, Users, Cpu, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
-const MAX_INPUT_LENGTH = 15;
+const features = [
+  {
+    icon: <CircleCheckBig className="h-10 w-10 text-primary mb-3" />,
+    title: 'Secure Exam Environment',
+    description: 'Tight integration with Safe Exam Browser (SEB) for cheat-proof online exams.',
+  },
+  {
+    icon: <BookOpenText className="h-10 w-10 text-primary mb-3" />,
+    title: 'Flexible Exam Management',
+    description: 'Full CRUD for exams, diverse question upload options, and customizable settings.',
+  },
+  {
+    icon: <Users className="h-10 w-10 text-primary mb-3" />,
+    title: 'Role-Based Dashboards',
+    description: 'Dedicated, intuitive dashboards for both students and teachers.',
+  },
+  {
+    icon: <Cpu className="h-10 w-10 text-primary mb-3" />,
+    title: 'AI-Powered Assistance',
+    description: 'Built-in AI assistant to help teachers generate diverse exam questions effortlessly.',
+  },
+];
 
-export default function SimpleCalcPage() {
-  const [currentInput, setCurrentInput] = useState<string>('0');
-  const [previousInput, setPreviousInput] = useState<string | null>(null);
-  const [operator, setOperator] = useState<string | null>(null);
-  const [shouldResetDisplay, setShouldResetDisplay] = useState<boolean>(true); // True if next number should clear currentInput
-
-  const formatNumberForDisplay = (numStr: string): string => {
-    if (numStr === "Error" || numStr === "Infinity" || numStr === "-Infinity" || numStr === "NaN") return "Error";
-    const num = parseFloat(numStr);
-    if (isNaN(num)) return "Error"; // Should not happen if input is validated
-
-    // Limit precision for display
-    let formatted = String(num);
-    if (formatted.length > MAX_INPUT_LENGTH) {
-      if (Math.abs(num) > 1e10 || (Math.abs(num) < 1e-5 && Math.abs(num) > 0)) { // Use exponential for very large/small
-        formatted = num.toExponential(MAX_INPUT_LENGTH - 6); // -6 for "e+NN" part
-      } else { // Trim decimals
-        const decimalPointIndex = formatted.indexOf('.');
-        if (decimalPointIndex !== -1) {
-          formatted = formatted.substring(0, MAX_INPUT_LENGTH);
-        }
-      }
-    }
-    // Ensure it does not exceed max length again after potential formatting
-    return formatted.length > MAX_INPUT_LENGTH ? "Error" : formatted;
-  };
-
-
-  const calculate = () => {
-    if (!previousInput || !operator || currentInput === "Error") {
-      return;
-    }
-
-    const prev = parseFloat(previousInput);
-    const curr = parseFloat(currentInput);
-
-    if (isNaN(prev) || isNaN(curr)) {
-      setCurrentInput("Error");
-      setPreviousInput(null);
-      setOperator(null);
-      setShouldResetDisplay(true);
-      return;
-    }
-
-    let result: number;
-    switch (operator) {
-      case '+':
-        result = prev + curr;
-        break;
-      case '-':
-        result = prev - curr;
-        break;
-      case '*':
-        result = prev * curr;
-        break;
-      case '/':
-        if (curr === 0) {
-          setCurrentInput('Error');
-          setPreviousInput(null);
-          setOperator(null);
-          setShouldResetDisplay(true);
-          return;
-        }
-        result = prev / curr;
-        break;
-      default:
-        return;
-    }
-    
-    const resultStr = formatNumberForDisplay(String(result));
-    setCurrentInput(resultStr);
-    setPreviousInput(null); // Keep previousInput as null after equals
-    setOperator(null); // Clear operator
-    setShouldResetDisplay(true);
-  };
-
-  const handleNumberClick = (num: string) => {
-    if (currentInput === "Error") {
-       setCurrentInput(num);
-       setShouldResetDisplay(false);
-       return;
-    }
-    if (shouldResetDisplay) {
-      setCurrentInput(num);
-      setShouldResetDisplay(false);
-    } else {
-      if (currentInput.length < MAX_INPUT_LENGTH) {
-        setCurrentInput(currentInput === '0' ? num : currentInput + num);
-      }
-    }
-  };
-
-  const handleDecimalClick = () => {
-    if (currentInput === "Error") {
-      setCurrentInput("0.");
-      setShouldResetDisplay(false);
-      return;
-    }
-    if (shouldResetDisplay) {
-      setCurrentInput('0.');
-      setShouldResetDisplay(false);
-    } else if (!currentInput.includes('.')) {
-       if (currentInput.length < MAX_INPUT_LENGTH -1) { // -1 to allow for the dot
-         setCurrentInput(currentInput + '.');
-       }
-    }
-  };
-
-  const handleOperatorClick = (op: string) => {
-    if (currentInput === "Error") return;
-
-    if (previousInput && operator && !shouldResetDisplay) {
-      // If there's already a previousInput, an operator, and currentInput is a new operand
-      // (e.g. 5 + 3, then user presses another operator like '*')
-      // Calculate the intermediate result first.
-      calculate(); 
-      // After calculate, currentInput holds the result. We want this to be the new previousInput.
-      // Operator will be set after this block.
-      // Need to ensure `calculate` doesn't reset `previousInput` if we intend to chain.
-      // For this simple calculator, `calculate` sets previousInput to null.
-      // So, we use the currentInput (which is result) as the new previousInput.
-      setPreviousInput(currentInput); // currentInput is the result of the previous operation
-    } else if (currentInput !== "Error") {
-      // This is the first operator, or an operator after equals/clear
-      setPreviousInput(currentInput);
-    }
-    
-    setOperator(op);
-    setShouldResetDisplay(true); // Ready for next operand
-  };
-
-  const handleEqualsClick = () => {
-    if (currentInput === "Error") return;
-    calculate();
-  };
-
-  const handleClearClick = () => {
-    setCurrentInput('0');
-    setPreviousInput(null);
-    setOperator(null);
-    setShouldResetDisplay(true);
-  };
-
-  const expressionString = () => {
-    if (currentInput === "Error") return "";
-    if (operator && previousInput) {
-      if (shouldResetDisplay) { // Operator just pressed, waiting for second operand
-        return `${formatNumberForDisplay(previousInput)} ${operator}`;
-      }
-      // Displaying full expression while typing second operand or after equals if we decide to show it
-      // For now, previous logic shows only previousInput + operator
-      return `${formatNumberForDisplay(previousInput)} ${operator}`;
-    }
-    return "";
-  }
-
+export default function LandingPage() {
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
-      <div className="w-full max-w-xs p-6 space-y-6 rounded-xl shadow-2xl bg-card">
-        <h1 className="text-3xl font-bold text-center text-primary">SimpleCalc</h1>
-        <CalculatorDisplay value={formatNumberForDisplay(currentInput)} expression={expressionString()} />
-        <Keypad
-          onNumberClick={handleNumberClick}
-          onOperatorClick={handleOperatorClick}
-          onEqualsClick={handleEqualsClick}
-          onClearClick={handleClearClick}
-          onDecimalClick={handleDecimalClick}
-        />
-      </div>
-    </main>
+    <div className="flex flex-col min-h-screen bg-background">
+      <AppHeader />
+      <main className="flex-grow">
+        {/* Hero Section */}
+        <section className="py-20 md:py-28 bg-gradient-to-b from-muted/50 via-background to-background">
+          <div className="container px-4 md:px-6">
+            <div className="grid gap-8 md:grid-cols-1 md:items-center text-center justify-items-center">
+              <div className="space-y-6 max-w-3xl mx-auto">
+                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl text-foreground">
+                  The Future of <span className="text-primary">Secure Online</span> Proctoring
+                </h1>
+                <p className="text-lg text-muted-foreground md:text-xl max-w-2xl mx-auto">
+                  ZenTest offers a robust, modern platform for conducting secure online exams, trusted by educators and students alike.
+                </p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                  <Button size="lg" className="btn-primary-solid shadow-sm hover:shadow-md transition-shadow duration-300" asChild>
+                    <Link href="/auth?action=register&role=teacher">
+                      Get Started as Teacher <ArrowRight className="ml-2 h-5 w-5" />
+                    </Link>
+                  </Button>
+                  <Button size="lg" variant="outline" className="shadow-sm hover:shadow-md transition-shadow duration-300 border-border hover:bg-accent/10 hover:text-primary" asChild>
+                    <Link href="/auth?action=register&role=student">
+                      Join as Student
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section id="features" className="py-16 md:py-24 bg-muted/30">
+          <div className="container px-4 md:px-6">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground">Why Choose ZenTest?</h2>
+              <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
+                Empowering education with cutting-edge proctoring technology.
+              </p>
+            </div>
+            <div className="grid gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-4">
+              {features.map((feature, index) => (
+                <Card key={index} className="modern-card p-4 text-center bg-card hover:border-primary/30">
+                  <CardHeader className="items-center pt-4 pb-3">
+                     {React.cloneElement(feature.icon, { className: "h-10 w-10 text-primary mb-3" })}
+                    <CardTitle className="mt-2 text-lg font-semibold text-card-foreground">{feature.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-muted-foreground text-sm pb-4">
+                    <p>{feature.description}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Call to Action Section */}
+        <section className="py-16 md:py-24 bg-background">
+          <div className="container px-4 md:px-6 text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground">
+              Ready to Elevate Your Online Exams?
+            </h2>
+            <p className="mt-4 mb-8 text-lg text-muted-foreground max-w-xl mx-auto">
+              Join ZenTest today and experience a seamless, secure, and intelligent proctoring solution.
+            </p>
+            <Button size="lg" className="btn-primary-solid shadow-md hover:shadow-lg transition-shadow duration-300 py-3 px-8 text-base" asChild>
+              <Link href="/auth?action=register">
+                Sign Up Now <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+            </Button>
+          </div>
+        </section>
+      </main>
+      <AppFooter />
+    </div>
   );
 }
+
+    

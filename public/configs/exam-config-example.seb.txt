@@ -1,0 +1,105 @@
+
+# Safe Exam Browser (SEB) Configuration File - EXAMPLE INSTRUCTIONS
+# This file provides guidance on how to create your ACTUAL `exam-config.seb` file
+# using the SEB Configuration Tool (available from safeexambrowser.org).
+#
+# You MUST create your actual `exam-config.seb` file using the SEB Configuration Tool.
+# Then, place that generated `exam-config.seb` file into your project at:
+#   public/configs/exam-config.seb
+# And ensure it's deployed with your application.
+
+# ------------------------------------------------------------------------------------
+# CRITICAL: Start URL Configuration within your ACTUAL .seb file
+# ------------------------------------------------------------------------------------
+# When configuring your `exam-config.seb` file using the SEB Configuration Tool:
+#
+# Set the "Start URL" to:
+#   https://YOUR_APP_DOMAIN/seb/entry
+#
+# - Replace `YOUR_APP_DOMAIN` with the actual, publicly accessible domain where your
+#   ZenTest application is deployed (e.g., `https://proctorx.netlify.app`).
+# - DO NOT include any hash parameters like `#entryToken=...` or query parameters
+#   like `?examId=...` directly in this Start URL setting *within the SEB Config Tool*.
+#
+# How it works:
+# 1. Your ZenTest application (from the regular browser) will launch SEB using a
+#    URL like: `sebs://YOUR_APP_DOMAIN/seb/entry/GENERATED_UNIQUE_TOKEN`
+# 2. This URL tells SEB to open its browser directly to your application's
+#    `/seb/entry/[token]` page.
+# 3. The `/seb/entry/[token]` page then handles token validation, system checks,
+#    and exam loading.
+#
+# The `exam-config.seb` file you provide to students (or configure on machines)
+# is primarily for enforcing security settings (blocked keys, processes, etc.)
+# when SEB is active for your application, regardless of how it was started.
+# If a student starts SEB by *opening* your `exam-config.seb` file directly,
+# it will load the `Start URL` you configured (e.g., `https://YOUR_APP_DOMAIN/seb/entry`),
+# but it won't have a token, so that page should ideally guide them to the login
+# or join exam page of your main application.
+# The application-initiated launch (`sebs://.../seb/entry/[token]`) is the primary flow.
+# ------------------------------------------------------------------------------------
+
+
+# Recommended Security Settings (Configure these in the SEB Configuration Tool):
+#
+# == General Tab ==
+# Start URL: https://YOUR_APP_DOMAIN/seb/entry (Replace YOUR_APP_DOMAIN)
+# Quit/Restart Password: Set a strong quit password if needed for controlled environments.
+# Allow user to quit SEB: Check this, but also enable "Enable quit link (seb://quit)" below.
+#
+# == Config File Tab ==
+# Administration Password: Set if you want to protect the config file from changes.
+#
+# == User Interface Tab ==
+# Browser view mode: Use "Fullscreen Mode" or "Touch optimized" (without kiosk mode if not needed).
+# Enable Reload button in SEB Task Bar: True (for network hiccups)
+# Show SEB Task Bar: True
+#   - Show reload button: True
+#   - Show time: True
+#   - Show keyboard layout: True (Optional)
+# Enable "Exit SEB" button (or Quit Link): True. This should be `seb://quit`.
+#   (This is often managed via `allowQuit` and specific key combinations or links)
+#
+# == Browser Tab ==
+# Enable Browser Exam Key: True (Recommended for server-side validation if your LMS supports it - ZenTest API doesn't use it yet).
+# Enable JavaScript: True
+# Enable plugins: False (unless specifically needed)
+# Block Pop-up Windows: False (Your app opens the exam in a new tab, ensure this doesn't interfere if SEB's interpretation is strict. Test this setting.)
+#
+# == Network Tab ==
+# URL Filtering:
+#   - Enable URL Filter: True (Recommended for higher security)
+#   - Action for prohibited URL: Block
+#   - Add your application's domain as allowed.
+#     Example (adapt as needed for more complex filtering):
+#     Rule 1: Action = Allow, Expression = `https://YOUR_APP_DOMAIN/*` (Replace YOUR_APP_DOMAIN)
+#     Rule 2: Action = Block, Expression = `*` (This blocks everything else - put this last)
+#
+# == Applications Tab ==
+# Prohibited Processes: Add common screen capture, communication, and remote desktop apps.
+#   (Your provided XML snippet already has a good list, ensure those are in your config tool)
+# Permitted Processes: Usually none, unless a specific helper app is required.
+#
+# == Security Tab ==
+# Allow Virtual Machine: False
+# Allow Screen Sharing / Display Mirroring: False
+#
+# == Keys Tab ==
+# Enable Ctrl-N, Ctrl-T (New Window/Tab): False
+# Enable Right Mouse Button: False (or True if your exam UI needs it for accessibility, but generally False)
+# Enable Esc: False (During exam)
+# Enable Function Keys (F1-F12): False
+# Enable Ctrl-Alt-Del: False (SEB handles this for kiosk modes)
+# Enable Alt-Tab / Cmd-Tab (Switch Applications): False
+# Enable Alt-F4: False
+# Enable PrintScreen key: False
+# Enable Clipboard (Copy/Paste): False (Set `clipboardPolicy` to 2 for "Disable")
+# Allowed Keyboard Keys: (This is tricky to define broadly, rely on SEB's process blocking. For specific input fields, JavaScript can filter, but SEB offers stronger control).
+#   - If you want to restrict to A-Z, arrows, mouse only, this is usually done by a combination of disabling most function/modifier keys and potentially JavaScript on the page for specific inputs. Your provided XML has many `enableF_` keys set to false.
+#
+# == Exit Sequence Tab ==
+# If "Allow user to quit SEB" is true, you can define an exit sequence (e.g., Ctrl+Q) or rely on the `seb://quit` link.
+#
+# This example .txt file is for guidance. Always use the SEB Configuration Tool to create the final .seb file.
+# Test your .seb configuration thoroughly on all target operating systems.
+# The exact key names and values might differ slightly between SEB versions and OS. Refer to official SEB documentation.

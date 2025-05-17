@@ -1,17 +1,19 @@
-# **App Name**: SimpleCalc
+# **App Name**: ProctorPrep
 
 ## Core Features:
 
-- Numeric Keypad: Display a numeric keypad for easy input.
-- Basic Operations: Implement basic arithmetic operations: addition, subtraction, multiplication, and division.
-- Expression Display: Display the current expression and result in a clear, readable format.
-- Clear Function: Provide a clear button to reset the calculator.
+- Animated Landing: Landing page with login/register options for students and teachers, and 3D animation.
+- Student Hub: Student dashboard to join exams with code and view past results.
+- Teacher Central: Teacher dashboard for CRUD operations on exams, including manual and CSV question upload.
+- AI Question Assistant: AI tool to assist teachers in generating exam questions.
+- SEB Integration: Integration with Safe Exam Browser (SEB) with system compatibility checks and keyboard restrictions.
 
 ## Style Guidelines:
 
-- Primary color: Deep blue (#3F51B5) for a professional and calm feel, like legacy financial systems.
-- Background color: Light gray (#F0F0F0) for a clean, neutral backdrop.
-- Accent color: Soft purple (#9575CD) for interactive elements.
-- Clear, sans-serif font for easy readability of numbers and operations.
-- Simple, intuitive icons for mathematical operations.
-- A layout with clear separation between the display and keypad.
+- Primary color: Neutral white to provide a clean and professional look.
+- Secondary color: Light grey (#E5E5E5) for backgrounds and subtle contrast.
+- Accent: Blue (#007BFF) for primary buttons and interactive elements.
+- Clean, sans-serif fonts for readability.
+- Simple, professional icons for navigation and actions.
+- Modular and responsive layouts with clear separation of student and teacher flows.
+- Subtle animations for UI transitions.
