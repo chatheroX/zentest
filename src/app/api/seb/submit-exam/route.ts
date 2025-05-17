@@ -3,7 +3,29 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { Database, ExamSubmissionInsert } from '@/types/supabase';
-import { getSafeErrorMessage, logErrorToBackend } from '@/lib/error-logging';
+
+// Helper to get a safe error message (could be moved to a shared util if used elsewhere)
+function getSafeErrorMessage(e: any, fallbackMessage = "An unknown error occurred."): string {
+    if (e && typeof e === 'object') {
+        if (e.name === 'AbortError') {
+            return "The request timed out. Please check your connection and try again.";
+        }
+        if (typeof e.message === 'string' && e.message.trim() !== '') {
+            return e.message;
+        }
+        try {
+            const strError = JSON.stringify(e);
+            if (strError !== '{}' && strError.length > 2) return `Error object: ${strError}`;
+        } catch (stringifyError) { /* Fall through */ }
+    }
+    if (e !== null && e !== undefined) {
+        const stringifiedError = String(e);
+        if (stringifiedError.trim() !== '' && stringifiedError !== '[object Object]') {
+            return stringifiedError;
+        }
+    }
+    return fallbackMessage;
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -18,8 +40,6 @@ if (!supabaseServiceKey) { missingVarsMessage += "SUPABASE_SERVICE_ROLE_KEY "; c
 if (criticalError) {
   missingVarsMessage += "Please check server environment configuration.";
   console.error(`${initLogPrefix} ${missingVarsMessage}`);
-  // No await here for logErrorToBackend as it's init phase
-  logErrorToBackend(new Error(missingVarsMessage), 'API-SubmitExam-Init-MissingVars', { variables: missingVarsMessage });
 }
 
 const supabaseAdmin = supabaseUrl && supabaseServiceKey
@@ -34,7 +54,6 @@ export async function POST(request: NextRequest) {
     if (!supabaseServiceKey) detailedErrorForLog += "SUPABASE_SERVICE_ROLE_KEY is missing. ";
     detailedErrorForLog += "Check server environment variables.";
     console.error(`${operationId} ${detailedErrorForLog}`);
-    await logErrorToBackend(new Error(detailedErrorForLog), 'API-SubmitExam-ConfigError', { variables: missingVarsMessage });
     return NextResponse.json({ error: 'Server configuration error for submission.' }, { status: 500 });
   }
 
@@ -44,7 +63,6 @@ export async function POST(request: NextRequest) {
     if (!submissionData.exam_id || !submissionData.student_user_id) {
       const errMsg = "Missing exam_id or student_user_id in submission.";
       console.warn(`${operationId} ${errMsg} Data:`, submissionData);
-      await logErrorToBackend(new Error(errMsg), 'API-SubmitExam-MissingParams', { submissionData });
       return NextResponse.json({ error: 'Missing exam ID or student ID.' }, { status: 400 });
     }
 
@@ -71,7 +89,6 @@ export async function POST(request: NextRequest) {
     if (error) {
       const upsertErrorMsg = getSafeErrorMessage(error, 'Supabase upsert failed.');
       console.error(`${operationId} Supabase error during submission upsert:`, upsertErrorMsg, error);
-      await logErrorToBackend(error, 'API-SubmitExam-UpsertError', { submissionData });
       return NextResponse.json({ error: 'Failed to save exam submission: ' + upsertErrorMsg }, { status: 500 });
     }
     
@@ -81,14 +98,6 @@ export async function POST(request: NextRequest) {
   } catch (e: any) {
     const errorMessage = getSafeErrorMessage(e, 'An unexpected error occurred during submission.');
     console.error(`${operationId} Exception:`, errorMessage, e);
-    // Try to parse request body for context if 'e' itself is not informative
-    let requestBodyForLog: any = 'Could not parse request body for logging.';
-    try {
-      // Re-clone and parse request if needed, or use submissionData if available
-      requestBodyForLog = await request.clone().json().catch(() => 'Failed to clone/parse request for logging');
-    } catch { /* ignore */ }
-    
-    await logErrorToBackend(e, 'API-SubmitExam-GeneralCatch', { requestBody: requestBodyForLog });
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

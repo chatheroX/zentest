@@ -54,19 +54,6 @@ export interface FlaggedEvent {
   details?: string;
 }
 
-// SebEntryTokens table is no longer used due to JWT implementation
-// export interface SebEntryTokenTableType { ... }
-
-export interface ErrorLogTableType {
-  log_id: string; // uuid, primary key
-  timestamp: string; // timestamptz, default now()
-  location: string; // text, e.g., "SebEntryClientNew-TokenValidation"
-  error_message: string; // text
-  error_details: Json | null; // jsonb, for stack trace or extra info
-  user_context: Json | null; // jsonb, e.g., { studentId, examId }
-}
-
-
 export interface Database {
   public: {
     Tables: {
@@ -149,12 +136,6 @@ export interface Database {
           flagged_events: FlaggedEvent[] | null;
         }>;
       };
-      // SebEntryTokens table is removed
-      ErrorLogs: { // New table for error logging
-        Row: ErrorLogTableType;
-        Insert: Omit<ErrorLogTableType, 'log_id' | 'timestamp'>; // log_id and timestamp are auto-generated
-        Update: never; // Logs are typically append-only
-      };
     };
     Views: {
       [_ in never]: never;
@@ -186,7 +167,3 @@ export type ExamUpdate = Database['public']['Tables']['ExamX']['Update'];
 export type ExamSubmission = Database['public']['Tables']['ExamSubmissionsX']['Row'];
 export type ExamSubmissionInsert = Database['public']['Tables']['ExamSubmissionsX']['Insert'];
 export type ExamSubmissionUpdate = Database['public']['Tables']['ExamSubmissionsX']['Update'];
-// export type SebEntryToken = Database['public']['Tables']['SebEntryTokens']['Row']; // Removed
-// export type SebEntryTokenInsert = Database['public']['Tables']['SebEntryTokens']['Insert']; // Removed
-export type ErrorLog = Database['public']['Tables']['ErrorLogs']['Row'];
-export type ErrorLogInsert = Database['public']['Tables']['ErrorLogs']['Insert'];

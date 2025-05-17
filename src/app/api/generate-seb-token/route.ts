@@ -2,7 +2,30 @@
 // src/app/api/generate-seb-token/route.ts
 import { NextResponse, type NextRequest } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { getSafeErrorMessage, logErrorToBackend } from '@/lib/error-logging';
+
+// Helper to get a safe error message (could be moved to a shared util if used elsewhere)
+function getSafeErrorMessage(e: any, fallbackMessage = "An unknown error occurred."): string {
+    if (e && typeof e === 'object') {
+        if (e.name === 'AbortError') {
+            return "The request timed out. Please check your connection and try again.";
+        }
+        if (typeof e.message === 'string' && e.message.trim() !== '') {
+            return e.message;
+        }
+        try {
+            const strError = JSON.stringify(e);
+            if (strError !== '{}' && strError.length > 2) return `Error object: ${strError}`;
+        } catch (stringifyError) { /* Fall through */ }
+    }
+    if (e !== null && e !== undefined) {
+        const stringifiedError = String(e);
+        if (stringifiedError.trim() !== '' && stringifiedError !== '[object Object]') {
+            return stringifiedError;
+        }
+    }
+    return fallbackMessage;
+}
+
 
 export async function POST(request: NextRequest) {
   const operationId = `[API GenerateSEBToken ${Date.now().toString().slice(-5)}]`;
@@ -13,8 +36,8 @@ export async function POST(request: NextRequest) {
   if (!jwtSecret) {
     const errorMsg = "CRITICAL: JWT_SECRET is not defined in server environment variables.";
     console.error(`${operationId} ${errorMsg}`);
-    // Do not await logErrorToBackend here to ensure response is sent
-    logErrorToBackend(new Error(errorMsg), 'API-GenerateSEBToken-NoSecret', { location: operationId });
+    // Do NOT await logErrorToBackend here to ensure response is sent
+    // logErrorToBackend(new Error(errorMsg), 'API-GenerateSEBToken-NoSecret', { location: operationId });
     return NextResponse.json({ error: 'Server configuration error: JWT secret missing.' }, { status: 500 });
   }
   console.log(`${operationId} JWT_SECRET is available.`);
@@ -29,7 +52,7 @@ export async function POST(request: NextRequest) {
       const errorMsg = "Missing studentId or examId in request body.";
       console.warn(`${operationId} ${errorMsg} Request body:`, body);
       // Do not await logErrorToBackend
-      logErrorToBackend(new Error(errorMsg), 'API-GenerateSEBToken-MissingParams', { body, location: operationId });
+      // logErrorToBackend(new Error(errorMsg), 'API-GenerateSEBToken-MissingParams', { body, location: operationId });
       return NextResponse.json({ error: errorMsg }, { status: 400 });
     }
     console.log(`${operationId} studentId: ${studentId}, examId: ${examId}`);
@@ -37,21 +60,17 @@ export async function POST(request: NextRequest) {
     const payload = { studentId, examId };
     console.log(`${operationId} Attempting to sign JWT with payload:`, payload);
 
-    const token = jwt.sign(payload, jwtSecret, { expiresIn: '1h' });
+    const token = jwt.sign(payload, jwtSecret, { expiresIn: '1h' }); // Default expiry is 1 hour
     console.log(`${operationId} JWT signed successfully. Token (first 20 chars): ${token.substring(0, 20)}...`);
 
     return NextResponse.json({ token }, { status: 200 });
 
   } catch (error: any) {
-    // Use the robust error message extraction pattern
-    const errorMessage = (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string')
-      ? error.message
-      : String(error);
-
+    const errorMessage = getSafeErrorMessage(error, 'Failed to generate token due to an unexpected server error.');
     console.error(`${operationId} Error during token generation:`, errorMessage, error);
     // Do not await logErrorToBackend
-    logErrorToBackend(error, 'API-GenerateSEBToken-CatchAll', { rawError: error, extractedMessage: errorMessage, location: operationId });
+    // logErrorToBackend(error, 'API-GenerateSEBToken-CatchAll', { rawError: error, extractedMessage: errorMessage, location: operationId });
     
-    return NextResponse.json({ error: `Failed to generate token: ${errorMessage}` }, { status: 500 });
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

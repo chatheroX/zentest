@@ -8,7 +8,30 @@ import Cookies from 'js-cookie';
 import type { CustomUser, ProctorXTableType } from '@/types/supabase';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button'; 
-import { getSafeErrorMessage, logErrorToBackend } from '@/lib/error-logging';
+
+// Helper to get a safe error message
+function getSafeErrorMessage(e: any, fallbackMessage = "An unknown error occurred."): string {
+    if (e && typeof e === 'object') {
+        if (e.name === 'AbortError') {
+            return "The request timed out. Please check your connection and try again.";
+        }
+        if (typeof e.message === 'string' && e.message.trim() !== '') {
+            return e.message;
+        }
+        try {
+            const strError = JSON.stringify(e);
+            if (strError !== '{}' && strError.length > 2) return `Error object: ${strError}`;
+        } catch (stringifyError) { /* Fall through */ }
+    }
+    if (e !== null && e !== undefined) {
+        const stringifiedError = String(e);
+        if (stringifiedError.trim() !== '' && stringifiedError !== '[object Object]') {
+            return stringifiedError;
+        }
+    }
+    return fallbackMessage;
+}
+
 
 const SESSION_COOKIE_NAME = 'proctorprep-user-email';
 const ROLE_COOKIE_NAME = 'proctorprep-user-role';
@@ -68,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthError(errorMsg);
       setSupabase(null);
       setIsLoading(false);
-      logErrorToBackend(new Error(errorMsg), 'AuthContext-Init-MissingEnvVars');
+      // No logErrorToBackend
       return;
     }
     try {
@@ -82,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthError(errorMsg);
       setSupabase(null);
       setIsLoading(false);
-      logErrorToBackend(e, 'AuthContext-Init-ClientCreationFail');
+      // No logErrorToBackend
     }
   }, []);
 
@@ -100,7 +123,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userEmailFromCookie = Cookies.get(SESSION_COOKIE_NAME);
     if (user && user.email === userEmailFromCookie && !isLoading) {
         console.log(`${effectId} User already in context and matches cookie. Skipping DB re-fetch for this load.`);
-        // Ensure isLoading is false if we skip
         if (isLoading) setIsLoading(false);
         return;
     }
@@ -116,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log(`${effectId} No session cookie found.`);
         setUser(null);
         Cookies.remove(ROLE_COOKIE_NAME);
-        return; // No error, just no user from cookie
+        return; 
       }
 
       console.log(`${effectId} Session cookie found. Fetching user: ${userEmailFromCookie} from DB...`);
@@ -133,11 +155,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         else if (dbError) errorDetail = getSafeErrorMessage(dbError, 'Failed to fetch user data.');
         
         console.warn(`${effectId} ${errorDetail} Email: ${userEmailFromCookie}. Clearing session.`);
-        await logErrorToBackend(dbError || new Error(errorDetail), 'AuthContext-LoadCookie-UserNotFoundOrDBError', { email: userEmailFromCookie });
+        // No logErrorToBackend
         setUser(null);
         Cookies.remove(SESSION_COOKIE_NAME);
         Cookies.remove(ROLE_COOKIE_NAME);
-        setAuthError(errorDetail); // Set authError if user expected from cookie wasn't found
+        setAuthError(errorDetail);
         return;
       }
 
@@ -156,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       const errorMsg = getSafeErrorMessage(e, "Error processing user session.");
       console.error(`${effectId} Exception during user session processing:`, errorMsg, e);
-      await logErrorToBackend(e, 'AuthContext-LoadCookie-Exception', { email: userEmailFromCookie });
+      // No logErrorToBackend
       setUser(null);
       Cookies.remove(SESSION_COOKIE_NAME);
       Cookies.remove(ROLE_COOKIE_NAME);
@@ -172,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const effectId = `[AuthContext UserLoadTriggerEffect ${Date.now().toString().slice(-4)}]`;
     console.log(`${effectId} Running. Supabase: ${!!supabase}, AuthError: ${authError}, InitialLoadAttempted: ${initialLoadAttempted.current}, isLoading: ${isLoading}`);
 
-    if (authError && isLoading) { // If there's an error, ensure loading stops
+    if (authError && isLoading) {
         console.warn(`${effectId} AuthError present ('${authError}'), ensuring isLoading is false.`);
         setIsLoading(false);
         return;
@@ -184,14 +206,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log(`${effectId} Supabase client available & first attempt. Calling loadUserFromCookie.`);
         loadUserFromCookie();
       } else if (isLoading && !user && Cookies.get(SESSION_COOKIE_NAME) === undefined) {
-         // This case handles if loading was somehow true after initial attempt and no user/cookie exists
          console.warn(`${effectId} Post-initial load: isLoading true but no user/cookie. Forcing isLoading to false.`);
          setIsLoading(false);
       }
-    } else if (!isLoading && !authError) { // Supabase not set, but no loading and no error yet
+    } else if (!isLoading && !authError) { 
         console.error(`${effectId} Supabase client not available, no authError, and isLoading is false. Likely init issue.`);
         setAuthError("Supabase client failed to initialize properly.");
-        setIsLoading(false); // Ensure it's false
+        setIsLoading(false); 
     }
   }, [supabase, authError, loadUserFromCookie, user, isLoading]);
 
@@ -204,14 +225,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const effectId = `[AuthContext Route Guard Effect ${Date.now().toString().slice(-4)}]`;
     console.log(`${effectId} Running. isLoading: ${isLoading}, Path: ${pathname}, User: ${user?.email}, Role: ${user?.role}, ContextAuthError: ${authError}`);
 
-    if (isLoading) { // Removed authError from this condition, as error state itself doesn't mean we shouldn't route.
+    if (isLoading) { 
       console.log(`${effectId} Waiting: isLoading is ${isLoading}. No routing yet.`);
       return;
     }
-    // If there's a critical authError (like Supabase not init), we might not want to redirect,
-    // but let the page display the error, or have a global error boundary.
-    // For now, route guard proceeds if isLoading is false.
-
+    
     const isAuthPg = pathname === AUTH_ROUTE;
     const isStudentDashboardArea = pathname?.startsWith('/student/dashboard');
     const isTeacherDashboardArea = pathname?.startsWith('/teacher/dashboard');
@@ -274,7 +292,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const errorMsg = "Service connection error. Please try again later.";
       console.error(`${operationId} Aborted: ${errorMsg}`);
       setAuthError(errorMsg); setIsLoading(false); 
-      await logErrorToBackend(new Error(errorMsg), 'AuthContext-SignIn-NoSupabase');
+      // No logErrorToBackend
       return { success: false, error: errorMsg };
     }
     setIsLoading(true); setAuthError(null);
@@ -292,12 +310,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         else if (dbError) errorDetail = getSafeErrorMessage(dbError, 'Failed to fetch user data.');
         
         console.warn(`${operationId} Failed to fetch user. Email:`, email, 'Error:', errorDetail);
-        await logErrorToBackend(dbError || new Error(errorDetail), 'AuthContext-SignIn-FetchFail', { email });
+        // No logErrorToBackend
         setUser(null); setIsLoading(false); return { success: false, error: errorDetail };
       }
       console.log(`${operationId} User data fetched from DB: ${data.email}, Role: ${data.role}`);
 
-      if (data.pass === pass) { // Password check should be done by Supabase Auth in a real scenario
+      if (data.pass === pass) { 
         const userData: CustomUser = {
           user_id: data.user_id,
           email: data.email,
@@ -322,7 +340,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       const errorMsg = getSafeErrorMessage(e, 'An unexpected error occurred during sign in.');
       console.error(`${operationId} Exception during sign in:`, errorMsg, e);
-      await logErrorToBackend(e, 'AuthContext-SignIn-Exception', { email });
+      // No logErrorToBackend
       setUser(null); setAuthError(errorMsg); setIsLoading(false); return { success: false, error: errorMsg };
     }
   }, [supabase]);
@@ -334,7 +352,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) {
       const errorMsg = "Service connection error.";
       setAuthError(errorMsg); setIsLoading(false); 
-      await logErrorToBackend(new Error(errorMsg), 'AuthContext-SignUp-NoSupabase');
+      // No logErrorToBackend
       return { success: false, error: errorMsg };
     }
     if (!role) {
@@ -353,7 +371,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (selectError && selectError.code !== 'PGRST116') { 
         const errorMsg = getSafeErrorMessage(selectError, 'Error checking existing user.');
         console.error(`${operationId} DB Select Error:`, errorMsg);
-        await logErrorToBackend(selectError, 'AuthContext-SignUp-SelectError', { email });
+        // No logErrorToBackend
         setIsLoading(false); throw new Error(errorMsg);
       }
       if (existingUser) {
@@ -377,7 +395,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (insertError || !insertedData) {
         const errorDetail = getSafeErrorMessage(insertError, "Could not retrieve user data after insert.");
         console.error(`${operationId} Insert Error: ${errorDetail}`);
-        await logErrorToBackend(insertError || new Error("No data returned from insert"), 'AuthContext-SignUp-InsertFail', { email, role });
+        // No logErrorToBackend
         setUser(null); setIsLoading(false); return { success: false, error: `Registration failed: ${errorDetail}` };
       }
 
@@ -400,7 +418,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       const errorMsg = getSafeErrorMessage(e, 'Unexpected error during sign up.');
       console.error(`${operationId} Exception:`, errorMsg, e);
-      await logErrorToBackend(e, 'AuthContext-SignUp-Exception', { email, role });
+      // No logErrorToBackend
       setUser(null); setAuthError(errorMsg); setIsLoading(false);
       return { success: false, error: errorMsg };
     }
@@ -432,13 +450,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const errorMsg = "Service connection error.";
       console.error(`${operationId} Aborted: ${errorMsg}`);
       setAuthError(errorMsg); setIsLoading(false); 
-      await logErrorToBackend(new Error(errorMsg), 'AuthContext-UpdateProfile-NoSupabase');
+      // No logErrorToBackend
       return { success: false, error: errorMsg };
     }
     if (!user || !user.user_id) {
       const errorMsg = "User not authenticated or user_id missing.";
       setAuthError(errorMsg); setIsLoading(false); 
-      await logErrorToBackend(new Error(errorMsg), 'AuthContext-UpdateProfile-NoUser');
+      // No logErrorToBackend
       return { success: false, error: errorMsg };
     }
 
@@ -464,7 +482,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (updateError) {
         const errorMsg = getSafeErrorMessage(updateError, "Failed to update profile.");
         console.error(`${operationId} Error updating DB:`, errorMsg, updateError);
-        await logErrorToBackend(updateError, 'AuthContext-UpdateProfile-DBError', { userId: user.user_id });
+        // No logErrorToBackend
         setIsLoading(false); return { success: false, error: errorMsg };
       }
 
@@ -479,7 +497,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       const errorMsg = getSafeErrorMessage(e, 'Unexpected error during profile update.');
       console.error(`${operationId} Exception:`, errorMsg, e);
-      await logErrorToBackend(e, 'AuthContext-UpdateProfile-Exception', { userId: user.user_id });
+      // No logErrorToBackend
       setAuthError(errorMsg); setIsLoading(false);
       return { success: false, error: errorMsg };
     }
