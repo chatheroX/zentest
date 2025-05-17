@@ -5,36 +5,46 @@
 
 body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-  /* Default to light theme, ensuring --background is white/light */
-  @apply bg-background text-foreground;
+  @apply bg-background text-foreground; /* Default to light theme white bg, dark text */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+main {
+  flex-grow: 1;
 }
 
 @layer base {
   :root {
-    /* Modern Light Theme - Blue Accent (#2B70E0) */
+    /* Light Theme (Default) - Blue Accent (#007BFF HSL: 211 100% 50%) */
     --background: 0 0% 100%; /* Primary page background - white */
     --foreground: 220 15% 25%; /* Primary text color - dark grey */
 
     --card: 0 0% 100%; /* Card background - white */
     --card-foreground: 220 15% 20%; /* Text on cards */
 
-    --popover: 0 0% 100%;
+    --popover: 0 0% 100%; /* Popover background - white */
     --popover-foreground: 220 15% 20%;
 
-    /* Primary Blue Accent (#2B70E0 -> HSL: 217, 76%, 52%) */
-    --primary: 217 76% 52%;
+    /* Primary Blue Accent */
+    --primary: 211 100% 50%; /* Blue #007BFF */
     --primary-foreground: 0 0% 100%; /* White text on primary blue elements */
     
     /* Secondary elements */
-    --secondary: 220 15% 93.5%; /* Light grey for secondary backgrounds */
+    --secondary: 220 15% 93.5%; /* Light grey #E5E5E5 for backgrounds and subtle contrast */
     --secondary-foreground: 220 15% 30%; /* Text on secondary elements */
 
     /* Muted elements */
     --muted: 220 15% 96.5%; /* Lighter grey for muted backgrounds/borders */
     --muted-foreground: 220 10% 45%; /* Softer muted text */
 
-    /* General Accent (lighter blue for harmony) */
-    --accent: 217 70% 70%;
+    /* General Accent (lighter blue for harmony or other accent needs) */
+    --accent: 211 100% 60%; /* Lighter blue */
     --accent-foreground: 0 0% 100%; /* White text on accent elements */
 
     --destructive: 0 70% 55%; /* A clear red */
@@ -42,13 +52,13 @@ body {
 
     --border: 220 15% 88%; /* Subtle borders - light grey */
     --input: 220 15% 93%; /* Input field background */
-    --ring: 217 76% 55%; /* Focus ring - primary blue */
+    --ring: 211 100% 50%; /* Focus ring - primary blue */
     
     --radius: 0.75rem; /* Softer, more rounded corners (12px) */
 
     /* Gradient Button Colors (Blue Theme) */
-    --gradient-primary-start: 217 76% 52%;
-    --gradient-primary-end: 217 70% 60%; 
+    --gradient-primary-start: 211 100% 50%;
+    --gradient-primary-end: 211 90% 58%; 
     --gradient-destructive-start: 0 70% 55%;
     --gradient-destructive-end: 0 80% 65%;
     --gradient-positive-start: 140 60% 45%;
@@ -57,12 +67,12 @@ body {
     /* Sidebar specific theme variables - Blue Theme */
     --sidebar-background: 0 0% 98%; /* Very light, almost white */
     --sidebar-foreground: 220 15% 35%; /* Text in sidebar */
-    --sidebar-primary: 217 76% 52%; /* Active item background (blue) */
+    --sidebar-primary: 211 100% 50%; /* Active item background (blue) */
     --sidebar-primary-foreground: 0 0% 100%; /* Active item text (white) */
-    --sidebar-accent: 217 76% 95%; /* Hover background for sidebar items (very light blue) */
-    --sidebar-accent-foreground: 217 76% 30%; /* Hover text color (darker blue) */
+    --sidebar-accent: 211 100% 95%; /* Hover background for sidebar items (very light blue) */
+    --sidebar-accent-foreground: 211 100% 30%; /* Hover text color (darker blue) */
     --sidebar-border: 220 15% 88%; /* Sidebar border */
-    --sidebar-ring: 217 76% 55%; /* Focus ring for sidebar items */
+    --sidebar-ring: 211 100% 50%; /* Focus ring for sidebar items */
     --sidebar-group-text: 220 10% 55%; /* "MAIN MENU" text color */
   }
 
@@ -73,11 +83,11 @@ body {
     --card: 220 15% 18%; /* Dark card background */
     --card-foreground: 220 10% 92%;
 
-    --popover: 220 15% 15%;
+    --popover: 220 15% 15%; /* Dark popover */
     --popover-foreground: 220 10% 92%;
 
     /* Primary Blue Accent for Dark Mode */
-    --primary: 217 76% 60%; /* Slightly lighter blue for dark mode */
+    --primary: 211 100% 60%; /* Slightly lighter blue for dark mode */
     --primary-foreground: 0 0% 100%; /* White text */
     
     --secondary: 220 15% 25%; 
@@ -87,7 +97,7 @@ body {
     --muted-foreground: 220 10% 60%;
 
     /* General Accent for Dark Mode */
-    --accent: 217 70% 65%; 
+    --accent: 211 100% 65%; 
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 65% 60%;
@@ -95,11 +105,11 @@ body {
 
     --border: 220 15% 30%; 
     --input: 220 15% 17%;
-    --ring: 217 76% 65%; /* Lighter blue ring for dark mode */
+    --ring: 211 100% 65%; /* Lighter blue ring for dark mode */
     
     /* Gradient Button Colors Dark (Blue Theme) */
-    --gradient-primary-start: 217 76% 60%;
-    --gradient-primary-end: 217 70% 68%;
+    --gradient-primary-start: 211 100% 60%;
+    --gradient-primary-end: 211 90% 68%;
     --gradient-destructive-start: 0 65% 60%;
     --gradient-destructive-end: 0 75% 70%;
     --gradient-positive-start: 140 50% 50%;
@@ -108,12 +118,12 @@ body {
     /* Sidebar Dark Theme - Blue Theme */
     --sidebar-background: 220 15% 15%; /* Darker sidebar */
     --sidebar-foreground: 220 10% 88%;
-    --sidebar-primary: 217 76% 60%; /* Active item blue */
+    --sidebar-primary: 211 100% 60%; /* Active item blue */
     --sidebar-primary-foreground: 0 0% 100%; /* White text on active */
-    --sidebar-accent: 217 76% 25%; /* Hover background (darker subtle blue) */
-    --sidebar-accent-foreground: 217 76% 85%; /* Lighter blue text on hover */
+    --sidebar-accent: 211 100% 25%; /* Hover background (darker subtle blue) */
+    --sidebar-accent-foreground: 211 100% 85%; /* Lighter blue text on hover */
     --sidebar-border: 220 15% 28%;
-    --sidebar-ring: 217 76% 70%;
+    --sidebar-ring: 211 100% 70%;
     --sidebar-group-text: 220 10% 65%;
   }
 }
@@ -121,16 +131,6 @@ body {
 @layer base {
   * {
     @apply border-border;
-  }
-  body {
-    /* Ensure body uses light theme by default */
-    @apply bg-background text-foreground;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-  main {
-    flex-grow: 1;
   }
 }
 
@@ -184,21 +184,16 @@ html.dark {
   color-scheme: dark;
 }
 
-/* SEB Specific Styling for Light Theme - replaces previous gradient/glass pane for main SEB content */
-.bg-seb-gradient {
-  /* This class is no longer a gradient; now it's just a standard background */
+/* SEB Specific Styling for Light Theme - behaves more like a standard card */
+.bg-seb-gradient { /* Renamed, but represents standard background now */
   @apply bg-background text-foreground;
 }
 
 /* Glass Pane style adjusted for Light Theme - behaves more like a standard card */
+/* Used for rules list in SEB entry, and header/footer/question card in exam interface */
 .glass-pane {
-  @apply bg-card/80 backdrop-blur-md text-card-foreground p-4 sm:p-6 rounded-lg border border-border/40 shadow-lg;
-  @apply dark:bg-slate-800/50 dark:backdrop-blur-sm dark:border-slate-700/50 dark:text-slate-100;
-}
-
-.glass-pane-light { 
-  @apply bg-card/90 text-card-foreground p-4 sm:p-6 rounded-lg border border-border/50 shadow-lg;
-  @apply dark:bg-slate-700/60 dark:backdrop-blur-sm dark:border-slate-600/50 dark:text-slate-100;
+  @apply bg-card/80 backdrop-blur-md text-card-foreground p-3 sm:p-4 rounded-lg border border-border/50 shadow-lg;
+  @apply dark:bg-slate-800/60 dark:backdrop-blur-md dark:border-slate-700/50 dark:text-slate-100;
 }
     
 /* Input field enhancements for better visibility on different backgrounds */
@@ -216,20 +211,45 @@ h2 { @apply text-2xl sm:text-3xl; }
 h3 { @apply text-xl sm:text-2xl; }
 h4 { @apply text-lg sm:text-xl; }
 
-/* Specific adjustments for lists within glass panes on SEB gradient - now for cards */
+/* Specific adjustments for lists within glass panes - general rules */
 .seb-rules-list li {
-  @apply text-muted-foreground; /* Darker text for light background */
+  @apply text-card-foreground; /* Ensures dark text on light card-like background */
 }
 .seb-rules-list svg {
-  @apply text-primary; /* Primary color for icons on light background */
+  @apply text-primary; /* Primary color for icons on light card-like background */
 }
 
 /* Custom override for sm:p-6 if needed globally, but prefer utility class changes in JSX */
 @layer utilities {
     @media (min-width: 640px) {
-        /* Custom override for sm:p-6 to become p-2 equivalent */
-        .sm\:p-6 {
-            padding: 0.5rem;
-        }
+        /* This rule was added per user request, but applying p-2 or sm:p-2 directly in JSX is often cleaner */
+        /* .sm\:p-6 {
+            padding: 0.5rem; 
+        } */
     }
+}
+
+/* Thin scrollbar for scrollable areas */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) hsl(var(--background));
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+  border-radius: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 4px;
+  border: 2px solid hsl(var(--background));
+}
+.scrollbar-thumb-slate-300::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1; /* slate-300 */
+}
+.dark .scrollbar-thumb-slate-600::-webkit-scrollbar-thumb {
+    background-color: #475569; /* slate-600 */
 }
