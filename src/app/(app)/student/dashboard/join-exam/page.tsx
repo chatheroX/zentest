@@ -13,8 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Exam, CustomUser } from '@/types/supabase';
 import { getEffectiveExamStatus } from '@/app/(app)/teacher/dashboard/exams/[examId]/details/page';
 import { useAuth } from '@/contexts/AuthContext';
-// Removed: import jwt from 'jsonwebtoken'; - No longer signing on client
-import { getSafeErrorMessage, logErrorToBackend } from '@/lib/error-logging';
+// Removed: import { getSafeErrorMessage, logErrorToBackend } from '@/lib/error-logging';
 
 
 export default function JoinExamPage() {
@@ -58,7 +57,7 @@ export default function JoinExamPage() {
         .single();
 
       if (examFetchError || !exam) {
-        const errMsg = getSafeErrorMessage(examFetchError, "Exam code not found or error fetching exam.");
+        const errMsg = (examFetchError?.message || "Exam code not found or error fetching exam.");
         toast({ title: "Invalid Code", description: errMsg, variant: "destructive" });
         setLocalError(errMsg);
         setIsLoading(false);
@@ -83,7 +82,6 @@ export default function JoinExamPage() {
         return;
       }
       
-      // Generate JWT via API route
       console.log(`${operationId} Requesting SEB entry JWT from API for student: ${studentUser.user_id}, exam: ${exam.exam_id}`);
       const tokenResponse = await fetch('/api/generate-seb-token', {
         method: 'POST',
@@ -93,12 +91,12 @@ export default function JoinExamPage() {
 
       if (!tokenResponse.ok) {
         const errorBody = await tokenResponse.json().catch(() => ({ error: `API error: ${tokenResponse.statusText}` }));
-        const errMsg = getSafeErrorMessage(errorBody, "Failed to generate secure exam token from API.");
+        const errMsg = (errorBody?.error || `Failed to generate secure exam token from API. Status: ${tokenResponse.status}`);
         console.error(`${operationId} API Error generating token: ${tokenResponse.status}`, errorBody);
         toast({ title: "Launch Error", description: errMsg, variant: "destructive" });
         setLocalError(errMsg);
         setIsLoading(false);
-        await logErrorToBackend(new Error(errMsg), 'JoinExamPage-GenerateTokenAPIFail', { status: tokenResponse.status, response: errorBody, studentId: studentUser.user_id, examId: exam.exam_id });
+        // await logErrorToBackend(new Error(errMsg), 'JoinExamPage-GenerateTokenAPIFail', { status: tokenResponse.status, response: errorBody, studentId: studentUser.user_id, examId: exam.exam_id });
         return;
       }
 
@@ -110,14 +108,13 @@ export default function JoinExamPage() {
         toast({ title: "Launch Error", description: errMsg, variant: "destructive" });
         setLocalError(errMsg);
         setIsLoading(false);
-        await logErrorToBackend(new Error(errMsg), 'JoinExamPage-NoTokenFromAPI', { studentId: studentUser.user_id, examId: exam.exam_id });
+        // await logErrorToBackend(new Error(errMsg), 'JoinExamPage-NoTokenFromAPI', { studentId: studentUser.user_id, examId: exam.exam_id });
         return;
       }
       
       console.log(`${operationId} Received SEB entry JWT from API:`, sebEntryTokenValue ? sebEntryTokenValue.substring(0,20) + "..." : "TOKEN_GENERATION_FAILED_OR_EMPTY");
 
       const appDomain = window.location.origin;
-      // The API for token validation expects the token as a query parameter
       const sebEntryPageUrl = `${appDomain}/seb/entry?token=${sebEntryTokenValue}`; 
       
       const domainAndPathForSeb = sebEntryPageUrl.replace(/^https?:\/\//, '');
@@ -143,12 +140,12 @@ export default function JoinExamPage() {
       }, 8000);
 
     } catch (e: any) {
-      const exceptionMsg = getSafeErrorMessage(e, "An unexpected error occurred during exam join process.");
+      const exceptionMsg = (e?.message || "An unexpected error occurred during exam join process.");
       console.error(`${operationId} Exception during handleSubmit:`, e);
       toast({ title: "Error", description: exceptionMsg, variant: "destructive" });
       setLocalError(exceptionMsg);
       setIsLoading(false);
-      await logErrorToBackend(e, 'JoinExamPage-SubmitException', { examCode });
+      // await logErrorToBackend(e, 'JoinExamPage-SubmitException', { examCode });
     }
   }, [examCode, authSupabase, toast, studentUser, authLoading, router]);
 
@@ -261,6 +258,8 @@ export default function JoinExamPage() {
     </div>
   );
 }
+    
+
     
 
     
