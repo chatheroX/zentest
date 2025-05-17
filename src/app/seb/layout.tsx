@@ -12,16 +12,12 @@ export default function SebLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // The body tag is already provided by the root layout (src/app/layout.tsx)
+  // SebLayout should only provide the content structure for the /seb/* routes.
   return (
-    // Default to light theme based on globals.css if no class is specified on html
-    <html lang="en"> 
-      <body className="font-sans antialiased bg-background text-foreground min-h-screen flex flex-col">
-        <AuthProvider> {/* Crucial: Wrap children with AuthProvider */}
-          <main className="flex-1 flex flex-col">{children}</main> {/* Ensure children can take full height */}
-          <Toaster /> {/* Toasts can provide feedback within SEB */}
-        </AuthProvider>
-      </body>
-    </html>
+    <AuthProvider> {/* Crucial: Wrap children with AuthProvider */}
+      <main className="flex-1 flex flex-col bg-background text-foreground min-h-screen">{children}</main> {/* Ensure children can take full height */}
+      <Toaster /> {/* Toasts can provide feedback within SEB */}
+    </AuthProvider>
   );
 }
-
