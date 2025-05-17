@@ -9,22 +9,22 @@ import Link from 'next/link';
 
 const features = [
   {
-    icon: <ShieldCheck className="h-10 w-10 text-primary mb-3" />,
+    icon: <ShieldCheck className="h-10 w-10 text-primary mb-3 stroke-width-1.5" />,
     title: 'Secure Exam Environment',
     description: 'Tight integration with Safe Exam Browser (SEB) for cheat-proof online exams.',
   },
   {
-    icon: <BookOpenText className="h-10 w-10 text-primary mb-3" />,
+    icon: <BookOpenText className="h-10 w-10 text-primary mb-3 stroke-width-1.5" />,
     title: 'Flexible Exam Management',
     description: 'Full CRUD for exams, diverse question upload options, and customizable settings.',
   },
   {
-    icon: <Users className="h-10 w-10 text-primary mb-3" />,
+    icon: <Users className="h-10 w-10 text-primary mb-3 stroke-width-1.5" />,
     title: 'Role-Based Dashboards',
     description: 'Dedicated, intuitive dashboards for both students and teachers.',
   },
   {
-    icon: <Brain className="h-10 w-10 text-primary mb-3" />,
+    icon: <Brain className="h-10 w-10 text-primary mb-3 stroke-width-1.5" />,
     title: 'AI-Powered Assistance',
     description: 'Built-in AI assistant to help teachers generate diverse exam questions effortlessly.',
   },
@@ -36,14 +36,14 @@ export default function LandingPage() {
       <AppHeader />
       <main className="flex-grow">
         {/* Hero Section */}
-        <section className="py-20 md:py-28 bg-background"> {/* Changed from gradient to bg-background */}
+        <section className="py-20 md:py-28 bg-background">
           <div className="container px-4 md:px-6">
             <div className="grid gap-8 md:grid-cols-1 md:items-center text-center justify-items-center">
               <div className="space-y-6 max-w-3xl mx-auto">
-                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl text-foreground dark:text-slate-100">
+                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl text-slate-800 dark:text-slate-100">
                   The Future of <span className="text-primary">Secure Online</span> Proctoring
                 </h1>
-                <p className="text-lg text-muted-foreground md:text-xl max-w-2xl mx-auto dark:text-slate-300">
+                <p className="text-lg text-slate-600 md:text-xl max-w-2xl mx-auto dark:text-slate-300">
                   ZenTest offers a robust, modern platform for conducting secure online exams, trusted by educators and students alike.
                 </p>
                 <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
@@ -52,7 +52,7 @@ export default function LandingPage() {
                       Get Started as Teacher <ArrowRight className="ml-2 h-5 w-5" />
                     </Link>
                   </Button>
-                  <Button size="lg" variant="outline" className="shadow-sm hover:shadow-md transition-shadow duration-300 border-border hover:bg-accent/10 text-accent-foreground hover:text-primary dark:text-slate-100 dark:hover:text-primary" asChild>
+                  <Button size="lg" variant="outline" className="shadow-sm hover:shadow-md transition-shadow duration-300 border-border hover:bg-accent/10 text-primary hover:text-primary dark:text-slate-100 dark:hover:text-primary" asChild>
                     <Link href="/auth?action=register&role=student">
                       Join as Student
                     </Link>
@@ -64,7 +64,7 @@ export default function LandingPage() {
         </section>
 
         {/* Features Section */}
-        <section id="features" className="py-16 md:py-24 bg-muted/30"> {/* Kept bg-muted/30 for slight section differentiation */}
+        <section id="features" className="py-16 md:py-24 bg-muted/30">
           <div className="container px-4 md:px-6">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground">Why Choose ZenTest?</h2>
@@ -89,12 +89,12 @@ export default function LandingPage() {
         </section>
 
         {/* Call to Action Section */}
-        <section className="py-16 md:py-24 bg-background"> {/* Changed to bg-background */}
+        <section className="py-16 md:py-24 bg-background">
           <div className="container px-4 md:px-6 text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground dark:text-slate-100">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-slate-800 dark:text-slate-100">
               Ready to Elevate Your Online Exams?
             </h2>
-            <p className="mt-4 mb-8 text-lg text-muted-foreground max-w-xl mx-auto dark:text-slate-300">
+            <p className="mt-4 mb-8 text-lg text-slate-600 max-w-xl mx-auto dark:text-slate-300">
               Join ZenTest today and experience a seamless, secure, and intelligent proctoring solution.
             </p>
             <Button size="lg" className="btn-primary-solid shadow-md hover:shadow-lg transition-shadow duration-300 py-3 px-8 text-base" asChild>
