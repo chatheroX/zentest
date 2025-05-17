@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Exam, CustomUser } from '@/types/supabase';
 import { getEffectiveExamStatus } from '@/app/(app)/teacher/dashboard/exams/[examId]/details/page';
 import { useAuth } from '@/contexts/AuthContext';
-// Removed: import jwt from 'jsonwebtoken'; - No longer signing on client
+
 
 export default function JoinExamPage() {
   const [examCode, setExamCode] = useState('');
@@ -95,35 +95,28 @@ export default function JoinExamPage() {
       if (!tokenResponse.ok) {
         let errorBodyText = `API error: ${tokenResponse.status}`;
         try {
-          const rawText = await tokenResponse.text();
-          if (rawText) {
+          const rawText = await tokenResponse.text(); // Read as text first
+          if (rawText && rawText.trim() !== '') {
             try {
-              const errorBodyJson = JSON.parse(rawText);
+              const errorBodyJson = JSON.parse(rawText); // Try to parse as JSON
               if (errorBodyJson && typeof errorBodyJson.error === 'string' && errorBodyJson.error.trim() !== '') {
-                errorBodyText = errorBodyJson.error;
-              } else if (rawText.trim() !== '') {
-                 errorBodyText = `Server error: ${rawText.substring(0, 200)}${rawText.length > 200 ? '...' : ''}`; // Use raw text if not specific JSON error
-              } else if (tokenResponse.statusText) {
-                errorBodyText += ` ${tokenResponse.statusText}`;
+                errorBodyText = errorBodyJson.error; // Use JSON error message
+              } else {
+                 // Use raw text if not specific JSON error or JSON is malformed but text exists
+                errorBodyText = `Server error: ${rawText.substring(0, 200)}${rawText.length > 200 ? '...' : ''}`;
               }
             } catch (jsonParseError) {
-              // JSON parsing failed, use the raw text if available and not empty
-              if (rawText.trim() !== '') {
-                errorBodyText = `Server error: ${rawText.substring(0, 200)}${rawText.length > 200 ? '...' : ''}`;
-              } else if (tokenResponse.statusText) {
-                 errorBodyText += ` ${tokenResponse.statusText}`;
-              } else {
-                 errorBodyText += ` (No error message body)`;
-              }
+              // JSON parsing failed, use the raw text as error if it's not empty
+              errorBodyText = `Server error (non-JSON): ${rawText.substring(0, 200)}${rawText.length > 200 ? '...' : ''}`;
             }
-          } else if (tokenResponse.statusText) {
+          } else if (tokenResponse.statusText) { // Fallback to statusText if body is empty
             errorBodyText += ` ${tokenResponse.statusText}`;
           } else {
-            errorBodyText += ` (Server error with no message body)`;
+            errorBodyText += ` (No error message body)`;
           }
         } catch (bodyReadError: any) {
           console.error(`${operationId} Failed to read error response body from /api/generate-seb-token. Status: ${tokenResponse.status}`, bodyReadError);
-          errorBodyText += ` (Could not read error body: ${bodyReadError.message || String(bodyReadError)})`;
+          errorBodyText += ` (Could not read error body: ${(bodyReadError && bodyReadError.message) || String(bodyReadError)})`;
         }
         
         console.error(`${operationId} API Error generating token: ${tokenResponse.status} "${errorBodyText}"`);
@@ -151,11 +144,10 @@ export default function JoinExamPage() {
       if (isDevMode) {
         console.log(`${operationId} DEV MODE: Skipping SEB launch. Navigating directly to /seb/entry with token in query.`);
         setIsLoading(false);
-        router.push(`/seb/entry?token=${sebEntryTokenValue}`); // Navigate with token for dev mode
+        router.push(`/seb/entry?token=${sebEntryTokenValue}`); 
         return;
       }
 
-      // Production SEB Flow (SEB Launch)
       const appDomain = window.location.origin;
       const sebEntryPageUrl = `${appDomain}/seb/entry?token=${sebEntryTokenValue}`; 
       
