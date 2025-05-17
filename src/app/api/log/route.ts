@@ -3,7 +3,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { Database, ErrorLogInsert } from '@/types/supabase';
-import { getSafeErrorMessage } from '@/lib/error-logging'; // Import helper
+import { getSafeErrorMessage } from '@/lib/error-logging';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -18,6 +18,7 @@ if (!supabaseServiceKey) { missingVarsMessage += "SUPABASE_SERVICE_ROLE_KEY "; c
 if (criticalError) {
   missingVarsMessage += "Please check server environment configuration.";
   console.error(`${initLogPrefix} ${missingVarsMessage}`);
+  // Cannot use logErrorToBackend here as this IS the logging mechanism
 }
 
 const supabaseAdmin = supabaseUrl && supabaseServiceKey
@@ -33,7 +34,8 @@ export async function POST(request: NextRequest) {
     if (!supabaseAdmin) detailedErrorForLog += "Supabase admin client not initialized. ";
     detailedErrorForLog += missingVarsMessage;
     console.error(`${operationId} ${detailedErrorForLog}`);
-    return NextResponse.json({ error: 'Server configuration error for logging.' }, { status: 500 });
+    // Avoid infinite loop if logging itself fails due to config
+    return NextResponse.json({ error: 'Server configuration error for logging prevented actual log storage.' }, { status: 500 });
   }
 
   try {
@@ -43,12 +45,13 @@ export async function POST(request: NextRequest) {
       console.warn(`${operationId} Invalid log data received:`, logData);
       return NextResponse.json({ error: 'Missing location or error_message in log data.' }, { status: 400 });
     }
-
+    
+    // Construct the final payload ensuring all parts are handled safely
     const dataToInsert: Omit<ErrorLogInsert, 'log_id' | 'timestamp'> = {
-      location: logData.location,
-      error_message: logData.error_message, // error_message is already processed by client-side getSafeErrorMessage
-      error_details: logData.error_details || null,
-      user_context: logData.user_context || null,
+      location: typeof logData.location === 'string' ? logData.location : 'UnknownLocation',
+      error_message: typeof logData.error_message === 'string' ? logData.error_message : 'NoErrorMessageProvided',
+      error_details: logData.error_details || null, // Already JSONB, should be fine
+      user_context: logData.user_context || null, // Already JSONB
     };
     
     console.log(`${operationId} Attempting to insert log:`, dataToInsert);
@@ -58,15 +61,17 @@ export async function POST(request: NextRequest) {
       .insert(dataToInsert); // log_id and timestamp have defaults in DB
 
     if (insertError) {
-      console.error(`${operationId} Supabase error during log insert:`, insertError);
-      return NextResponse.json({ error: 'Failed to save error log to database: ' + insertError.message }, { status: 500 });
+      const insertErrorMsg = getSafeErrorMessage(insertError, 'Supabase insert failed.');
+      console.error(`${operationId} Supabase error during log insert:`, insertErrorMsg, insertError);
+      return NextResponse.json({ error: 'Failed to save error log to database: ' + insertErrorMsg }, { status: 500 });
     }
     
     console.log(`${operationId} Error log successfully inserted.`);
     return NextResponse.json({ message: 'Error logged successfully.' }, { status: 200 });
 
   } catch (e: any) {
-    const errorMessage = getSafeErrorMessage(e, 'An unexpected error occurred during log processing.');
+    // If the /api/log itself has an error, we can only console.error it.
+    const errorMessage = getSafeErrorMessage(e, 'An unexpected error occurred during log processing in /api/log.');
     console.error(`${operationId} Exception during error log processing:`, errorMessage, e);
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }

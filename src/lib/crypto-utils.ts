@@ -1,7 +1,7 @@
 
 // /src/lib/crypto-utils.ts
 'use client';
-import { getSafeErrorMessage } from '@/lib/error-logging'; // Import helper
+import { getSafeErrorMessage, logErrorToBackend } from '@/lib/error-logging';
 
 // WARNING: THIS IS A DEMONSTRATION AND USES A HARDCODED KEY.
 // DO NOT USE THIS IN PRODUCTION WITHOUT A PROPER KEY MANAGEMENT STRATEGY.
@@ -16,6 +16,8 @@ async function getKeyMaterial(): Promise<CryptoKey> {
   if (keyData.byteLength !== 32) {
     const errorMessage = `CRITICAL: Encryption key is not 32 bytes long. Expected 32 bytes, but got ${keyData.byteLength} bytes for key string "${keyStringForLog}" (character length ${keyStringForLog.length}). Please check configuration.`;
     console.error(errorMessage);
+    // Since this runs client-side, logErrorToBackend might not be fully set up if this fails early.
+    // Prefer throwing for immediate visibility if it's a critical config like this.
     throw new Error(errorMessage);
   }
 
@@ -31,6 +33,7 @@ async function getKeyMaterial(): Promise<CryptoKey> {
 export async function encryptData(data: Record<string, any>): Promise<string | null> {
   if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) {
     console.error('Web Crypto API not available. Cannot encrypt.');
+    await logErrorToBackend(new Error('Web Crypto API not available for encryption'), 'CryptoUtils-Encrypt-NoWebCrypto');
     return null;
   }
   try {
@@ -56,6 +59,7 @@ export async function encryptData(data: Record<string, any>): Promise<string | n
   } catch (error: any) {
     const errorMessage = getSafeErrorMessage(error, 'Encryption failed.');
     console.error(errorMessage, error); 
+    await logErrorToBackend(error, 'CryptoUtils-Encrypt-Fail', { originalDataPreview: JSON.stringify(data)?.substring(0, 100) });
     return null;
   }
 }
@@ -63,6 +67,7 @@ export async function encryptData(data: Record<string, any>): Promise<string | n
 export async function decryptData<T = Record<string, any>>(encryptedBase64: string): Promise<T | null> {
   if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) {
     console.error('Web Crypto API not available. Cannot decrypt.');
+    await logErrorToBackend(new Error('Web Crypto API not available for decryption'), 'CryptoUtils-Decrypt-NoWebCrypto');
     return null;
   }
   try {
@@ -70,6 +75,13 @@ export async function decryptData<T = Record<string, any>>(encryptedBase64: stri
     
     const encryptedDataWithIv = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
     
+    if (encryptedDataWithIv.length < 12) { // IV is 12 bytes
+        const shortDataError = "Decryption failed: Encrypted data is too short to contain IV.";
+        console.error(shortDataError);
+        await logErrorToBackend(new Error(shortDataError), 'CryptoUtils-Decrypt-DataTooShort', { encryptedLength: encryptedDataWithIv.length });
+        return null;
+    }
+
     const iv = encryptedDataWithIv.slice(0, 12);
     const encryptedContent = encryptedDataWithIv.slice(12);
 
@@ -94,9 +106,7 @@ export async function decryptData<T = Record<string, any>>(encryptedBase64: stri
     }
     
     console.error(errorMessage, error); 
-    if (isOperationError) {
-      console.error('Decryption Specific: This was an OperationError.');
-    }
+    await logErrorToBackend(error, 'CryptoUtils-Decrypt-Fail', { isOperationError, encryptedBase64Preview: encryptedBase64.substring(0,50) });
     return null;
   }
 }

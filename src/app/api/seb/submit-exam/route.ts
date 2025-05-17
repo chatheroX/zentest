@@ -3,21 +3,23 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { Database, ExamSubmissionInsert } from '@/types/supabase';
-import { getSafeErrorMessage } from '@/lib/error-logging'; // Import helper
+import { getSafeErrorMessage, logErrorToBackend } from '@/lib/error-logging';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const initLogPrefix = '[API SubmitExam Init]';
-console.log(`${initLogPrefix} NEXT_PUBLIC_SUPABASE_URL: ${supabaseUrl ? supabaseUrl.substring(0, 20) + '...' : 'NOT SET'}`);
-console.log(`${initLogPrefix} SUPABASE_SERVICE_ROLE_KEY: ${supabaseServiceKey ? 'SET (value hidden)' : 'NOT SET'}`);
+let missingVarsMessage = "CRITICAL: Required Supabase environment variable(s) are missing: ";
+let criticalError = false;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  let missingVarsMessage = "CRITICAL: Required Supabase environment variable(s) are missing: ";
-  if (!supabaseUrl) missingVarsMessage += "NEXT_PUBLIC_SUPABASE_URL ";
-  if (!supabaseServiceKey) missingVarsMessage += "SUPABASE_SERVICE_ROLE_KEY ";
+if (!supabaseUrl) { missingVarsMessage += "NEXT_PUBLIC_SUPABASE_URL "; criticalError = true; }
+if (!supabaseServiceKey) { missingVarsMessage += "SUPABASE_SERVICE_ROLE_KEY "; criticalError = true; }
+
+if (criticalError) {
   missingVarsMessage += "Please check server environment configuration.";
   console.error(`${initLogPrefix} ${missingVarsMessage}`);
+  // No await here for logErrorToBackend as it's init phase
+  logErrorToBackend(new Error(missingVarsMessage), 'API-SubmitExam-Init-MissingVars', { variables: missingVarsMessage });
 }
 
 const supabaseAdmin = supabaseUrl && supabaseServiceKey
@@ -32,6 +34,7 @@ export async function POST(request: NextRequest) {
     if (!supabaseServiceKey) detailedErrorForLog += "SUPABASE_SERVICE_ROLE_KEY is missing. ";
     detailedErrorForLog += "Check server environment variables.";
     console.error(`${operationId} ${detailedErrorForLog}`);
+    await logErrorToBackend(new Error(detailedErrorForLog), 'API-SubmitExam-ConfigError', { variables: missingVarsMessage });
     return NextResponse.json({ error: 'Server configuration error for submission.' }, { status: 500 });
   }
 
@@ -39,7 +42,9 @@ export async function POST(request: NextRequest) {
     const submissionData = (await request.json()) as Omit<ExamSubmissionInsert, 'submission_id' | 'started_at'>;
 
     if (!submissionData.exam_id || !submissionData.student_user_id) {
-      console.warn(`${operationId} Missing exam_id or student_user_id in submission.`);
+      const errMsg = "Missing exam_id or student_user_id in submission.";
+      console.warn(`${operationId} ${errMsg} Data:`, submissionData);
+      await logErrorToBackend(new Error(errMsg), 'API-SubmitExam-MissingParams', { submissionData });
       return NextResponse.json({ error: 'Missing exam ID or student ID.' }, { status: 400 });
     }
 
@@ -50,11 +55,7 @@ export async function POST(request: NextRequest) {
       status: submissionData.status || 'Completed', 
       submitted_at: submissionData.submitted_at || new Date().toISOString(),
       flagged_events: submissionData.flagged_events || null,
-      // score would be calculated later or set if it's self-graded for some types
-      // started_at should have been set when the exam was initiated by SebLiveTestClient
-      // If we need to ensure started_at, we might need to fetch the "In Progress" record first or adjust upsert.
-      // For simplicity, assuming started_at is set. If not, a direct update is needed.
-      started_at: new Date().toISOString(), // Placeholder if not passed, ideally it's from an earlier 'In Progress' record
+      started_at: submissionData.started_at || new Date().toISOString(), // Best guess if not provided
     };
     
     console.log(`${operationId} Attempting to upsert submission for student: ${submissionData.student_user_id}, exam: ${submissionData.exam_id}`);
@@ -62,14 +63,16 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabaseAdmin
       .from('ExamSubmissionsX')
       .upsert(dataToUpsert, {
-        onConflict: 'exam_id, student_user_id',
+        onConflict: 'exam_id, student_user_id', // Ensure this unique constraint exists
       })
       .select()
       .single();
 
     if (error) {
-      console.error(`${operationId} Supabase error during submission upsert:`, error);
-      return NextResponse.json({ error: 'Failed to save exam submission: ' + error.message }, { status: 500 });
+      const upsertErrorMsg = getSafeErrorMessage(error, 'Supabase upsert failed.');
+      console.error(`${operationId} Supabase error during submission upsert:`, upsertErrorMsg, error);
+      await logErrorToBackend(error, 'API-SubmitExam-UpsertError', { submissionData });
+      return NextResponse.json({ error: 'Failed to save exam submission: ' + upsertErrorMsg }, { status: 500 });
     }
     
     console.log(`${operationId} Submission successful for student: ${submissionData.student_user_id}, exam: ${submissionData.exam_id}, Result:`, data);
@@ -78,6 +81,14 @@ export async function POST(request: NextRequest) {
   } catch (e: any) {
     const errorMessage = getSafeErrorMessage(e, 'An unexpected error occurred during submission.');
     console.error(`${operationId} Exception:`, errorMessage, e);
+    // Try to parse request body for context if 'e' itself is not informative
+    let requestBodyForLog: any = 'Could not parse request body for logging.';
+    try {
+      // Re-clone and parse request if needed, or use submissionData if available
+      requestBodyForLog = await request.clone().json().catch(() => 'Failed to clone/parse request for logging');
+    } catch { /* ignore */ }
+    
+    await logErrorToBackend(e, 'API-SubmitExam-GeneralCatch', { requestBody: requestBodyForLog });
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
