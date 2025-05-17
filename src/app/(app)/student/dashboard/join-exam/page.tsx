@@ -14,8 +14,7 @@ import type { Exam, SebEntryTokenInsert, CustomUser } from '@/types/supabase';
 import { getEffectiveExamStatus } from '@/app/(app)/teacher/dashboard/exams/[examId]/details/page';
 import { useAuth } from '@/contexts/AuthContext';
 
-// TOKEN_EXPIRY_MINUTES defines how long the server-side token is valid for claiming.
-const TOKEN_EXPIRY_MINUTES = 5; 
+const TOKEN_EXPIRY_MINUTES = 5; // How long the server-side token is valid for claiming.
 
 export default function JoinExamPage() {
   const [examCode, setExamCode] = useState('');
@@ -26,10 +25,14 @@ export default function JoinExamPage() {
   const { user: studentUser, isLoading: authLoading, supabase: authSupabase } = useAuth();
   const router = useRouter();
 
-  const generateRandomToken = (length = 64) => {
-    const array = new Uint8Array(length / 2);
+  const generateSecureRandomToken = (length = 32) => {
+    // Generates a URL-safe base64 string from random bytes.
+    // Length 32 bytes gives 44 base64 characters.
+    const array = new Uint8Array(length);
     window.crypto.getRandomValues(array);
-    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    let token = btoa(String.fromCharCode.apply(null, Array.from(array)));
+    token = token.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); // URL-safe
+    return token.substring(0, 43); // Ensure it's within a reasonable length for URLs, if needed. Adjust as per your needs.
   };
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -89,7 +92,7 @@ export default function JoinExamPage() {
         return;
       }
       
-      const sebEntryTokenValue = generateRandomToken();
+      const sebEntryTokenValue = generateSecureRandomToken(); // Use new stronger token generator
       const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MINUTES * 60 * 1000).toISOString();
 
       const tokenRecord: SebEntryTokenInsert = {
@@ -100,7 +103,8 @@ export default function JoinExamPage() {
         created_at: new Date().toISOString(),
         expires_at: expiresAt,
       };
-      console.log(`${operationId} Generated SEB entry token record:`, tokenRecord);
+      console.log(`${operationId} Generated SEB entry token record:`, {...tokenRecord, token: tokenRecord.token.substring(0,10) + "..."});
+
 
       const { error: tokenInsertError } = await authSupabase.from('SebEntryTokens').insert(tokenRecord);
 
@@ -114,14 +118,10 @@ export default function JoinExamPage() {
       }
       console.log(`${operationId} SEB entry token inserted successfully.`);
 
-      // Construct the direct SEB launch URL
-      // The Start URL configured INSIDE SEB should be YOUR_APP_DOMAIN/seb/entry/[token]
-      // However, SEB typically doesn't support dynamic path segments in its Start URL via config file easily.
-      // So, we launch SEB directly to the /seb/entry/[token_value] page.
+      // Construct the direct SEB launch URL to /seb/entry/[RAW_TOKEN_VALUE]
       const appDomain = window.location.origin;
-      const directSebPageUrl = `${appDomain}/seb/entry/${sebEntryTokenValue}`;
+      const directSebPageUrl = `${appDomain}/seb/entry/${sebEntryTokenValue}`; // RAW TOKEN
       
-      // Remove http(s):// prefix and prepend sebs://
       const domainAndPathForSeb = directSebPageUrl.replace(/^https?:\/\//, '');
       const sebLaunchUrl = `sebs://${domainAndPathForSeb}`;
       
@@ -135,13 +135,14 @@ export default function JoinExamPage() {
       
       window.location.href = sebLaunchUrl;
 
+      // Monitor if SEB launched
       setTimeout(() => {
         if (window.location.pathname.includes('join-exam')) { 
           setIsLoading(false); 
           setLocalError("SEB launch may have been blocked or failed. If SEB did not start, check your browser's pop-up settings or SEB installation.");
           toast({ title: "SEB Launch Issue?", description: "If SEB did not open, please check pop-up blockers and ensure SEB is installed correctly.", variant: "destructive", duration: 10000});
         }
-      }, 8000);
+      }, 8000); // Check after 8 seconds
 
     } catch (e: any) {
       console.error(`${operationId} Exception during handleSubmit:`, e);

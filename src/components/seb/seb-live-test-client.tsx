@@ -4,7 +4,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+// Removed createSupabaseBrowserClient import as supabase comes from AuthContext
 import type { Exam, Question, ExamSubmissionInsert, FlaggedEvent, CustomUser } from '@/types/supabase';
 import { ExamTakingInterface } from '@/components/shared/exam-taking-interface';
 import { Loader2, AlertTriangle, ShieldAlert, ServerCrash, XCircle, CheckCircle, LogOut } from 'lucide-react';
@@ -12,11 +12,12 @@ import { useToast } from '@/hooks/use-toast';
 import { isSebEnvironment, attemptBlockShortcuts, disableContextMenu, disableCopyPaste, isOnline, areDevToolsLikelyOpen, isWebDriverActive } from '@/lib/seb-utils';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 
 export function SebLiveTestClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createSupabaseBrowserClient();
+  const { supabase, isLoading: authContextIsLoading, authError: contextAuthError } = useAuth(); // Get Supabase client from AuthContext
   const { toast } = useToast();
 
   const [examDetails, setExamDetails] = useState<Exam | null>(null);
@@ -24,30 +25,52 @@ export function SebLiveTestClient() {
   const [studentProfile, setStudentProfile] = useState<Pick<CustomUser, 'user_id' | 'name' | 'avatar_url'> | null>(null);
   const [pageIsLoading, setPageIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
-  const [isValidSession, setIsValidSession] = useState<boolean | undefined>(undefined);
+  const [isValidSessionForLiveTest, setIsValidSessionForLiveTest] = useState<boolean | undefined>(undefined);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const examIdFromUrl = searchParams?.get('examId');
-  const studentIdFromUrl = searchParams?.get('studentId'); // Student ID passed from /seb/entry
+  const studentIdFromUrl = searchParams?.get('studentId'); 
 
-  // Step 1: SEB Environment Check & Basic Security
+  // Step 1: Initial Checks (SEB Env, Params, Supabase Client availability)
   useEffect(() => {
+    const effectId = `[SebLiveTestClient InitEffect ${Date.now().toString().slice(-4)}]`;
+    console.log(`${effectId} Running. AuthLoading: ${authContextIsLoading}, Supabase via context: ${!!supabase}`);
+    setIsValidSessionForLiveTest(undefined);
     setPageIsLoading(true);
-    setError(null);
-    setIsValidSession(undefined);
+    setPageError(null);
+
+
+    if (authContextIsLoading) {
+      console.log(`${effectId} Waiting for AuthContext to finish loading (Supabase client).`);
+      // PageIsLoading remains true, UI will show loader.
+      return;
+    }
+    
+    if (!supabase) {
+        const sbError = `CRITICAL: Supabase client not available from AuthContext. ${contextAuthError || "Reason unknown."}`;
+        console.error(`${effectId} ${sbError}`);
+        setPageError(sbError + " SEB will quit.");
+        toast({ title: "Internal Error", description: "Service connection failed. Quitting SEB.", variant: "destructive", duration: 7000 });
+        setIsValidSessionForLiveTest(false);
+        setPageIsLoading(false);
+        setTimeout(() => { if (typeof window !== 'undefined') window.location.href = "seb://quit"; }, 6000);
+        return;
+    }
+    console.log(`${effectId} Supabase client available from AuthContext.`);
 
     if (!isSebEnvironment()) {
       setPageError("CRITICAL: Not in SEB environment. This page is restricted.");
       toast({ title: "SEB Required", description: "Redirecting...", variant: "destructive", duration: 4000 });
-      setTimeout(() => router.replace('/unsupported-browser'), 3000);
-      setIsValidSession(false);
+      setIsValidSessionForLiveTest(false);
       setPageIsLoading(false);
+      setTimeout(() => router.replace('/unsupported-browser'), 3000);
       return;
     }
+    // Basic security checks (can be expanded in seb-utils)
     if (!isOnline() || areDevToolsLikelyOpen() || isWebDriverActive()) {
       setPageError("Critical system integrity check failed. Cannot proceed. SEB will quit.");
       toast({ title: "Security Alert", description: "System integrity compromised. Quitting SEB.", variant: "destructive", duration: 7000 });
-      setIsValidSession(false);
+      setIsValidSessionForLiveTest(false);
       setPageIsLoading(false);
       setTimeout(() => { if (typeof window !== 'undefined') window.location.href = "seb://quit"; }, 6000);
       return;
@@ -56,28 +79,31 @@ export function SebLiveTestClient() {
     if (!examIdFromUrl || !studentIdFromUrl) {
       setPageError("Exam ID or Student ID missing from URL. Invalid exam entry. SEB will quit.");
       toast({ title: "Invalid Session", description: "Exam parameters missing. Quitting SEB.", variant: "destructive", duration: 7000 });
-      setIsValidSession(false);
+      setIsValidSessionForLiveTest(false);
       setPageIsLoading(false);
       setTimeout(() => { if (typeof window !== 'undefined') window.location.href = "seb://quit"; }, 6000);
       return;
     }
     
-    console.log("[SebLiveTestClient] SEB Checks Passed. examId:", examIdFromUrl, "studentId:", studentIdFromUrl);
-    setIsValidSession(true);
-    // isLoading will be set to false after data fetching
-  }, [examIdFromUrl, studentIdFromUrl, router, toast]);
+    console.log(`${effectId} Initial checks passed. examId: ${examIdFromUrl}, studentId: ${studentIdFromUrl}`);
+    setIsValidSessionForLiveTest(true);
+    // isLoading will be set to false after data fetching in the next effect
+  }, [examIdFromUrl, studentIdFromUrl, router, toast, supabase, authContextIsLoading, contextAuthError]);
 
 
   // Step 2: Fetch Exam Data & Student Profile if session is valid
   const fetchExamAndStudentData = useCallback(async () => {
+    const effectId = `[SebLiveTestClient DataFetch ${Date.now().toString().slice(-4)}]`;
     if (!examIdFromUrl || !studentIdFromUrl || !supabase) {
-      setPageError("Cannot fetch data: Critical information missing.");
+      // This condition should ideally be caught by the InitEffect, but as a safeguard:
+      setPageError("Cannot fetch data: Critical information or Supabase client missing.");
       setPageIsLoading(false);
+      setIsValidSessionForLiveTest(false); 
       return;
     }
     
-    console.log('[SebLiveTestClient] Fetching exam and student data...');
-    setPageIsLoading(true); 
+    console.log(`${effectId} Fetching exam and student data...`);
+    if (!pageIsLoading) setPageIsLoading(true); 
     setPageError(null);
     try {
       const [examRes, studentRes] = await Promise.all([
@@ -100,7 +126,7 @@ export function SebLiveTestClient() {
       setExamDetails(currentExam);
       setQuestions(currentExam.questions);
       setStudentProfile(studentRes.data as Pick<CustomUser, 'user_id' | 'name' | 'avatar_url'>);
-      console.log("[SebLiveTestClient] Exam and student data fetched successfully.");
+      console.log(`${effectId} Exam and student data fetched successfully.`);
 
       // Record or update "In Progress" submission
       const { error: submissionUpsertError } = await supabase
@@ -114,30 +140,31 @@ export function SebLiveTestClient() {
         .select();
       
       if (submissionUpsertError) {
-        console.warn("[SebLiveTestClient] Error upserting 'In Progress' submission:", submissionUpsertError.message);
+        console.warn(`${effectId} Error upserting 'In Progress' submission:`, submissionUpsertError.message);
         toast({title: "Warning", description: "Could not record exam start. Proceeding.", variant: "default"});
       }
 
     } catch (e: any) {
-      console.error("[SebLiveTestClient] Error fetching data:", e.message);
+      console.error(`${effectId} Error fetching data:`, e.message);
       setPageError(e.message || "Failed to load exam data.");
       toast({ title: "Exam Load Error", description: e.message, variant: "destructive", duration: 7000 });
+      // Consider SEB quit here if data load fails critically
       setTimeout(() => { if (typeof window !== 'undefined') window.location.href = "seb://quit"; }, 6000);
     } finally {
       setPageIsLoading(false);
     }
-  }, [examIdFromUrl, studentIdFromUrl, supabase, toast]);
+  }, [examIdFromUrl, studentIdFromUrl, supabase, toast, pageIsLoading]);
 
   useEffect(() => {
-    if (isValidSession === true && !examDetails && !studentProfile) {
+    if (isValidSessionForLiveTest === true && !examDetails && !studentProfile && !pageIsLoading) {
         fetchExamAndStudentData();
     }
-  }, [isValidSession, examDetails, studentProfile, fetchExamAndStudentData]);
+  }, [isValidSessionForLiveTest, examDetails, studentProfile, fetchExamAndStudentData, pageIsLoading]);
 
 
   // Step 3: SEB-specific event listeners for security
   useEffect(() => {
-    if (!isSebEnvironment() || isValidSession === false) return;
+    if (!isSebEnvironment() || isValidSessionForLiveTest === false) return;
 
     console.log("[SebLiveTestClient] Adding SEB security event listeners.");
     document.addEventListener('contextmenu', disableContextMenu);
@@ -149,8 +176,8 @@ export function SebLiveTestClient() {
         console.warn("[SebLiveTestClient] Attempt to unload/refresh page blocked.");
         toast({ title: "Navigation Blocked", description: "Page refresh/close is disabled.", variant:"destructive", duration: 3000 });
         event.preventDefault();
-        event.returnValue = '';
-        return event.returnValue;
+        event.returnValue = ''; // Standard for most browsers
+        return event.returnValue; // For older browsers
     };
     window.addEventListener('beforeunload', beforeUnloadHandler);
 
@@ -162,12 +189,12 @@ export function SebLiveTestClient() {
       document.removeEventListener('paste', disableCopyPaste);
       window.removeEventListener('beforeunload', beforeUnloadHandler);
     };
-  }, [isValidSession, toast]);
+  }, [isValidSessionForLiveTest, toast]);
 
 
   const handleActualSubmit = useCallback(async (answers: Record<string, string>, flaggedEvents: FlaggedEvent[], submissionType: 'submit' | 'timeup') => {
     if (!studentIdFromUrl || !examDetails) {
-        toast({title: "Submission Error", description: "Student or Exam details missing.", variant: "destructive"});
+        toast({title: "Submission Error", description: "Student or Exam details missing for submission.", variant: "destructive"});
         return;
     }
     
@@ -180,7 +207,7 @@ export function SebLiveTestClient() {
         submitted_at: new Date().toISOString(),
     };
 
-    console.log('[SebLiveTestClient] ' + submissionType + ' submission. Data:', submissionPayload);
+    console.log('[SebLiveTestClient] ' + submissionType + ' submission. Data for student_id:', studentIdFromUrl, 'exam_id:', examDetails.exam_id);
     try {
       const response = await fetch('/api/seb/submit-exam', {
         method: 'POST',
@@ -205,7 +232,7 @@ export function SebLiveTestClient() {
       toast({ title: "Submission Error", description: e.message + ". Quitting SEB.", variant: "destructive", duration: 10000 });
       setTimeout(() => { if (typeof window !== 'undefined') window.location.href = "seb://quit"; }, 9000);
     }
-  }, [studentIdFromUrl, examDetails, supabase, toast]);
+  }, [studentIdFromUrl, examDetails, toast]); // Removed supabase from deps as API handles it
 
   const handleSubmitExamSeb = useCallback((answers: Record<string, string>, flaggedEvents: FlaggedEvent[]) => {
     return handleActualSubmit(answers, flaggedEvents, 'submit');
@@ -221,12 +248,14 @@ export function SebLiveTestClient() {
   },[toast]);
 
 
-  if (pageIsLoading || isValidSession === undefined) {
+  if (pageIsLoading || isValidSessionForLiveTest === undefined || authContextIsLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 to-slate-950 p-4 text-center">
         <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
         <h2 className="text-xl font-medium text-slate-200 mb-1">
-          {isValidSession === undefined ? "Validating Secure Exam Link..." : "Loading Live Exam Environment..."}
+          {authContextIsLoading ? "Initializing secure context..." :
+           isValidSessionForLiveTest === undefined ? "Verifying SEB session..." : 
+           "Loading Live Exam Environment..."}
         </h2>
          <div className="flex items-center text-yellow-400 mt-4">
              <ShieldAlert className="h-5 w-5 mr-2" />
@@ -236,7 +265,7 @@ export function SebLiveTestClient() {
     );
   }
   
-  if (pageError || isValidSession === false) { 
+  if (pageError || isValidSessionForLiveTest === false) { 
      return (
        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-red-800 to-red-950 p-4">
         <Card className="w-full max-w-md modern-card text-center shadow-xl bg-card/80 backdrop-blur-lg border-destructive">
@@ -253,7 +282,7 @@ export function SebLiveTestClient() {
     );
   }
   
-  if (!examDetails || !studentProfile) { // Should be caught by error state above, but as fallback
+  if (!examDetails || !studentProfile) { 
      return (
        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 to-slate-950 p-4">
         <Card className="w-full max-w-md modern-card text-center shadow-xl bg-card/80 backdrop-blur-lg">
@@ -308,9 +337,10 @@ export function SebLiveTestClient() {
       isDemoMode={false}
       userIdForActivityMonitor={studentProfile.user_id}
       studentName={studentProfile.name}
-      studentRollNumber={studentProfile.user_id} 
+      studentRollNumber={studentProfile.user_id} // Use user_id as roll number
       studentAvatarUrl={studentProfile.avatar_url}
-      examStarted={true} 
+      examStarted={true} // Exam session is definitely started if this component renders without error
     />
   );
 }
+

@@ -19,7 +19,6 @@ if (!supabaseUrl || !supabaseServiceKey) {
   if (!supabaseServiceKey) missingVarsMessage += "SUPABASE_SERVICE_ROLE_KEY ";
   missingVarsMessage += "Please check server environment configuration.";
   console.error(`${initLogPrefix} ${missingVarsMessage}`);
-  // Note: The client will still receive a generic "Server configuration error" for security.
 }
 
 const supabaseAdmin = supabaseUrl && supabaseServiceKey
@@ -31,8 +30,7 @@ export async function POST(request: NextRequest) {
   console.log(`${operationId} Received request.`);
 
   if (!supabaseAdmin) {
-    // This log helps confirm which specific variable(s) caused supabaseAdmin to be null.
-    let detailedErrorForLog = "Supabase admin client not initialized. ";
+    let detailedErrorForLog = "Supabase admin client not initialized for validation. ";
     if (!supabaseUrl) detailedErrorForLog += "NEXT_PUBLIC_SUPABASE_URL is missing. ";
     if (!supabaseServiceKey) detailedErrorForLog += "SUPABASE_SERVICE_ROLE_KEY is missing. ";
     detailedErrorForLog += "Check server environment variables.";
@@ -54,17 +52,20 @@ export async function POST(request: NextRequest) {
     console.log(`${operationId} Querying SebEntryTokens for token: ${token}`);
     const { data: tokenData, error: tokenError } = await supabaseAdmin
       .from('SebEntryTokens')
-      .select('student_user_id, exam_id, status, expires_at, created_at') // Include created_at for logging
+      .select('student_user_id, exam_id, status, expires_at, created_at') 
       .eq('token', token)
       .single();
 
     if (tokenError) {
-      console.error(`${operationId} Supabase error fetching token ${token}:`, tokenError.message, tokenError);
+      console.error(`${operationId} Supabase error fetching token ${token.substring(0,10) + "..."}:`, tokenError.message, tokenError);
+      if (tokenError.code === 'PGRST116') { // Not found
+        return NextResponse.json({ error: 'Entry token not found or already claimed/expired.' }, { status: 404 });
+      }
       return NextResponse.json({ error: 'Error validating token. ' + tokenError.message }, { status: 500 });
     }
     
     if (!tokenData) {
-      console.warn(`${operationId} Token not found in database: ${token}`);
+      console.warn(`${operationId} Token not found in database: ${token.substring(0,10) + "..."}`);
       return NextResponse.json({ error: 'Invalid or expired entry token (not found).' }, { status: 404 });
     }
 
@@ -72,31 +73,31 @@ export async function POST(request: NextRequest) {
 
 
     if (tokenData.status !== 'pending') {
-      console.warn(`${operationId} Token ${token} has already been used or invalidated. Status: ${tokenData.status}`);
+      console.warn(`${operationId} Token ${token.substring(0,10) + "..."} has already been used or invalidated. Status: ${tokenData.status}`);
       return NextResponse.json({ error: 'Entry token has already been used or invalidated.' }, { status: 403 });
     }
 
-    if (!isValidDate(parseISO(tokenData.expires_at)) || new Date(tokenData.expires_at) < new Date()) {
-      console.warn(`${operationId} Token ${token} has expired. Expires at: ${tokenData.expires_at}`);
+    if (!tokenData.expires_at || !isValidDate(parseISO(tokenData.expires_at)) || new Date(tokenData.expires_at) < new Date()) {
+      console.warn(`${operationId} Token ${token.substring(0,10) + "..."} has expired. Expires at: ${tokenData.expires_at}`);
       // Optionally update status to 'expired' in DB
       const { error: expireUpdateError } = await supabaseAdmin.from('SebEntryTokens').update({ status: 'expired' }).eq('token', token);
-      if (expireUpdateError) console.error(`${operationId} Failed to update token ${token} to expired:`, expireUpdateError.message);
+      if (expireUpdateError) console.error(`${operationId} Failed to update token ${token.substring(0,10) + "..."} to expired:`, expireUpdateError.message);
       return NextResponse.json({ error: 'Entry token has expired.' }, { status: 403 });
     }
 
     // Mark token as claimed
-    console.log(`${operationId} Attempting to mark token ${token} as claimed.`);
+    console.log(`${operationId} Attempting to mark token ${token.substring(0,10) + "..."} as claimed.`);
     const { error: updateError } = await supabaseAdmin
       .from('SebEntryTokens')
       .update({ status: 'claimed' })
       .eq('token', token);
 
     if (updateError) {
-      console.error(`${operationId} Failed to update token status for ${token}:`, updateError.message, updateError);
+      console.error(`${operationId} Failed to update token status for ${token.substring(0,10) + "..."}:`, updateError.message, updateError);
       return NextResponse.json({ error: 'Failed to process token (update failed).' }, { status: 500 });
     }
 
-    console.log(`${operationId} Token ${token} successfully validated and claimed.`);
+    console.log(`${operationId} Token ${token.substring(0,10) + "..."} successfully validated and claimed.`);
     return NextResponse.json({
       student_user_id: tokenData.student_user_id,
       exam_id: tokenData.exam_id,
@@ -107,3 +108,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'An unexpected error occurred during token validation.' }, { status: 500 });
   }
 }
+

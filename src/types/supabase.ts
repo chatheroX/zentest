@@ -52,14 +52,14 @@ export interface FlaggedEvent {
   details?: string;
 }
 
-// New SebEntryTokens Table Type
+// Updated SebEntryTokens Table Type as per user specification
 export interface SebEntryTokenTableType {
   token: string; // Primary Key
-  student_user_id: string; // Foreign key to proctorX.user_id
-  exam_id: string; // UUID, Foreign key to ExamX
-  status: 'pending' | 'claimed' | 'expired';
-  created_at: string;
-  expires_at: string;
+  student_user_id: string; // Foreign key to proctorX.user_id (text)
+  exam_id: string; // UUID, Foreign key to ExamX (uuid) - Ensure this matches ExamX.exam_id type
+  status: 'pending' | 'claimed' | 'expired'; // text
+  created_at: string; // timestamptz
+  expires_at: string; // timestamptz
 }
 
 export interface Database {
@@ -72,7 +72,7 @@ export interface Database {
       };
       ExamX: {
         Row: {
-          exam_id: string; 
+          exam_id: string; // uuid
           teacher_id: string; 
           title: string;
           description: string | null;
@@ -87,7 +87,7 @@ export interface Database {
           updated_at: string;
         };
         Insert: {
-          exam_id?: string; 
+          exam_id?: string; // uuid
           teacher_id: string;
           title: string;
           description?: string | null;
@@ -116,7 +116,7 @@ export interface Database {
       ExamSubmissionsX: {
         Row: {
           submission_id: string; 
-          exam_id: string; 
+          exam_id: string; // uuid
           student_user_id: string; 
           answers: Json | null; 
           status: 'In Progress' | 'Completed';
@@ -127,7 +127,7 @@ export interface Database {
         };
         Insert: {
           submission_id?: string;
-          exam_id: string;
+          exam_id: string; // uuid
           student_user_id: string;
           answers?: Json | null;
           status?: 'In Progress' | 'Completed';
@@ -146,8 +146,8 @@ export interface Database {
       };
       SebEntryTokens: { // Add SebEntryTokens table definition
         Row: SebEntryTokenTableType;
-        Insert: SebEntryTokenTableType;
-        Update: Partial<SebEntryTokenTableType>;
+        Insert: SebEntryTokenTableType; // All fields are required on insert
+        Update: Partial<Pick<SebEntryTokenTableType, 'status' | 'expires_at'>>; // Typically only status or expiry might be updated
       };
     };
     Views: {
