@@ -30,7 +30,7 @@ export interface ProctorXTableType {
 }
 
 export type ExamStatus = 'Published' | 'Ongoing' | 'Completed';
-export type ExamSubmissionStatus = 'In Progress' | 'Completed'; // Added 'In Progress'
+export type ExamSubmissionStatus = 'In Progress' | 'Completed'; 
 
 export type FlaggedEventType =
   | 'visibility_hidden'
@@ -44,7 +44,7 @@ export type FlaggedEventType =
   | 'shortcut_attempt'
   | 'dev_tools_detected'
   | 'webdriver_detected'
-  | 'disallowed_key_pressed'; // Added for new check
+  | 'disallowed_key_pressed';
 
 export interface FlaggedEvent {
   type: FlaggedEventType;
@@ -54,14 +54,18 @@ export interface FlaggedEvent {
   details?: string;
 }
 
-export interface SebEntryTokenTableType {
-  token: string; // Primary Key
-  student_user_id: string; // Foreign key to proctorX.user_id (text)
-  exam_id: string; // UUID, Foreign key to ExamX (uuid)
-  status: 'pending' | 'claimed' | 'expired'; // text
-  created_at: string; // timestamptz
-  expires_at: string; // timestamptz
+// SebEntryTokens table is no longer used due to JWT implementation
+// export interface SebEntryTokenTableType { ... }
+
+export interface ErrorLogTableType {
+  log_id: string; // uuid, primary key
+  timestamp: string; // timestamptz, default now()
+  location: string; // text, e.g., "SebEntryClientNew-TokenValidation"
+  error_message: string; // text
+  error_details: Json | null; // jsonb, for stack trace or extra info
+  user_context: Json | null; // jsonb, e.g., { studentId, examId }
 }
+
 
 export interface Database {
   public: {
@@ -120,9 +124,9 @@ export interface Database {
           exam_id: string; // uuid
           student_user_id: string;
           answers: Json | null;
-          status: ExamSubmissionStatus; // Updated type
+          status: ExamSubmissionStatus; 
           score: number | null;
-          started_at: string; // Made non-nullable
+          started_at: string; 
           submitted_at: string | null;
           flagged_events: FlaggedEvent[] | null;
         };
@@ -131,24 +135,25 @@ export interface Database {
           exam_id: string; // uuid
           student_user_id: string;
           answers?: Json | null;
-          status: ExamSubmissionStatus; // Updated type, made non-nullable
+          status: ExamSubmissionStatus; 
           score?: number | null;
-          started_at: string; // Made non-nullable
+          started_at: string; 
           submitted_at?: string | null;
           flagged_events?: FlaggedEvent[] | null;
         };
         Update: Partial<{
           answers: Json | null;
-          status: ExamSubmissionStatus; // Updated type
+          status: ExamSubmissionStatus; 
           score: number | null;
           submitted_at: string | null;
           flagged_events: FlaggedEvent[] | null;
         }>;
       };
-      SebEntryTokens: {
-        Row: SebEntryTokenTableType;
-        Insert: SebEntryTokenTableType;
-        Update: Partial<Pick<SebEntryTokenTableType, 'status' | 'expires_at'>>;
+      // SebEntryTokens table is removed
+      ErrorLogs: { // New table for error logging
+        Row: ErrorLogTableType;
+        Insert: Omit<ErrorLogTableType, 'log_id' | 'timestamp'>; // log_id and timestamp are auto-generated
+        Update: never; // Logs are typically append-only
       };
     };
     Views: {
@@ -181,5 +186,7 @@ export type ExamUpdate = Database['public']['Tables']['ExamX']['Update'];
 export type ExamSubmission = Database['public']['Tables']['ExamSubmissionsX']['Row'];
 export type ExamSubmissionInsert = Database['public']['Tables']['ExamSubmissionsX']['Insert'];
 export type ExamSubmissionUpdate = Database['public']['Tables']['ExamSubmissionsX']['Update'];
-export type SebEntryToken = Database['public']['Tables']['SebEntryTokens']['Row'];
-export type SebEntryTokenInsert = Database['public']['Tables']['SebEntryTokens']['Insert'];
+// export type SebEntryToken = Database['public']['Tables']['SebEntryTokens']['Row']; // Removed
+// export type SebEntryTokenInsert = Database['public']['Tables']['SebEntryTokens']['Insert']; // Removed
+export type ErrorLog = Database['public']['Tables']['ErrorLogs']['Row'];
+export type ErrorLogInsert = Database['public']['Tables']['ErrorLogs']['Insert'];

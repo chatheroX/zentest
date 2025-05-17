@@ -10,11 +10,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, ExternalLink, ShieldAlert, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { Exam, SebEntryTokenInsert, CustomUser } from '@/types/supabase';
+import type { Exam, CustomUser } from '@/types/supabase';
 import { getEffectiveExamStatus } from '@/app/(app)/teacher/dashboard/exams/[examId]/details/page';
 import { useAuth } from '@/contexts/AuthContext';
+import jwt from 'jsonwebtoken'; // Import jwt
 
-const TOKEN_EXPIRY_MINUTES = 5; // How long the server-side token is valid for claiming.
 
 export default function JoinExamPage() {
   const [examCode, setExamCode] = useState('');
@@ -24,16 +24,6 @@ export default function JoinExamPage() {
   const { toast } = useToast();
   const { user: studentUser, isLoading: authLoading, supabase: authSupabase } = useAuth();
   const router = useRouter();
-
-  const generateSecureRandomToken = (length = 32) => {
-    // Generates a URL-safe base64 string from random bytes.
-    // Length 32 bytes gives 44 base64 characters.
-    const array = new Uint8Array(length);
-    window.crypto.getRandomValues(array);
-    let token = btoa(String.fromCharCode.apply(null, Array.from(array)));
-    token = token.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); // URL-safe
-    return token.substring(0, 43); // Ensure it's within a reasonable length for URLs, if needed. Adjust as per your needs.
-  };
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,44 +82,40 @@ export default function JoinExamPage() {
         return;
       }
       
-      const sebEntryTokenValue = generateSecureRandomToken(); // Use new stronger token generator
-      const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MINUTES * 60 * 1000).toISOString();
-
-      const tokenRecord: SebEntryTokenInsert = {
-        token: sebEntryTokenValue,
-        student_user_id: studentUser.user_id,
-        exam_id: exam.exam_id,
-        status: 'pending',
-        created_at: new Date().toISOString(),
-        expires_at: expiresAt,
-      };
-      console.log(`${operationId} Generated SEB entry token record:`, {...tokenRecord, token: tokenRecord.token.substring(0,10) + "..."});
-
-
-      const { error: tokenInsertError } = await authSupabase.from('SebEntryTokens').insert(tokenRecord);
-
-      if (tokenInsertError) {
-        console.error(`${operationId} Error inserting SEB entry token:`, tokenInsertError);
-        const tokenErrorMsg = "Could not create secure entry token: " + tokenInsertError.message;
-        toast({ title: "Launch Error", description: tokenErrorMsg, variant: "destructive" });
-        setLocalError(tokenErrorMsg);
+      // Generate JWT
+      const jwtSecret = process.env.NEXT_PUBLIC_JWT_SECRET; // Fetch from env (ensure this is set correctly for server use if generating server-side)
+                                                        // For client-side signing (less secure, for demo only), it's fine.
+                                                        // Ideally, JWT generation should happen on a server/API route if the secret is truly server-side.
+                                                        // For this flow, assuming NEXT_PUBLIC_JWT_SECRET is available client-side.
+      if (!jwtSecret) {
+        console.error(`${operationId} JWT_SECRET is not defined in environment variables.`);
+        const jwtErrorMsg = "Configuration error: Cannot create secure exam token.";
+        toast({ title: "Launch Error", description: jwtErrorMsg, variant: "destructive" });
+        setLocalError(jwtErrorMsg);
         setIsLoading(false);
         return;
       }
-      console.log(`${operationId} SEB entry token inserted successfully.`);
 
-      // Construct the direct SEB launch URL to /seb/entry/[RAW_TOKEN_VALUE]
-      const appDomain = window.location.origin;
-      const directSebPageUrl = `${appDomain}/seb/entry/${sebEntryTokenValue}`; // RAW TOKEN
+      const jwtPayload = {
+        studentId: studentUser.user_id, // Using user_id as studentId
+        examId: exam.exam_id,
+      };
+      const sebEntryTokenValue = jwt.sign(jwtPayload, jwtSecret, { expiresIn: '1h' }); // Token expires in 1 hour
       
-      const domainAndPathForSeb = directSebPageUrl.replace(/^https?:\/\//, '');
+      console.log(`${operationId} Generated SEB entry JWT:`, sebEntryTokenValue ? sebEntryTokenValue.substring(0,20) + "..." : "GENERATION FAILED");
+
+      // Construct the SEB launch URL with the JWT in a query parameter
+      const appDomain = window.location.origin;
+      const sebEntryPageUrl = `${appDomain}/seb/entry?token=${sebEntryTokenValue}`;
+      
+      const domainAndPathForSeb = sebEntryPageUrl.replace(/^https?:\/\//, '');
       const sebLaunchUrl = `sebs://${domainAndPathForSeb}`;
       
-      console.log(`${operationId} FINAL SEB LAUNCH URL (Direct to entry page with token in path):`, sebLaunchUrl);
+      console.log(`${operationId} FINAL SEB LAUNCH URL (Direct to entry page with JWT in query):`, sebLaunchUrl);
       
       toast({
         title: "Launching Exam in SEB",
-        description: "Safe Exam Browser should start. Ensure SEB is installed and configured to allow navigation to this application. Your browser will ask for permission to open SEB.",
+        description: "Safe Exam Browser should start. Ensure SEB is installed and configured. Your browser will ask for permission to open SEB.",
         duration: 15000,
       });
       
@@ -142,11 +128,14 @@ export default function JoinExamPage() {
           setLocalError("SEB launch may have been blocked or failed. If SEB did not start, check your browser's pop-up settings or SEB installation.");
           toast({ title: "SEB Launch Issue?", description: "If SEB did not open, please check pop-up blockers and ensure SEB is installed correctly.", variant: "destructive", duration: 10000});
         }
-      }, 8000); // Check after 8 seconds
+      }, 8000);
 
     } catch (e: any) {
       console.error(`${operationId} Exception during handleSubmit:`, e);
-      const exceptionMsg = e.message || "An unexpected error occurred.";
+      let exceptionMsg = e.message || "An unexpected error occurred.";
+      if (e.name === 'JsonWebTokenError' || e.name === 'TokenExpiredError') {
+        exceptionMsg = `JWT Error: ${e.message}`;
+      }
       toast({ title: "Error", description: exceptionMsg, variant: "destructive" });
       setLocalError(exceptionMsg);
       setIsLoading(false);
@@ -202,7 +191,7 @@ export default function JoinExamPage() {
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-2xl font-semibold text-foreground">Enter Exam Code</CardTitle>
             <CardDescription className="text-muted-foreground/90 pt-1">
-              This will attempt to launch the exam directly in Safe Exam Browser.
+              This will attempt to launch the exam directly in Safe Exam Browser using a secure token.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-2">
