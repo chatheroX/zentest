@@ -149,19 +149,6 @@ export function SebEntryClientNew() {
         return;
       }
 
-      // Dev Mode Direct Entry (no token, uses examId & studentId from query)
-      if (isDevModeActive && stage === 'initializing' && searchParams?.get('examId') && searchParams?.get('studentId') && !searchParams?.get('token')) {
-        const devExamId = searchParams.get('examId');
-        const devStudentId = searchParams.get('studentId');
-        console.log(`${effectId} DEV MODE: Direct entry with ExamID: ${devExamId}, StudentID: ${devStudentId}. Skipping token validation.`);
-        setValidatedExamId(devExamId);
-        setValidatedStudentId(devStudentId);
-        setIsPreviouslySubmitted(false); // Assume not previously submitted for fresh dev entry
-        setStage('fetchingDetails');
-        return;
-      }
-      
-      // Production or Dev Mode with Token (JWT flow)
       if (stage === 'initializing') {
         console.log(`${effectId} Stage: initializing. Performing initial checks for token flow.`);
         const tokenFromQuery = searchParams?.get('token');
@@ -204,7 +191,7 @@ export function SebEntryClientNew() {
           console.log(`${effectId} Token validation API response status: ${res.status}`);
           
           let responseBody;
-          let apiErrorMsg = `Token validation API request failed with status: ${res.status}.`; // Default error
+          let apiErrorMsg = `Token validation API request failed with status: ${res.status}.`; 
           
           if (res.ok) {
             responseBody = await res.json().catch(() => { throw new Error("Failed to parse successful API response as JSON.")});
@@ -214,7 +201,7 @@ export function SebEntryClientNew() {
             console.log(`${effectId} Token validated. StudentID: ${responseBody.studentId}, ExamID: ${responseBody.examId}, PreviouslySubmitted: ${responseBody.isAlreadySubmitted}. Moving to fetchingDetails.`);
             setStage('fetchingDetails');
 
-          } else { // Handle non-OK responses
+          } else { 
             try {
                 responseBody = await res.json();
                 if (responseBody && typeof responseBody.error === 'string') {
@@ -223,7 +210,7 @@ export function SebEntryClientNew() {
                     apiErrorMsg = res.statusText || apiErrorMsg;
                 }
             } catch (jsonParseError) {
-                apiErrorMsg = res.statusText || apiErrorMsg; // Fallback if JSON parsing of error fails
+                apiErrorMsg = res.statusText || apiErrorMsg; 
             }
             console.error(`${effectId} Token validation API error: ${apiErrorMsg}`, responseBody);
             throw new Error(apiErrorMsg);
@@ -300,7 +287,7 @@ export function SebEntryClientNew() {
     }
     if (isPreviouslySubmitted) {
       console.log(`${operationId} Exam previously submitted. Skipping security checks.`);
-      setStage('readyToStart'); // Should remain readyToStart, Start button will be disabled
+      setStage('readyToStart'); 
       return;
     }
 
@@ -428,10 +415,10 @@ export function SebEntryClientNew() {
 
       console.log(`${operationId} Submission successful via API. Result:`, responseBody);
       globalToast({ title: submissionType === 'submit' ? "Exam Submitted!" : "Exam Auto-Submitted!", description: "Your responses have been recorded.", duration: 6000 });
-      setExamDetails(prev => prev ? ({ ...prev, status: 'Completed' }) : null); // Visually update status if needed
-      setIsPreviouslySubmitted(true); // Set this to true after current submission
+      setExamDetails(prev => prev ? ({ ...prev, status: 'Completed' }) : null); 
+      setIsPreviouslySubmitted(true); 
       setStage('examCompleted');
-    } catch (e: any)_ {
+    } catch (e: any) {
       const errorMsg = getSafeErrorMessage(e, "Failed to submit exam.");
       console.error(`${operationId} Exception during submission:`, errorMsg, e);
       setPageError(`Submission Error: ${errorMsg}`); setStage('error');
@@ -580,13 +567,12 @@ export function SebEntryClientNew() {
   else if (stage === 'examCompleted') examStatusText = "Completed";
   else if (stage === 'readyToStart' && isDataReadyForExam) examStatusText = "Ready to Start";
 
-  // Semi-Landing Page UI (readyToStart or examCompleted/isPreviouslySubmitted)
   return (
-    <div className="min-h-screen w-full flex flex-col sm:flex-row bg-background text-foreground overflow-hidden">
+    <div className="min-h-screen w-full flex flex-col sm:flex-row bg-background text-foreground overflow-hidden p-4 sm:p-6">
       {/* Left Column: Exam Info & Logo */}
-      <div className="w-full sm:w-2/5 lg:w-1/3 flex flex-col p-4 sm:p-6 bg-slate-50 dark:bg-slate-800/30 space-y-4">
+      <div className="w-full sm:w-2/5 lg:w-1/3 flex flex-col bg-slate-50 text-foreground p-4 sm:p-6 space-y-4 rounded-lg sm:rounded-r-none shadow-lg">
         <header className="flex items-center justify-start shrink-0 h-16">
-          <Image src={logoAsset} alt="ZenTest Logo" width={180} height={50} className="h-12 sm:h-16 w-auto" />
+          <Image src={logoAsset} alt="ZenTest Logo" width={180} height={50} className="h-16 w-auto" />
         </header>
         <div className="flex-grow overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600">
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">{examDetails.title}</h1>
@@ -613,7 +599,7 @@ export function SebEntryClientNew() {
       </div>
 
       {/* Right Column: User Info, Status, Actions, Rules */}
-      <div className="w-full sm:w-3/5 lg:w-2/3 flex flex-col p-4 sm:p-6 space-y-6">
+      <div className="w-full sm:w-3/5 lg:w-2/3 flex flex-col p-4 sm:p-6 space-y-6 bg-background">
         <div className="flex justify-end items-start shrink-0">
           <div className="flex items-center gap-3 p-3 border border-border/20 rounded-lg bg-card shadow-sm">
             <Avatar className="h-12 w-12 sm:h-16 sm:w-16 border-2 border-primary/60">
@@ -652,7 +638,7 @@ export function SebEntryClientNew() {
               const RuleIcon = rule.icon;
               return (
                 <li key={index} className="flex items-start gap-2 sm:gap-2.5 text-muted-foreground">
-                  <RuleIcon className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0 mt-0.5 stroke-width-1.5" />
+                  <RuleIcon className="h-5 w-5 text-primary shrink-0 mt-0.5 stroke-width-1.5" />
                   <span>{rule.text}</span>
                 </li>
               );
@@ -691,3 +677,4 @@ export function SebEntryClientNew() {
     </div>
   );
 }
+
