@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Exam, CustomUser } from '@/types/supabase';
 import { getEffectiveExamStatus } from '@/app/(app)/teacher/dashboard/exams/[examId]/details/page';
 import { useAuth } from '@/contexts/AuthContext';
-
+// Removed: import jwt from 'jsonwebtoken'; - No longer signing on client
 
 export default function JoinExamPage() {
   const [examCode, setExamCode] = useState('');
@@ -85,6 +85,7 @@ export default function JoinExamPage() {
       }
       
       console.log(`${operationId} Requesting SEB entry JWT from API for student: ${studentUser.user_id}, exam: ${exam.exam_id}`);
+      
       const tokenResponse = await fetch('/api/generate-seb-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,17 +93,40 @@ export default function JoinExamPage() {
       });
 
       if (!tokenResponse.ok) {
-        let errorBodyText = `API error: ${tokenResponse.status} ${tokenResponse.statusText || 'Failed to generate token'}`;
+        let errorBodyText = `API error: ${tokenResponse.status}`;
         try {
-          const errorBodyJson = await tokenResponse.json();
-          if (errorBodyJson && typeof errorBodyJson.error === 'string') {
-            errorBodyText = errorBodyJson.error;
+          const rawText = await tokenResponse.text();
+          if (rawText) {
+            try {
+              const errorBodyJson = JSON.parse(rawText);
+              if (errorBodyJson && typeof errorBodyJson.error === 'string' && errorBodyJson.error.trim() !== '') {
+                errorBodyText = errorBodyJson.error;
+              } else if (rawText.trim() !== '') {
+                 errorBodyText = `Server error: ${rawText.substring(0, 200)}${rawText.length > 200 ? '...' : ''}`; // Use raw text if not specific JSON error
+              } else if (tokenResponse.statusText) {
+                errorBodyText += ` ${tokenResponse.statusText}`;
+              }
+            } catch (jsonParseError) {
+              // JSON parsing failed, use the raw text if available and not empty
+              if (rawText.trim() !== '') {
+                errorBodyText = `Server error: ${rawText.substring(0, 200)}${rawText.length > 200 ? '...' : ''}`;
+              } else if (tokenResponse.statusText) {
+                 errorBodyText += ` ${tokenResponse.statusText}`;
+              } else {
+                 errorBodyText += ` (No error message body)`;
+              }
+            }
+          } else if (tokenResponse.statusText) {
+            errorBodyText += ` ${tokenResponse.statusText}`;
+          } else {
+            errorBodyText += ` (Server error with no message body)`;
           }
-        } catch (jsonParseError) {
-          console.error(`${operationId} Failed to parse error response from /api/generate-seb-token as JSON. Status: ${tokenResponse.status}, StatusText: ${tokenResponse.statusText}`);
-          // errorBodyText remains as the statusText based message or the generic one above
+        } catch (bodyReadError: any) {
+          console.error(`${operationId} Failed to read error response body from /api/generate-seb-token. Status: ${tokenResponse.status}`, bodyReadError);
+          errorBodyText += ` (Could not read error body: ${bodyReadError.message || String(bodyReadError)})`;
         }
-        console.error(`${operationId} API Error generating token: ${tokenResponse.status}`, errorBodyText);
+        
+        console.error(`${operationId} API Error generating token: ${tokenResponse.status} "${errorBodyText}"`);
         toast({ title: "Launch Error", description: errorBodyText, variant: "destructive" });
         setLocalError(errorBodyText);
         setIsLoading(false);
@@ -133,11 +157,8 @@ export default function JoinExamPage() {
 
       // Production SEB Flow (SEB Launch)
       const appDomain = window.location.origin;
-      // The entry path for SEB is just /seb/entry, token is passed as query param.
       const sebEntryPageUrl = `${appDomain}/seb/entry?token=${sebEntryTokenValue}`; 
       
-      // The sebs:// protocol requires the domain and full path *after* the protocol.
-      // Example: sebs://example.com/path/to/page?query=value
       const domainAndPathForSeb = sebEntryPageUrl.replace(/^https?:\/\//, '');
       const sebLaunchUrl = `sebs://${domainAndPathForSeb}`;
       
@@ -151,17 +172,14 @@ export default function JoinExamPage() {
       
       window.location.href = sebLaunchUrl;
 
-      // Fallback UI update if SEB launch fails or is blocked
       setTimeout(() => {
-        // Check if navigation away from join-exam page happened
-        // This is a heuristic; actual SEB launch detection is tricky.
         if (window.location.pathname.includes('join-exam')) { 
           setIsLoading(false); 
           const sebFailMsg = "SEB launch may have been blocked or failed. If SEB did not start, check your browser's pop-up settings or SEB installation.";
           setLocalError(sebFailMsg);
           toast({ title: "SEB Launch Issue?", description: "If SEB did not open, please check pop-up blockers and ensure SEB is installed correctly.", variant: "destructive", duration: 10000});
         }
-      }, 8000); // Wait 8 seconds before showing this fallback
+      }, 8000);
 
     } catch (e: any) {
       const exceptionMsg = (e && typeof e.message === 'string' ? e.message : "An unexpected error occurred during exam join process.");
@@ -282,4 +300,4 @@ export default function JoinExamPage() {
     </div>
   );
 }
-
+    
