@@ -184,18 +184,20 @@ html.dark {
   color-scheme: dark;
 }
 
-/* SEB Gradient Background - REMOVED as per user request for white background */
-/* .bg-seb-gradient { ... } */
+/* SEB Specific Styling for Light Theme - replaces previous gradient/glass pane for main SEB content */
+.bg-seb-gradient {
+  /* This class is no longer a gradient; now it's just a standard background */
+  @apply bg-background text-foreground;
+}
 
-/* Glassmorphism Pane Style - Adjusted for light theme cards in SEB */
+/* Glass Pane style adjusted for Light Theme - behaves more like a standard card */
 .glass-pane {
-  /* Reverts to a standard card look for light theme, no strong glass effect on white */
-  @apply bg-card text-card-foreground p-6 rounded-lg border border-border/60 shadow-lg;
-  /* For dark theme, a subtle glass effect can still be applied if needed */
+  @apply bg-card/80 backdrop-blur-md text-card-foreground p-4 sm:p-6 rounded-lg border border-border/40 shadow-lg;
   @apply dark:bg-slate-800/50 dark:backdrop-blur-sm dark:border-slate-700/50 dark:text-slate-100;
 }
+
 .glass-pane-light { 
-  @apply bg-card text-card-foreground p-6 rounded-lg border border-border/60 shadow-lg;
+  @apply bg-card/90 text-card-foreground p-4 sm:p-6 rounded-lg border border-border/50 shadow-lg;
   @apply dark:bg-slate-700/60 dark:backdrop-blur-sm dark:border-slate-600/50 dark:text-slate-100;
 }
     
@@ -220,4 +222,14 @@ h4 { @apply text-lg sm:text-xl; }
 }
 .seb-rules-list svg {
   @apply text-primary; /* Primary color for icons on light background */
+}
+
+/* Custom override for sm:p-6 if needed globally, but prefer utility class changes in JSX */
+@layer utilities {
+    @media (min-width: 640px) {
+        /* Custom override for sm:p-6 to become p-2 equivalent */
+        .sm\:p-6 {
+            padding: 0.5rem;
+        }
+    }
 }
