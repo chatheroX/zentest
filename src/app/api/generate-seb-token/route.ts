@@ -20,7 +20,6 @@ try {
   const safeMessage = (e && typeof e === 'object' && typeof e.message === 'string') ? e.message : String(e);
   jwtModuleError = `Failed to initialize or verify 'jsonwebtoken' module at load time: ${safeMessage}`;
   console.error(`${moduleLoadLogPrefix} CRITICAL: ${jwtModuleError}`, e);
-  // Not calling logErrorToBackend here as it's module scope
 }
 
 // Simplified local helper for safe error message extraction for server-side logging
@@ -76,7 +75,6 @@ export async function POST(request: NextRequest) {
     } catch (parseError: any) {
       const errorMsg = getLocalSafeServerErrorMessage(parseError, "Failed to parse request body as JSON.");
       console.error(`${operationId} Error parsing request body: ${errorMsg}`, parseError);
-      // No logErrorToBackend here to keep it simple, focus on returning JSON
       console.log(`${operationId} Preparing to send 400 response due to body parsing error.`);
       return NextResponse.json({ error: `Invalid request body: ${errorMsg}` }, { status: 400 });
     }
@@ -101,7 +99,6 @@ export async function POST(request: NextRequest) {
     } catch (signError: any) {
       const errorMsg = getLocalSafeServerErrorMessage(signError, "JWT signing process failed.");
       console.error(`${operationId} Error during jwt.sign: ${errorMsg}`, signError);
-      // No logErrorToBackend here
       console.log(`${operationId} Preparing to send 500 response due to JWT signing error.`);
       return NextResponse.json({ error: `Token generation failed internally: ${errorMsg}` }, { status: 500 });
     }
@@ -113,7 +110,6 @@ export async function POST(request: NextRequest) {
     // This is the outermost catch block to ensure *something* is returned if an unexpected error occurs
     const errorMessage = getLocalSafeServerErrorMessage(e, "A critical unhandled server error occurred in token generation.");
     console.error(`${operationId} CRITICAL UNHANDLED EXCEPTION: ${errorMessage}`, e);
-    // No logErrorToBackend here, prioritize sending the response
     console.log(`${operationId} Preparing to send 500 response due to critical unhandled exception.`);
     return NextResponse.json({ error: "Critical server error during token generation. Please contact support." }, { status: 500 });
   }
