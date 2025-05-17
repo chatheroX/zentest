@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -9,7 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, AlertTriangle, Clock, Check, X, Bookmark, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
-import { useActivityMonitor, type FlaggedEvent, addInputRestrictionListeners } from '@/hooks/use-activity-monitor';
+import { useActivityMonitor, type FlaggedEvent } from '@/hooks/use-activity-monitor';
+import { addInputRestrictionListeners } from '@/lib/seb-utils'; // Corrected import path
 import { useToast } from '@/hooks/use-toast';
 import type { Question, Exam, QuestionOption } from '@/types/supabase';
 import { cn } from "@/lib/utils";
@@ -53,7 +55,7 @@ export function ExamTakingInterface({
   const [markedForReview, setMarkedForReview] = useState<Record<string, boolean>>({});
   const [visitedQuestions, setVisitedQuestions] = useState<Record<string, boolean>>({});
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
-  const [isSubmittingInternally, setIsSubmittingInternally] = useState(false); // New state for immediate submit button disable
+  const [isSubmittingInternally, setIsSubmittingInternally] = useState(false);
 
   const onSubmitExamRef = useRef(parentOnSubmitExam);
   const onTimeUpRef = useRef(parentOnTimeUp);
@@ -92,7 +94,7 @@ export function ExamTakingInterface({
 
   const handleTimeUpCallback = useCallback(async () => {
     if (parentIsLoading || !examStarted || isSubmittingInternally) return;
-    setIsSubmittingInternally(true); // Prevent further actions
+    setIsSubmittingInternally(true);
     toast({ title: isDemoMode ? "Demo Time's Up!" : "Time's Up!", description: isDemoMode ? "The demo exam duration has ended." : "Auto-submitting your exam.", variant: isDemoMode ? "default" : "destructive" });
     await onTimeUpRef.current(answers, activityFlags);
   }, [answers, activityFlags, isDemoMode, toast, parentIsLoading, examStarted, isSubmittingInternally, onTimeUpRef]);
@@ -101,7 +103,7 @@ export function ExamTakingInterface({
     if (!examStarted) return;
 
     if (timeLeftSeconds <= 0) {
-      if (!isSubmittingInternally) { // Ensure timeUp logic runs only once
+      if (!isSubmittingInternally) { 
         handleTimeUpCallback();
       }
       return;
@@ -172,10 +174,9 @@ export function ExamTakingInterface({
 
   const confirmAndSubmitExam = async () => {
     if (parentIsLoading || isSubmittingInternally) return;
-    setIsSubmittingInternally(true); // Set submitting state true
+    setIsSubmittingInternally(true);
     setShowSubmitConfirm(false);
     await onSubmitExamRef.current(answers, activityFlags);
-    // No need to setIsSubmittingInternally(false) here as parent will unmount/change state
   };
 
   const currentQuestionId = currentQuestion?.id;
@@ -194,7 +195,7 @@ export function ExamTakingInterface({
 
   const totalQuestions = questions.length;
 
-  if (parentIsLoading && !isSubmittingInternally) { // Show submission loader if parent indicates, but not if we triggered internal submission first
+  if (parentIsLoading && !isSubmittingInternally) { 
     return (
       <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-background/90 backdrop-blur-md p-6 text-center">
           <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
@@ -203,7 +204,7 @@ export function ExamTakingInterface({
       </div>
     );
   }
-  if (isSubmittingInternally && !parentIsLoading) { // Show this if internal submit is happening (e.g. time up) but parent hasn't caught up
+  if (isSubmittingInternally && !parentIsLoading) { 
      return (
       <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-background/90 backdrop-blur-md p-6 text-center">
           <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
@@ -212,7 +213,6 @@ export function ExamTakingInterface({
       </div>
     );
   }
-
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-background text-foreground">
@@ -263,7 +263,7 @@ export function ExamTakingInterface({
                 <AlertDialogFooter>
                 <AlertDialogCancel className="btn-outline-subtle" disabled={isSubmittingInternally}>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={confirmAndSubmitExam} className="btn-gradient-destructive" disabled={isSubmittingInternally || parentIsLoading}>
-                    {isSubmittingInternally && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
+                    {(isSubmittingInternally || parentIsLoading) && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
                     Yes, Submit Exam
                 </AlertDialogAction>
                 </AlertDialogFooter>
