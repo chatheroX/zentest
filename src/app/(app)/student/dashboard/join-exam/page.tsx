@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Exam, CustomUser } from '@/types/supabase';
 import { getEffectiveExamStatus } from '@/app/(app)/teacher/dashboard/exams/[examId]/details/page';
 import { useAuth } from '@/contexts/AuthContext';
-import jwt from 'jsonwebtoken'; // Import jwt
+import jwt from 'jsonwebtoken';
 
 
 export default function JoinExamPage() {
@@ -82,13 +82,9 @@ export default function JoinExamPage() {
         return;
       }
       
-      // Generate JWT
-      const jwtSecret = process.env.NEXT_PUBLIC_JWT_SECRET; // Fetch from env (ensure this is set correctly for server use if generating server-side)
-                                                        // For client-side signing (less secure, for demo only), it's fine.
-                                                        // Ideally, JWT generation should happen on a server/API route if the secret is truly server-side.
-                                                        // For this flow, assuming NEXT_PUBLIC_JWT_SECRET is available client-side.
+      const jwtSecret = process.env.NEXT_PUBLIC_JWT_SECRET; 
       if (!jwtSecret) {
-        console.error(`${operationId} JWT_SECRET is not defined in environment variables.`);
+        console.error(`${operationId} NEXT_PUBLIC_JWT_SECRET is not defined in environment variables for client-side token generation.`);
         const jwtErrorMsg = "Configuration error: Cannot create secure exam token.";
         toast({ title: "Launch Error", description: jwtErrorMsg, variant: "destructive" });
         setLocalError(jwtErrorMsg);
@@ -97,14 +93,13 @@ export default function JoinExamPage() {
       }
 
       const jwtPayload = {
-        studentId: studentUser.user_id, // Using user_id as studentId
+        studentId: studentUser.user_id,
         examId: exam.exam_id,
       };
-      const sebEntryTokenValue = jwt.sign(jwtPayload, jwtSecret, { expiresIn: '1h' }); // Token expires in 1 hour
+      const sebEntryTokenValue = jwt.sign(jwtPayload, jwtSecret, { expiresIn: '1h' }); 
       
       console.log(`${operationId} Generated SEB entry JWT:`, sebEntryTokenValue ? sebEntryTokenValue.substring(0,20) + "..." : "GENERATION FAILED");
 
-      // Construct the SEB launch URL with the JWT in a query parameter
       const appDomain = window.location.origin;
       const sebEntryPageUrl = `${appDomain}/seb/entry?token=${sebEntryTokenValue}`;
       
@@ -121,7 +116,6 @@ export default function JoinExamPage() {
       
       window.location.href = sebLaunchUrl;
 
-      // Monitor if SEB launched
       setTimeout(() => {
         if (window.location.pathname.includes('join-exam')) { 
           setIsLoading(false); 
