@@ -1,3 +1,4 @@
+
 // src/app/seb/layout.tsx
 import React from 'react';
 import { Toaster } from "@/components/ui/toaster";
@@ -12,8 +13,9 @@ export default function SebLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en"> {/* Removed className="dark" to default to light theme */}
-      <body className="font-sans antialiased bg-background text-foreground min-h-screen flex flex-col"> {/* Use theme variables */}
+    // Default to light theme based on globals.css if no class is specified on html
+    <html lang="en"> 
+      <body className="font-sans antialiased bg-background text-foreground min-h-screen flex flex-col">
         <AuthProvider> {/* Crucial: Wrap children with AuthProvider */}
           <main className="flex-1 flex flex-col">{children}</main> {/* Ensure children can take full height */}
           <Toaster /> {/* Toasts can provide feedback within SEB */}
@@ -22,3 +24,4 @@ export default function SebLayout({
     </html>
   );
 }
+
