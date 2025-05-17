@@ -29,6 +29,7 @@ interface ExamTakingInterfaceProps {
   studentName?: string | null;
   studentRollNumber?: string | null;
   studentAvatarUrl?: string | null;
+  examStarted: boolean; // Added to ensure it's explicitly started
 }
 
 export function ExamTakingInterface({
@@ -43,6 +44,7 @@ export function ExamTakingInterface({
   studentName,
   studentRollNumber,
   studentAvatarUrl,
+  examStarted,
 }: ExamTakingInterfaceProps) {
   const { toast } = useToast();
 
@@ -77,7 +79,7 @@ export function ExamTakingInterface({
         examId: examDetails.exam_id,
     };
     setActivityFlags((prev) => [...prev, newEvent]);
-    if (!isDemoMode) {
+    if (!isDemoMode) { // Only show toast if not in demo mode
       toast({
         title: "Activity Alert",
         description: `${newEvent.type.replace(/_/g, ' ')} detected. ${newEvent.details || ''}`,
@@ -89,12 +91,14 @@ export function ExamTakingInterface({
 
 
   const handleTimeUpCallback = useCallback(async () => {
-    if (parentIsLoading) return; 
+    if (parentIsLoading || !examStarted) return; 
     toast({ title: isDemoMode ? "Demo Time's Up!" : "Time's Up!", description: isDemoMode ? "The demo exam duration has ended." : "Auto-submitting your exam.", variant: isDemoMode ? "default" : "destructive" });
     await onTimeUpRef.current(answers, activityFlags); 
-  }, [answers, activityFlags, isDemoMode, toast, parentIsLoading, onTimeUpRef]);
+  }, [answers, activityFlags, isDemoMode, toast, parentIsLoading, examStarted, onTimeUpRef]); // Added examStarted
 
   useEffect(() => {
+    if (!examStarted) return; // Don't start timer if exam hasn't explicitly started
+
     if (timeLeftSeconds <= 0) {
       handleTimeUpCallback();
       return; 
@@ -103,29 +107,28 @@ export function ExamTakingInterface({
       setTimeLeftSeconds(prevTime => {
         if (prevTime <= 1) {
           clearInterval(intervalId);
-          return 0; // handleTimeUpCallback will be called due to timeLeftSeconds <= 0 in next render
+          return 0;
         }
         return prevTime - 1;
       });
     }, 1000);
     return () => clearInterval(intervalId);
-  }, [timeLeftSeconds, handleTimeUpCallback]);
+  }, [timeLeftSeconds, handleTimeUpCallback, examStarted]); // Added examStarted
 
 
   useActivityMonitor({
     studentId: userIdForActivityMonitor,
     examId: examDetails.exam_id,
-    enabled: !isDemoMode, 
-    onFlagEvent: (event) => handleFlagEvent({ type: event.type, details: event.details }), // Adapt to new signature
+    enabled: !isDemoMode && examStarted, // Enable only if not demo and exam started
+    onFlagEvent: (event) => handleFlagEvent({ type: event.type, details: event.details }),
   });
 
-  // Input restriction listener
   useEffect(() => {
-    if (isDemoMode) return; // Don't restrict input in demo mode
+    if (isDemoMode || !examStarted) return; // Don't restrict input in demo mode or if exam not started
 
     const cleanupInputRestriction = addInputRestrictionListeners(handleFlagEvent);
     return cleanupInputRestriction;
-  }, [isDemoMode, handleFlagEvent]);
+  }, [isDemoMode, handleFlagEvent, examStarted]); // Added examStarted
 
 
   const handleInternalAnswerChange = useCallback((questionId: string, optionId: string) => {
@@ -187,7 +190,7 @@ export function ExamTakingInterface({
 
   if (parentIsLoading) { 
     return (
-      <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-slate-900/70 backdrop-blur-sm p-6 text-center">
+      <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-md p-6 text-center">
           <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
           <h2 className="text-xl font-medium text-slate-100 mb-2">Submitting Exam...</h2>
           <p className="text-sm text-slate-300">Please wait.</p>
@@ -196,27 +199,27 @@ export function ExamTakingInterface({
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground"> {/* Use theme variables */}
-      <header className="h-16 px-4 sm:px-6 flex items-center justify-between border-b border-border bg-card shadow-sm shrink-0">
+    <div className="min-h-screen w-full flex flex-col bg-slate-900 text-slate-100"> {/* Ensure full screen dark bg */}
+      <header className="h-20 px-4 sm:px-6 flex items-center justify-between border-b border-slate-700 bg-slate-800 shadow-md shrink-0">
         <div className="flex items-center gap-2">
-          <Image src={logoAsset} alt="ZenTest Logo" width={114} height={32} className="h-16 w-auto" /> {/* Logo Size Increased */}
+          <Image src={logoAsset} alt="ZenTest Logo" width={160} height={45} className="h-auto" />
         </div>
         <div className="flex items-center gap-3">
-          <Avatar className="h-9 w-9 border-2 border-primary/30">
+          <Avatar className="h-10 w-10 border-2 border-primary/50">
             <AvatarImage src={studentAvatarUrl || undefined} alt={studentName || 'Student'} />
-            <AvatarFallback className="bg-muted text-muted-foreground">
+            <AvatarFallback className="bg-slate-700 text-slate-300">
                 {(studentName || "S").charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-sm font-medium text-foreground">{studentName || (isDemoMode ? "Demo Teacher" : "Test Student")}</p>
-            <p className="text-xs text-muted-foreground">ID: {studentRollNumber || (isDemoMode ? "T00000" : "S00000")}</p>
+            <p className="text-sm font-medium text-slate-100">{studentName || (isDemoMode ? "Demo Teacher" : "Test Student")}</p>
+            <p className="text-xs text-slate-400">ID: {studentRollNumber || (isDemoMode ? "T00000" : "S00000")}</p>
           </div>
         </div>
       </header>
 
-      <div className="h-14 px-4 sm:px-6 flex items-center justify-between border-b border-border bg-card shadow-sm shrink-0">
-        <div className="flex items-center gap-2 text-muted-foreground">
+      <div className="h-14 px-4 sm:px-6 flex items-center justify-between border-b border-slate-700 bg-slate-800 shadow-sm shrink-0">
+        <div className="flex items-center gap-2 text-slate-300">
           <Clock size={20} className="text-primary" />
           <span className="font-medium text-sm">Time remaining:</span>
           <span className="font-semibold text-md tabular-nums text-primary">{formatTime(timeLeftSeconds)}</span>
@@ -226,23 +229,23 @@ export function ExamTakingInterface({
                  <Button
                     variant="destructive"
                     disabled={parentIsLoading}
-                    className="px-6 py-2 text-sm rounded-md font-medium shadow-md hover:shadow-lg transition-all btn-gradient-destructive" // Use gradient destructive
+                    className="px-6 py-2 text-sm rounded-md font-medium shadow-md hover:shadow-lg transition-all btn-gradient-destructive"
                     >
                     <LogOut className="mr-2 h-4 w-4"/>
                     Submit Exam
                 </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="glass-card"> {/* Use glass-card for consistency */}
+            <AlertDialogContent className="bg-slate-800 border-slate-700 text-slate-100 shadow-xl rounded-lg">
                 <AlertDialogHeader>
-                <AlertDialogTitle className="text-foreground">Confirm Submission</AlertDialogTitle>
-                <AlertDialogDescription className="text-muted-foreground">
+                <AlertDialogTitle className="text-slate-50">Confirm Submission</AlertDialogTitle>
+                <AlertDialogDescription className="text-slate-300">
                     Are you sure you want to submit the exam? This action cannot be undone.
                     {Object.keys(answers).length < totalQuestions && 
                         ` You have ${totalQuestions - Object.keys(answers).length} unanswered question(s).`}
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                <AlertDialogCancel className="btn-outline-subtle">Cancel</AlertDialogCancel>
+                <AlertDialogCancel className="btn-outline-subtle border-slate-600 text-slate-300 hover:bg-slate-700">Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={confirmAndSubmitExam} className="btn-gradient-destructive">
                     Yes, Submit Exam
                 </AlertDialogAction>
@@ -251,23 +254,23 @@ export function ExamTakingInterface({
         </AlertDialog>
       </div>
 
-      <main className="flex-1 flex flex-col py-6 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-24 overflow-y-auto bg-background">
-        <div className="w-full bg-card shadow-xl rounded-lg p-6 sm:p-8 mb-6 modern-card"> {/* Use modern-card */}
+      <main className="flex-1 flex flex-col py-6 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-24 overflow-y-auto bg-slate-900">
+        <div className="w-full bg-slate-800 shadow-xl rounded-lg p-6 sm:p-8 mb-6 border border-slate-700">
           <div className="mb-4 flex justify-between items-center">
             <p className="text-lg sm:text-xl font-semibold text-primary">
-              Question {currentQuestionIndex + 1} <span className="text-sm font-normal text-muted-foreground">of {totalQuestions}</span>
+              Question {currentQuestionIndex + 1} <span className="text-sm font-normal text-slate-400">of {totalQuestions}</span>
             </p>
-            <Button variant="ghost" size="icon" onClick={handleToggleMarkForReview} title={markedForReview[currentQuestion?.id || ''] ? "Unmark for Review" : "Mark for Review"} disabled={parentIsLoading}>
-                <Bookmark className={cn("h-5 w-5", markedForReview[currentQuestion?.id || ''] ? "fill-yellow-400 text-yellow-500" : "text-muted-foreground hover:text-yellow-500")} />
+            <Button variant="ghost" size="icon" onClick={handleToggleMarkForReview} title={markedForReview[currentQuestion?.id || ''] ? "Unmark for Review" : "Mark for Review"} disabled={parentIsLoading} className="text-slate-400 hover:text-yellow-400">
+                <Bookmark className={cn("h-5 w-5", markedForReview[currentQuestion?.id || ''] ? "fill-yellow-400 text-yellow-500" : "")} />
             </Button>
           </div>
-          <h2 className="text-xl sm:text-2xl font-medium text-foreground leading-relaxed">
+          <h2 className="text-xl sm:text-2xl font-medium text-slate-50 leading-relaxed">
             {currentQuestion?.text}
           </h2>
         </div>
 
         {currentQuestion && (
-          <div className="w-full bg-card shadow-xl rounded-lg p-6 sm:p-8 modern-card"> {/* Use modern-card */}
+          <div className="w-full bg-slate-800 shadow-xl rounded-lg p-6 sm:p-8 border border-slate-700">
             <RadioGroup
               key={currentQuestion.id}
               value={answers[currentQuestion.id] || ''}
@@ -283,18 +286,18 @@ export function ExamTakingInterface({
                   key={option.id}
                   htmlFor={`opt-${currentQuestion.id}-${option.id}`}
                   className={cn(
-                    "flex items-center space-x-3 p-4 border rounded-lg transition-all duration-150 ease-in-out cursor-pointer text-base",
+                    "flex items-center space-x-3 p-4 border rounded-lg transition-all duration-150 ease-in-out cursor-pointer text-base text-slate-200",
                     "hover:shadow-lg hover:border-primary/70",
                     answers[currentQuestion.id] === option.id
-                      ? "bg-primary/15 border-primary ring-2 ring-primary/80 text-foreground" // Use foreground for text on primary/15
-                      : "bg-muted/50 border-border hover:bg-accent text-foreground", // Use muted/50 and accent from theme
+                      ? "bg-primary/20 border-primary ring-2 ring-primary/80 text-slate-50"
+                      : "bg-slate-700/50 border-slate-600 hover:bg-slate-700",
                     parentIsLoading && "cursor-not-allowed opacity-70"
                   )}
                 >
                   <RadioGroupItem
                     value={option.id}
                     id={`opt-${currentQuestion.id}-${option.id}`}
-                    className="h-5 w-5 border-muted-foreground text-primary focus:ring-primary disabled:opacity-50 shrink-0"
+                    className="h-5 w-5 border-slate-500 text-primary focus:ring-primary disabled:opacity-50 shrink-0"
                     disabled={parentIsLoading}
                   />
                   <span className="font-medium leading-snug">{option.text}</span>
@@ -305,17 +308,17 @@ export function ExamTakingInterface({
         )}
       </main>
 
-      <footer className="h-20 px-4 sm:px-6 flex items-center justify-between border-t border-border bg-card shadow-top shrink-0">
+      <footer className="h-20 px-4 sm:px-6 flex items-center justify-between border-t border-slate-700 bg-slate-800 shadow-top shrink-0">
         <Button
           variant="outline"
           onClick={handlePreviousQuestion}
           disabled={currentQuestionIndex === 0 || !allowBacktracking || parentIsLoading}
-          className="btn-outline-subtle px-6 py-3 text-md rounded-lg shadow-sm hover:shadow-md"
+          className="btn-outline-subtle border-slate-600 text-slate-300 hover:bg-slate-700 px-6 py-3 text-md rounded-lg shadow-sm hover:shadow-md"
         >
           <ChevronLeft className="mr-2 h-5 w-5" /> Previous
         </Button>
 
-        <div className="flex-1 mx-4 overflow-x-auto whitespace-nowrap scrollbar-thin scrollbar-thumb-muted-foreground/50 dark:scrollbar-thumb-muted-foreground/40 scrollbar-track-transparent py-2">
+        <div className="flex-1 mx-4 overflow-x-auto whitespace-nowrap scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent py-2">
           <div className="flex items-center justify-center gap-2 px-2">
             {questions.map((q, index) => (
               <Button
@@ -326,10 +329,10 @@ export function ExamTakingInterface({
                   "h-10 w-10 text-sm rounded-md shrink-0 font-medium shadow",
                   currentQuestionIndex === index 
                     ? "bg-primary text-primary-foreground hover:bg-primary/90" 
-                    : "btn-outline-subtle text-muted-foreground", // Use subtle outline
-                  answers[q.id] && currentQuestionIndex !== index ? "bg-green-500/20 border-green-500/50 text-green-700 dark:text-green-300" : "",
-                  markedForReview[q.id] && currentQuestionIndex !== index && !answers[q.id] ? "bg-purple-500/20 border-purple-500/50 text-purple-700 dark:text-purple-300" : "",
-                  markedForReview[q.id] && currentQuestionIndex !== index && answers[q.id] ? "bg-purple-500/20 border-purple-500/50 text-purple-700 dark:text-purple-300 ring-2 ring-green-500/70" : "", 
+                    : "btn-outline-subtle border-slate-600 text-slate-300 hover:bg-slate-700",
+                  answers[q.id] && currentQuestionIndex !== index ? "bg-green-600/30 border-green-500/70 text-green-200" : "",
+                  markedForReview[q.id] && currentQuestionIndex !== index && !answers[q.id] ? "bg-purple-600/30 border-purple-500/70 text-purple-200" : "",
+                  markedForReview[q.id] && currentQuestionIndex !== index && answers[q.id] ? "bg-purple-600/30 border-purple-500/70 text-purple-200 ring-2 ring-green-500/70" : "", 
                   (!allowBacktracking && index < currentQuestionIndex) && "opacity-60 cursor-not-allowed"
                 )}
                 onClick={() => handleQuestionNavigation(index)}

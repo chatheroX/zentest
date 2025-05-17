@@ -12,10 +12,10 @@ export default function SebLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="light"> {/* Ensure base HTML structure */}
-      <body className="font-sans antialiased bg-slate-100 dark:bg-slate-900 min-h-screen flex flex-col">
+    <html lang="en" className="dark"> {/* Force dark theme for SEB context */}
+      <body className="font-sans antialiased bg-slate-900 text-slate-100 min-h-screen flex flex-col"> {/* Ensure full screen dark background */}
         <AuthProvider> {/* Crucial: Wrap children with AuthProvider */}
-          {children}
+          <main className="flex-1 flex flex-col">{children}</main> {/* Ensure children can take full height */}
           <Toaster /> {/* Toasts can provide feedback within SEB */}
         </AuthProvider>
       </body>
