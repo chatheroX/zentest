@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en"> {/* Removed className="light" to default to light theme from globals.css */}
+    <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased flex flex-col min-h-screen`}>
         <AuthProvider>
           {children}
