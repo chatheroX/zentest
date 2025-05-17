@@ -25,9 +25,9 @@ export function AppHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/30 bg-background/80 dark:bg-slate-900/80 backdrop-blur-md shadow-sm">
-      <div className="container flex h-16 items-center justify-between">
+      <div className="container flex h-20 items-center justify-between"> {/* Increased header height slightly to accommodate larger logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <Image src={logoAsset} alt="ZenTest Logo" width={114} height={32} priority className="h-8 w-auto" />
+          <Image src={logoAsset} alt="ZenTest Logo" width={114} height={32} priority className="h-16 w-auto" /> {/* Changed h-8 to h-16 */}
         </Link>
         <nav className="flex items-center space-x-1 sm:space-x-2">
           {authLoading ? ( 

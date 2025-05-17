@@ -306,9 +306,9 @@ export function ExamTakingInterface({
   return (
     <div className="min-h-screen flex flex-col bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-50">
       {/* Top Bar: Logo and User Info */}
-      <header className="h-16 px-4 sm:px-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm shrink-0">
+      <header className="h-20 px-4 sm:px-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm shrink-0"> {/* Increased height */}
         <div className="flex items-center gap-2">
-          <Image src={logoAsset} alt="ZenTest Logo" width={114} height={32} className="h-8 w-auto" />
+          <Image src={logoAsset} alt="ZenTest Logo" width={114} height={32} className="h-16 w-auto" /> {/* Changed h-8 to h-16 */}
         </div>
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9 border-2 border-primary/30">
