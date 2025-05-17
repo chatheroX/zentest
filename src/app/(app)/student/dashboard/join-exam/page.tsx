@@ -13,8 +13,6 @@ import { useToast } from '@/hooks/use-toast';
 import type { Exam, CustomUser } from '@/types/supabase';
 import { getEffectiveExamStatus } from '@/app/(app)/teacher/dashboard/exams/[examId]/details/page';
 import { useAuth } from '@/contexts/AuthContext';
-// Removed: import jwt from 'jsonwebtoken'; - No longer signing on client
-// Removed: import { getSafeErrorMessage, logErrorToBackend } from '@/lib/error-logging';
 
 
 export default function JoinExamPage() {
@@ -94,18 +92,17 @@ export default function JoinExamPage() {
       });
 
       if (!tokenResponse.ok) {
-        let errorBodyText = `API error: ${tokenResponse.status} ${tokenResponse.statusText}`;
-        let errorBodyJson = null;
+        let errorBodyText = `API error: ${tokenResponse.status} ${tokenResponse.statusText || 'Failed to generate token'}`;
         try {
-          errorBodyJson = await tokenResponse.json();
+          const errorBodyJson = await tokenResponse.json();
           if (errorBodyJson && typeof errorBodyJson.error === 'string') {
             errorBodyText = errorBodyJson.error;
           }
         } catch (jsonParseError) {
-          console.error(`${operationId} Failed to parse error response from /api/generate-seb-token as JSON.`);
-          // errorBodyText remains as the statusText based message
+          console.error(`${operationId} Failed to parse error response from /api/generate-seb-token as JSON. Status: ${tokenResponse.status}, StatusText: ${tokenResponse.statusText}`);
+          // errorBodyText remains as the statusText based message or the generic one above
         }
-        console.error(`${operationId} API Error generating token: ${tokenResponse.status}`, errorBodyJson || tokenResponse.statusText);
+        console.error(`${operationId} API Error generating token: ${tokenResponse.status}`, errorBodyText);
         toast({ title: "Launch Error", description: errorBodyText, variant: "destructive" });
         setLocalError(errorBodyText);
         setIsLoading(false);
@@ -130,14 +127,17 @@ export default function JoinExamPage() {
       if (isDevMode) {
         console.log(`${operationId} DEV MODE: Skipping SEB launch. Navigating directly to /seb/entry with token in query.`);
         setIsLoading(false);
-        router.push(`/seb/entry?token=${sebEntryTokenValue}`);
+        router.push(`/seb/entry?token=${sebEntryTokenValue}`); // Navigate with token for dev mode
         return;
       }
 
       // Production SEB Flow (SEB Launch)
       const appDomain = window.location.origin;
+      // The entry path for SEB is just /seb/entry, token is passed as query param.
       const sebEntryPageUrl = `${appDomain}/seb/entry?token=${sebEntryTokenValue}`; 
       
+      // The sebs:// protocol requires the domain and full path *after* the protocol.
+      // Example: sebs://example.com/path/to/page?query=value
       const domainAndPathForSeb = sebEntryPageUrl.replace(/^https?:\/\//, '');
       const sebLaunchUrl = `sebs://${domainAndPathForSeb}`;
       
@@ -151,14 +151,17 @@ export default function JoinExamPage() {
       
       window.location.href = sebLaunchUrl;
 
+      // Fallback UI update if SEB launch fails or is blocked
       setTimeout(() => {
+        // Check if navigation away from join-exam page happened
+        // This is a heuristic; actual SEB launch detection is tricky.
         if (window.location.pathname.includes('join-exam')) { 
           setIsLoading(false); 
           const sebFailMsg = "SEB launch may have been blocked or failed. If SEB did not start, check your browser's pop-up settings or SEB installation.";
           setLocalError(sebFailMsg);
           toast({ title: "SEB Launch Issue?", description: "If SEB did not open, please check pop-up blockers and ensure SEB is installed correctly.", variant: "destructive", duration: 10000});
         }
-      }, 8000);
+      }, 8000); // Wait 8 seconds before showing this fallback
 
     } catch (e: any) {
       const exceptionMsg = (e && typeof e.message === 'string' ? e.message : "An unexpected error occurred during exam join process.");
