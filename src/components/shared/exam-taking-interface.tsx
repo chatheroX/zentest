@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -18,10 +17,10 @@ import logoAsset from '../../../logo.png';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface ExamTakingInterfaceProps {
-  examDetails: Exam; 
+  examDetails: Exam;
   questions: Question[];
-  parentIsLoading: boolean; 
-  onAnswerChange: (questionId: string, optionId: string) => void; 
+  parentIsLoading: boolean;
+  onAnswerChange: (questionId: string, optionId: string) => void;
   onSubmitExam: (answers: Record<string, string>, flaggedEvents: FlaggedEvent[]) => Promise<void>;
   onTimeUp: (answers: Record<string, string>, flaggedEvents: FlaggedEvent[]) => Promise<void>;
   isDemoMode?: boolean;
@@ -29,13 +28,13 @@ interface ExamTakingInterfaceProps {
   studentName?: string | null;
   studentRollNumber?: string | null;
   studentAvatarUrl?: string | null;
-  examStarted: boolean; 
+  examStarted: boolean;
 }
 
 export function ExamTakingInterface({
   examDetails,
   questions,
-  parentIsLoading, 
+  parentIsLoading,
   onAnswerChange,
   onSubmitExam: parentOnSubmitExam,
   onTimeUp: parentOnTimeUp,
@@ -54,6 +53,7 @@ export function ExamTakingInterface({
   const [markedForReview, setMarkedForReview] = useState<Record<string, boolean>>({});
   const [visitedQuestions, setVisitedQuestions] = useState<Record<string, boolean>>({});
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [isSubmittingInternally, setIsSubmittingInternally] = useState(false); // New state for immediate submit button disable
 
   const onSubmitExamRef = useRef(parentOnSubmitExam);
   const onTimeUpRef = useRef(parentOnTimeUp);
@@ -79,7 +79,7 @@ export function ExamTakingInterface({
         examId: examDetails.exam_id,
     };
     setActivityFlags((prev) => [...prev, newEvent]);
-    if (!isDemoMode) { 
+    if (!isDemoMode) {
       toast({
         title: "Activity Alert",
         description: `${newEvent.type.replace(/_/g, ' ')} detected. ${newEvent.details || ''}`,
@@ -91,17 +91,20 @@ export function ExamTakingInterface({
 
 
   const handleTimeUpCallback = useCallback(async () => {
-    if (parentIsLoading || !examStarted) return; 
+    if (parentIsLoading || !examStarted || isSubmittingInternally) return;
+    setIsSubmittingInternally(true); // Prevent further actions
     toast({ title: isDemoMode ? "Demo Time's Up!" : "Time's Up!", description: isDemoMode ? "The demo exam duration has ended." : "Auto-submitting your exam.", variant: isDemoMode ? "default" : "destructive" });
-    await onTimeUpRef.current(answers, activityFlags); 
-  }, [answers, activityFlags, isDemoMode, toast, parentIsLoading, examStarted, onTimeUpRef]); 
+    await onTimeUpRef.current(answers, activityFlags);
+  }, [answers, activityFlags, isDemoMode, toast, parentIsLoading, examStarted, isSubmittingInternally, onTimeUpRef]);
 
   useEffect(() => {
-    if (!examStarted) return; 
+    if (!examStarted) return;
 
     if (timeLeftSeconds <= 0) {
-      handleTimeUpCallback();
-      return; 
+      if (!isSubmittingInternally) { // Ensure timeUp logic runs only once
+        handleTimeUpCallback();
+      }
+      return;
     }
     const intervalId = setInterval(() => {
       setTimeLeftSeconds(prevTime => {
@@ -113,28 +116,29 @@ export function ExamTakingInterface({
       });
     }, 1000);
     return () => clearInterval(intervalId);
-  }, [timeLeftSeconds, handleTimeUpCallback, examStarted]); 
+  }, [timeLeftSeconds, handleTimeUpCallback, examStarted, isSubmittingInternally]);
 
 
   useActivityMonitor({
     studentId: userIdForActivityMonitor,
     examId: examDetails.exam_id,
-    enabled: !isDemoMode && examStarted, 
+    enabled: !isDemoMode && examStarted,
     onFlagEvent: (event) => handleFlagEvent({ type: event.type, details: event.details }),
   });
 
   useEffect(() => {
-    if (isDemoMode || !examStarted) return; 
+    if (isDemoMode || !examStarted) return;
 
     const cleanupInputRestriction = addInputRestrictionListeners(handleFlagEvent);
     return cleanupInputRestriction;
-  }, [isDemoMode, handleFlagEvent, examStarted]); 
+  }, [isDemoMode, handleFlagEvent, examStarted]);
 
 
   const handleInternalAnswerChange = useCallback((questionId: string, optionId: string) => {
+    if (isSubmittingInternally) return;
     setAnswers((prevAnswers) => ({ ...prevAnswers, [questionId]: optionId }));
     onAnswerChange(questionId, optionId);
-  }, [onAnswerChange]);
+  }, [onAnswerChange, isSubmittingInternally]);
 
   const handleNextQuestion = useCallback(() => {
     if (currentQuestionIndex < questions.length - 1) {
@@ -167,11 +171,13 @@ export function ExamTakingInterface({
   }, [currentQuestion?.id]);
 
   const confirmAndSubmitExam = async () => {
-    if (parentIsLoading) return;
-    setShowSubmitConfirm(false); 
+    if (parentIsLoading || isSubmittingInternally) return;
+    setIsSubmittingInternally(true); // Set submitting state true
+    setShowSubmitConfirm(false);
     await onSubmitExamRef.current(answers, activityFlags);
+    // No need to setIsSubmittingInternally(false) here as parent will unmount/change state
   };
-  
+
   const currentQuestionId = currentQuestion?.id;
   const memoizedOnRadioValueChange = useCallback((optionId: string) => {
     if (currentQuestionId) {
@@ -185,10 +191,10 @@ export function ExamTakingInterface({
     const seconds = totalSeconds % 60;
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
-  
+
   const totalQuestions = questions.length;
 
-  if (parentIsLoading) { 
+  if (parentIsLoading && !isSubmittingInternally) { // Show submission loader if parent indicates, but not if we triggered internal submission first
     return (
       <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-background/90 backdrop-blur-md p-6 text-center">
           <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
@@ -197,12 +203,22 @@ export function ExamTakingInterface({
       </div>
     );
   }
+  if (isSubmittingInternally && !parentIsLoading) { // Show this if internal submit is happening (e.g. time up) but parent hasn't caught up
+     return (
+      <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-background/90 backdrop-blur-md p-6 text-center">
+          <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
+          <h2 className="text-xl font-medium text-foreground mb-2">Processing Submission...</h2>
+          <p className="text-sm text-muted-foreground">Please wait.</p>
+      </div>
+    );
+  }
+
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-background text-foreground">
       <header className="h-20 px-4 sm:px-6 flex items-center justify-between border-b border-border bg-card shadow-sm shrink-0">
         <div className="flex items-center gap-2">
-          <Image src={logoAsset} alt="ZenTest Logo" width={160} height={45} className="h-16 w-auto" /> {/* Logo size updated */}
+          <Image src={logoAsset} alt="ZenTest Logo" width={160} height={45} className="h-16 w-auto" />
         </div>
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10 border-2 border-primary/50">
@@ -228,7 +244,7 @@ export function ExamTakingInterface({
             <AlertDialogTrigger asChild>
                  <Button
                     variant="destructive"
-                    disabled={parentIsLoading}
+                    disabled={parentIsLoading || isSubmittingInternally}
                     className="px-6 py-2 text-sm rounded-md font-medium shadow-md hover:shadow-lg transition-all btn-gradient-destructive"
                     >
                     <LogOut className="mr-2 h-4 w-4"/>
@@ -240,13 +256,14 @@ export function ExamTakingInterface({
                 <AlertDialogTitle className="text-foreground">Confirm Submission</AlertDialogTitle>
                 <AlertDialogDescription className="text-muted-foreground">
                     Are you sure you want to submit the exam? This action cannot be undone.
-                    {Object.keys(answers).length < totalQuestions && 
+                    {Object.keys(answers).length < totalQuestions &&
                         ` You have ${totalQuestions - Object.keys(answers).length} unanswered question(s).`}
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                <AlertDialogCancel className="btn-outline-subtle">Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmAndSubmitExam} className="btn-gradient-destructive">
+                <AlertDialogCancel className="btn-outline-subtle" disabled={isSubmittingInternally}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmAndSubmitExam} className="btn-gradient-destructive" disabled={isSubmittingInternally || parentIsLoading}>
+                    {isSubmittingInternally && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
                     Yes, Submit Exam
                 </AlertDialogAction>
                 </AlertDialogFooter>
@@ -260,7 +277,7 @@ export function ExamTakingInterface({
             <p className="text-lg sm:text-xl font-semibold text-primary">
               Question {currentQuestionIndex + 1} <span className="text-sm font-normal text-muted-foreground">of {totalQuestions}</span>
             </p>
-            <Button variant="ghost" size="icon" onClick={handleToggleMarkForReview} title={markedForReview[currentQuestion?.id || ''] ? "Unmark for Review" : "Mark for Review"} disabled={parentIsLoading} className="text-muted-foreground hover:text-yellow-500">
+            <Button variant="ghost" size="icon" onClick={handleToggleMarkForReview} title={markedForReview[currentQuestion?.id || ''] ? "Unmark for Review" : "Mark for Review"} disabled={parentIsLoading || isSubmittingInternally} className="text-muted-foreground hover:text-yellow-500">
                 <Bookmark className={cn("h-5 w-5", markedForReview[currentQuestion?.id || ''] ? "fill-yellow-400 text-yellow-500" : "")} />
             </Button>
           </div>
@@ -279,7 +296,7 @@ export function ExamTakingInterface({
                 "grid gap-4",
                 currentQuestion.options.length <= 2 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"
               )}
-              disabled={parentIsLoading}
+              disabled={parentIsLoading || isSubmittingInternally}
             >
               {currentQuestion.options.map((option) => (
                 <Label
@@ -289,16 +306,16 @@ export function ExamTakingInterface({
                     "flex items-center space-x-3 p-4 border rounded-lg transition-all duration-150 ease-in-out cursor-pointer text-base text-foreground",
                     "hover:shadow-lg hover:border-primary/70",
                     answers[currentQuestion.id] === option.id
-                      ? "bg-primary/10 border-primary ring-2 ring-primary/80 text-primary" // Selected option style for light theme
+                      ? "bg-primary/10 border-primary ring-2 ring-primary/80 text-primary"
                       : "bg-background border-border hover:bg-accent/50",
-                    parentIsLoading && "cursor-not-allowed opacity-70"
+                    (parentIsLoading || isSubmittingInternally) && "cursor-not-allowed opacity-70"
                   )}
                 >
                   <RadioGroupItem
                     value={option.id}
                     id={`opt-${currentQuestion.id}-${option.id}`}
                     className="h-5 w-5 border-muted-foreground text-primary focus:ring-primary disabled:opacity-50 shrink-0"
-                    disabled={parentIsLoading}
+                    disabled={parentIsLoading || isSubmittingInternally}
                   />
                   <span className="font-medium leading-snug">{option.text}</span>
                 </Label>
@@ -312,13 +329,13 @@ export function ExamTakingInterface({
         <Button
           variant="outline"
           onClick={handlePreviousQuestion}
-          disabled={currentQuestionIndex === 0 || !allowBacktracking || parentIsLoading}
+          disabled={currentQuestionIndex === 0 || !allowBacktracking || parentIsLoading || isSubmittingInternally}
           className="btn-outline-subtle px-6 py-3 text-md rounded-lg shadow-sm hover:shadow-md"
         >
           <ChevronLeft className="mr-2 h-5 w-5" /> Previous
         </Button>
 
-        <div className="flex-1 mx-4 overflow-x-auto whitespace-nowrap scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent py-2">
+        <div className="flex-1 mx-4 overflow-x-auto whitespace-nowrap scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent py-2">
           <div className="flex items-center justify-center gap-2 px-2">
             {questions.map((q, index) => (
               <Button
@@ -327,16 +344,16 @@ export function ExamTakingInterface({
                 size="icon"
                 className={cn(
                   "h-10 w-10 text-sm rounded-md shrink-0 font-medium shadow",
-                  currentQuestionIndex === index 
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                  currentQuestionIndex === index
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
                     : "btn-outline-subtle text-muted-foreground",
-                  answers[q.id] && currentQuestionIndex !== index ? "bg-green-100 border-green-300 text-green-700 hover:bg-green-200" : "",
-                  markedForReview[q.id] && currentQuestionIndex !== index && !answers[q.id] ? "bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-200" : "",
-                  markedForReview[q.id] && currentQuestionIndex !== index && answers[q.id] ? "bg-purple-100 border-purple-300 text-purple-700 ring-2 ring-green-300 hover:bg-purple-200" : "", 
+                  answers[q.id] && currentQuestionIndex !== index ? "bg-green-100 border-green-300 text-green-700 dark:bg-green-800/30 dark:border-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-700/40" : "",
+                  markedForReview[q.id] && currentQuestionIndex !== index && !answers[q.id] ? "bg-purple-100 border-purple-300 text-purple-700 dark:bg-purple-800/30 dark:border-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-700/40" : "",
+                  markedForReview[q.id] && currentQuestionIndex !== index && answers[q.id] ? "bg-purple-100 border-purple-300 text-purple-700 ring-2 ring-green-300 dark:bg-purple-800/30 dark:border-purple-700 dark:text-purple-300 dark:ring-green-700 hover:bg-purple-200 dark:hover:bg-purple-700/40" : "",
                   (!allowBacktracking && index < currentQuestionIndex) && "opacity-60 cursor-not-allowed"
                 )}
                 onClick={() => handleQuestionNavigation(index)}
-                disabled={(!allowBacktracking && index < currentQuestionIndex) || parentIsLoading}
+                disabled={(!allowBacktracking && index < currentQuestionIndex) || parentIsLoading || isSubmittingInternally}
                 title={`Go to Question ${index + 1}`}
               >
                 {index + 1}
@@ -347,7 +364,7 @@ export function ExamTakingInterface({
 
         <Button
           onClick={handleNextQuestion}
-          disabled={currentQuestionIndex === totalQuestions - 1 || parentIsLoading}
+          disabled={currentQuestionIndex === totalQuestions - 1 || parentIsLoading || isSubmittingInternally}
           className={cn(
             "px-6 py-3 text-md rounded-lg font-medium shadow-sm hover:shadow-md bg-primary text-primary-foreground hover:bg-primary/90"
           )}

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from 'react';
@@ -6,8 +5,8 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useRouter, usePathname } from 'next/navigation';
 import Cookies from 'js-cookie';
 import type { CustomUser, ProctorXTableType } from '@/types/supabase';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"; // Import AlertDialog components
-import { Button } from '@/components/ui/button'; // For trigger if needed outside sidebar
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Button } from '@/components/ui/button'; // Used by AlertDialogTrigger in consuming components
 
 const SESSION_COOKIE_NAME = 'proctorprep-user-email';
 const ROLE_COOKIE_NAME = 'proctorprep-user-role';
@@ -37,8 +36,10 @@ type AuthContextType = {
   supabase: ReturnType<typeof createSupabaseBrowserClient> | null;
   signIn: (email: string, pass: string) => Promise<{ success: boolean; error?: string; user?: CustomUser | null }>;
   signUp: (email: string, pass: string, name: string, role: CustomUser['role']) => Promise<{ success: boolean; error?: string; user?: CustomUser | null }>;
-  signOut: () => Promise<void>; // Will be wrapped by confirmation dialog
+  signOut: () => Promise<void>;
   updateUserProfile: (data: { name: string; password?: string; avatar_url?: string }) => Promise<{ success: boolean; error?: string }>;
+  showSignOutDialog: boolean; // Added for AlertDialog
+  setShowSignOutDialog: React.Dispatch<React.SetStateAction<boolean>>; // Added for AlertDialog
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const initialLoadAttempted = React.useRef(false);
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false); // State for AlertDialog
 
   const router = useRouter();
   const pathname = usePathname();
@@ -87,10 +89,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!supabase) {
       console.warn(`${effectId} Aborted: Supabase client not available. Setting isLoading=false.`);
-      setIsLoading(false); 
+      setIsLoading(false);
       return;
     }
-    
+
     const userEmailFromCookie = Cookies.get(SESSION_COOKIE_NAME);
     if (user && user.email === userEmailFromCookie && !isLoading) {
         console.log(`${effectId} User already in context and matches cookie. Skipping DB re-fetch for this load.`);
@@ -110,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         Cookies.remove(ROLE_COOKIE_NAME);
         return;
       }
-      
+
       console.log(`${effectId} Session cookie found. Fetching user: ${userEmailFromCookie} from DB...`);
       console.time(`${effectId} Supabase LoadUserFromCookie Query`);
       const { data, error: dbError } = await supabase
@@ -125,14 +127,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let errorDetail = 'User from session cookie not found or DB error.';
         if (dbError && dbError.code === 'PGRST116') errorDetail = 'User from session cookie not found in database.';
         else if (dbError) errorDetail = `DB Error: ${dbError.message}`;
-        
+
         console.warn(`${effectId} ${errorDetail} Email: ${userEmailFromCookie}. Clearing session.`);
         setUser(null);
         Cookies.remove(SESSION_COOKIE_NAME);
         Cookies.remove(ROLE_COOKIE_NAME);
         return;
       }
-      
+
       const loadedUser: CustomUser = {
         user_id: data.user_id,
         email: data.email,
@@ -161,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const effectId = `[AuthContext UserLoadTriggerEffect ${Date.now().toString().slice(-4)}]`;
     console.log(`${effectId} Running. Supabase: ${!!supabase}, AuthError: ${authError}, InitialLoadAttempted: ${initialLoadAttempted.current}, isLoading: ${isLoading}`);
-    
+
     if (authError) {
       if (isLoading) {
         console.warn(`${effectId} AuthError present ('${authError}'), ensuring isLoading is false.`);
@@ -176,22 +178,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log(`${effectId} Supabase client available & first attempt. Calling loadUserFromCookie.`);
         loadUserFromCookie();
       } else {
-        // Initial load already attempted.
-        // If isLoading is true here, it implies loadUserFromCookie might still be running (which is fine and will set it false)
-        // OR it was reset. This safeguard helps if it was reset and loadUserFromCookie determined no active session.
         if (isLoading && !user && Cookies.get(SESSION_COOKIE_NAME) === undefined) {
              console.warn(`${effectId} Post-initial load: isLoading is true but no user/cookie. Forcing isLoading to false.`);
              setIsLoading(false);
         }
       }
-    } else if (!isLoading) { 
-        // Supabase not available, no authError, AND isLoading is already false.
-        // This implies Supabase client initialization failed without setting authError,
-        // or this effect ran after such a failure.
+    } else if (!isLoading) {
         console.error(`${effectId} Supabase client not available, no authError, and isLoading is false. This indicates an initialization issue. Setting authError.`);
         setAuthError("Supabase client failed to initialize properly.");
     }
-    // If supabase is null, authError is null, and isLoading is true, we are still waiting for the Supabase client init effect to complete.
   }, [supabase, authError, loadUserFromCookie, user, isLoading]);
 
   const getRedirectPathForRole = useCallback((userRole: CustomUser['role'] | null) => {
@@ -203,7 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const effectId = `[AuthContext Route Guard Effect ${Date.now().toString().slice(-4)}]`;
     console.log(`${effectId} Running. isLoading: ${isLoading}, Path: ${pathname}, User: ${user?.email}, Role: ${user?.role}, ContextAuthError: ${authError}`);
 
-    if (isLoading || authError) { 
+    if (isLoading || authError) {
       console.log(`${effectId} Waiting: isLoading is ${isLoading}, authError is '${authError}'. No routing.`);
       return;
     }
@@ -211,32 +206,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isAuthPg = pathname === AUTH_ROUTE;
     const isStudentDashboardArea = pathname?.startsWith('/student/dashboard');
     const isTeacherDashboardArea = pathname?.startsWith('/teacher/dashboard');
-    const isExamSessionPage = pathname?.startsWith('/exam-session/'); // Retained for completeness
     const isSebSpecificRoute = pathname?.startsWith('/seb/');
-    const PUBLIC_ROUTES = ['/', '/privacy', '/terms', '/supabase-test', '/unsupported-browser'];
+    // PUBLIC_ROUTES should be defined in middleware, but for client-side logic this is a reasonable check
+    const PUBLIC_ROUTES_FOR_CLIENT = ['/', '/privacy', '/terms', '/supabase-test', '/unsupported-browser'];
+    const isPublicRoute = PUBLIC_ROUTES_FOR_CLIENT.includes(pathname);
+    const isProtectedRoute = isStudentDashboardArea || isTeacherDashboardArea;
 
-    const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
-    if (user && user.user_id) { 
+    if (user && user.user_id) {
       const targetDashboard = getRedirectPathForRole(user.role);
       console.log(`${effectId} User authenticated (${user.email}, Role: ${user.role}). Target dashboard: ${targetDashboard}`);
-      
-      if (isAuthPg) { 
+
+      if (isAuthPg) {
         if (pathname !== targetDashboard) {
           console.log(`${effectId} User on ${AUTH_ROUTE}, attempting redirect to: ${targetDashboard}`);
-          router.replace(targetDashboard); 
-          return; 
+          router.replace(targetDashboard);
+          return;
         }
-      } else { 
+      } else {
           if (user.role === 'student' && isTeacherDashboardArea) {
-            if (pathname !== STUDENT_DASHBOARD_ROUTE) { 
+            if (pathname !== STUDENT_DASHBOARD_ROUTE) {
               console.log(`${effectId} Authenticated student on teacher area, redirecting to ${STUDENT_DASHBOARD_ROUTE}`);
               router.replace(STUDENT_DASHBOARD_ROUTE);
               return;
             }
           }
           if (user.role === 'teacher' && isStudentDashboardArea) {
-            if (pathname !== TEACHER_DASHBOARD_ROUTE) { 
+            if (pathname !== TEACHER_DASHBOARD_ROUTE) {
               console.log(`${effectId} Authenticated teacher on student area, redirecting to ${TEACHER_DASHBOARD_ROUTE}`);
               router.replace(TEACHER_DASHBOARD_ROUTE);
               return;
@@ -245,14 +241,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       console.log(`${effectId} Authenticated user on allowed page: ${pathname}. No redirect needed by context guard this cycle.`);
 
-    } else { 
+    } else { // User not authenticated
       console.log(`${effectId} User not authenticated. Path: ${pathname}`);
-      const isProtectedRoute = isStudentDashboardArea || isTeacherDashboardArea || isExamSessionPage;
-      
-      if (isProtectedRoute && !isAuthPg && !isSebSpecificRoute) { 
+      if (isProtectedRoute && !isAuthPg && !isSebSpecificRoute) {
         console.log(`${effectId} Unauthenticated on protected route ${pathname}, redirecting to ${AUTH_ROUTE}`);
         router.replace(AUTH_ROUTE);
-        return; 
+        return;
       }
       console.log(`${effectId} User not authenticated and on public, SEB, or ${AUTH_ROUTE} page: ${pathname}. No redirect by context guard.`);
     }
@@ -301,12 +295,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role: data.role as CustomUser['role'] || null,
           avatar_url: data.avatar_url || generateEnhancedDiceBearAvatar(data.role as CustomUser['role'], data.user_id),
         };
-        
+
         setUser(userData);
         Cookies.set(SESSION_COOKIE_NAME, userData.email, { expires: 7, path: '/' });
         if (userData.role) Cookies.set(ROLE_COOKIE_NAME, userData.role, { expires: 7, path: '/' });
         else Cookies.remove(ROLE_COOKIE_NAME);
-        
+
         console.log(`${operationId} Success. User set in context: ${userData.email}, Role: ${userData.role}. Routing effect will handle navigation.`);
         setIsLoading(false);
         return { success: true, user: userData };
@@ -378,11 +372,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: insertedData.role as CustomUser['role'],
         avatar_url: insertedData.avatar_url || defaultAvatar,
       };
-      
+
       setUser(newUserData);
       Cookies.set(SESSION_COOKIE_NAME, newUserData.email, { expires: 7, path: '/' });
       Cookies.set(ROLE_COOKIE_NAME, newUserData.role, { expires: 7, path: '/' });
-      
+
       console.log(`${operationId} Success. User set: ${newUserData.email}. Routing effect will handle navigation.`);
       setIsLoading(false);
       return { success: true, user: newUserData };
@@ -397,13 +391,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const performSignOut = useCallback(async () => {
     const operationId = `[AuthContext performSignOut ${Date.now().toString().slice(-4)}]`;
     console.log(`${operationId} Signing out. Current path: ${pathname}`);
-    
+
     setUser(null);
     Cookies.remove(SESSION_COOKIE_NAME, { path: '/' });
     Cookies.remove(ROLE_COOKIE_NAME, { path: '/' });
     setAuthError(null);
-    setIsLoading(false); 
-    
+    setIsLoading(false); // Ensure loading is false after sign out completes
+    setShowSignOutDialog(false); // Close dialog after confirmation
+
     if (pathname !== AUTH_ROUTE) {
         console.log(`${operationId} Redirecting to ${AUTH_ROUTE} after sign out.`);
         router.replace(AUTH_ROUTE);
@@ -414,7 +409,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateUserProfile = useCallback(async (profileData: { name: string; password?: string; avatar_url?: string }): Promise<{ success: boolean; error?: string }> => {
     const operationId = `[AuthContext updateUserProfile ${Date.now().toString().slice(-4)}]`;
-    
+
     if (!supabase) {
       const errorMsg = "Service connection error.";
       console.error(`${operationId} Aborted: ${errorMsg}`);
@@ -424,7 +419,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const errorMsg = "User not authenticated or user_id missing.";
       setAuthError(errorMsg); setIsLoading(false); return { success: false, error: errorMsg };
     }
-    
+
     console.log(`${operationId} Attempting update for user_id: ${user.user_id} with data:`, profileData);
     setIsLoading(true); setAuthError(null);
 
@@ -464,11 +459,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [supabase, user]);
 
+  // Memoize context value to prevent unnecessary re-renders of consuming components
   const contextValue = useMemo(() => ({
-    user, isLoading, authError, supabase, signIn, signUp, signOut: performSignOut, updateUserProfile,
-  }), [user, isLoading, authError, supabase, signIn, signUp, performSignOut, updateUserProfile]);
+    user, isLoading, authError, supabase, signIn, signUp,
+    signOut: () => setShowSignOutDialog(true), // Trigger dialog instead of direct sign out
+    updateUserProfile,
+    showSignOutDialog, setShowSignOutDialog
+  }), [user, isLoading, authError, supabase, signIn, signUp, updateUserProfile, showSignOutDialog, setShowSignOutDialog]);
 
-  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={contextValue}>
+      {children}
+      <AlertDialog open={showSignOutDialog} onOpenChange={setShowSignOutDialog}>
+        <AlertDialogContent className="bg-popover border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Confirm Logout</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Are you sure you want to log out?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="btn-outline-subtle" onClick={() => setShowSignOutDialog(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={performSignOut} className="btn-gradient-destructive">
+              Logout
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
