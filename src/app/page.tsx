@@ -4,7 +4,7 @@ import { AppHeader } from '@/components/shared/header';
 import { AppFooter } from '@/components/shared/footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CircleCheckBig, BookOpenText, Users, Cpu, ArrowRight, ShieldCheck, BarChart3, Brain } from 'lucide-react';
+import { CircleCheckBig, BookOpenText, Users, Cpu, ArrowRight, ShieldCheck, BarChart3, Brain, Code } from 'lucide-react';
 import Link from 'next/link';
 
 const features = [
@@ -46,7 +46,7 @@ export default function LandingPage() {
                 <p className="text-lg text-slate-600 md:text-xl max-w-2xl mx-auto dark:text-slate-300">
                   ZenTest offers a robust, modern platform for conducting secure online exams, trusted by educators and students alike.
                 </p>
-                <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-center items-center">
                   <Button size="lg" className="btn-primary-solid shadow-sm hover:shadow-md transition-shadow duration-300" asChild>
                     <Link href="/auth?action=register&role=teacher">
                       Get Started as Teacher <ArrowRight className="ml-2 h-5 w-5" />
@@ -55,6 +55,11 @@ export default function LandingPage() {
                   <Button size="lg" variant="outline" className="shadow-sm hover:shadow-md transition-shadow duration-300 border-border hover:bg-accent/10 text-primary hover:text-primary dark:text-slate-100 dark:hover:text-primary" asChild>
                     <Link href="/auth?action=register&role=student">
                       Join as Student
+                    </Link>
+                  </Button>
+                  <Button size="lg" variant="secondary" className="shadow-sm hover:shadow-md transition-shadow duration-300 text-secondary-foreground hover:bg-secondary/80" asChild>
+                    <Link href="/web-ide">
+                      <Code className="mr-2 h-5 w-5" /> Try Web IDE
                     </Link>
                   </Button>
                 </div>
