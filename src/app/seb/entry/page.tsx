@@ -1,15 +1,15 @@
-
 // src/app/seb/entry/page.tsx
 import React, { Suspense } from 'react';
 import { SebEntryClientNew } from '@/components/seb/seb-entry-client-new';
 import { Loader2, ShieldAlert } from 'lucide-react';
+import { Toaster } from '@/components/ui/toaster';
 
-// This page is now the SEB entry point and uses query parameter for token
 export default function SebEntryPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
+    // Removed p-4, items-center, justify-center to allow SebEntryClientNew to control its full-screen layout
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Suspense fallback={
-        <div className="flex flex-col items-center justify-center text-center">
+        <div className="flex flex-col items-center justify-center text-center flex-grow">
           <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
           <h2 className="text-xl font-medium text-foreground mb-2">
             Initializing Secure Exam Session...
@@ -20,9 +20,9 @@ export default function SebEntryPage() {
           </div>
         </div>
       }>
-        {/* SebEntryClientNew will read token from URL query parameters */}
         <SebEntryClientNew />
       </Suspense>
+      <Toaster />
     </div>
   );
 }
