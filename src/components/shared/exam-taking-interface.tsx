@@ -194,6 +194,7 @@ export function ExamTakingInterface({
   };
 
   const totalQuestions = questions.length;
+  const isLastQuestion = currentQuestionIndex === totalQuestions - 1;
 
   if (parentIsLoading && !isSubmittingInternally) { 
     return (
@@ -220,7 +221,7 @@ export function ExamTakingInterface({
       {/* Header: Use bg-card for light theme */}
       <header className="h-20 px-4 sm:px-6 flex items-center justify-between border-b border-border bg-card shadow-sm shrink-0">
         <div className="flex items-center gap-2">
-          <Image src={logoAsset} alt="ZenTest Logo" width={180} height={50} className="h-16 w-auto" />
+          <Image src={logoAsset} alt="ZenTest Logo" width={180} height={45} className="h-16 w-auto" />
         </div>
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10 border-2 border-primary/60">
@@ -264,7 +265,7 @@ export function ExamTakingInterface({
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                <AlertDialogCancel className="btn-outline-subtle" disabled={isSubmittingInternally}>Cancel</AlertDialogCancel>
+                <AlertDialogCancel className="btn-outline-subtle" disabled={isSubmittingInternally || parentIsLoading}>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={confirmAndSubmitExam} className="btn-gradient-destructive" disabled={isSubmittingInternally || parentIsLoading}>
                     {(isSubmittingInternally || parentIsLoading) && <Loader2 className="animate-spin mr-2 h-4 w-4 stroke-width-1.5" />}
                     Yes, Submit Exam
@@ -369,16 +370,30 @@ export function ExamTakingInterface({
           </div>
         </div>
 
-        <Button
-          onClick={handleNextQuestion}
-          disabled={currentQuestionIndex === totalQuestions - 1 || parentIsLoading || isSubmittingInternally}
-          className={cn(
-            "px-6 py-3 text-md rounded-lg font-medium shadow-sm btn-primary-solid"
-          )}
-        >
-          Next <ChevronRight className="ml-2 h-5 w-5 stroke-width-1.5" />
-        </Button>
+        {isLastQuestion ? (
+          <Button
+            onClick={() => setShowSubmitConfirm(true)}
+            disabled={parentIsLoading || isSubmittingInternally}
+            className={cn(
+              "px-6 py-3 text-md rounded-lg font-medium shadow-sm btn-gradient-destructive"
+            )}
+          >
+            <LogOut className="mr-2 h-5 w-5 stroke-width-1.5" /> Submit Exam
+          </Button>
+        ) : (
+          <Button
+            onClick={handleNextQuestion}
+            disabled={currentQuestionIndex === totalQuestions - 1 || parentIsLoading || isSubmittingInternally}
+            className={cn(
+              "px-6 py-3 text-md rounded-lg font-medium shadow-sm btn-primary-solid"
+            )}
+          >
+            Next <ChevronRight className="ml-2 h-5 w-5 stroke-width-1.5" />
+          </Button>
+        )}
       </footer>
     </div>
   );
 }
+
+    
