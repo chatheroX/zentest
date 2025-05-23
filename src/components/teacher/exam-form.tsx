@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { PlusCircle, Trash2, Upload, Brain, Save, FileText, Settings2, CalendarDays, Clock, CheckCircle, Loader2, CalendarIcon, AlertTriangle, ListChecks } from 'lucide-react'; // Added ListChecks
+import { PlusCircle, Trash2, Upload, Brain, Save, FileText, Settings2, CalendarDays, Clock, CheckCircle, Loader2, CalendarIcon, AlertTriangle, ListChecks, Edit } from 'lucide-react'; // Added Edit
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { cn } from "@/lib/utils";
@@ -28,8 +28,8 @@ export interface ExamFormData {
   questions: Question[];
   startTime: Date | null;
   endTime: Date | null;
-  status: ExamStatus; 
-  exam_id?: string; 
+  status: ExamStatus;
+  exam_id?: string;
   exam_code?: string;
 }
 
@@ -53,13 +53,13 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
   const [endTimeStr, setEndTimeStr] = useState("17:00");   // Default end time
 
   const [questions, setQuestions] = useState<Question[]>([]);
-  
+
   const [currentQuestionText, setCurrentQuestionText] = useState('');
   const [currentOptions, setCurrentOptions] = useState<QuestionOption[]>(
     Array.from({ length: 4 }, (_, i) => ({ id: `opt-new-${i}-${Date.now()}`, text: '' }))
   );
   const [currentCorrectOptionId, setCurrentCorrectOptionId] = useState<string>('');
-  
+
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -69,7 +69,7 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
       setDuration(initialData.duration || 60);
       setAllowBacktracking(initialData.allowBacktracking !== undefined ? initialData.allowBacktracking : true);
       setQuestions(initialData.questions || []);
-      
+
       const initialStartTimeObj = initialData.startTime ? (typeof initialData.startTime === 'string' ? parseISO(initialData.startTime) : initialData.startTime) : null;
       const initialEndTimeObj = initialData.endTime ? (typeof initialData.endTime === 'string' ? parseISO(initialData.endTime) : initialData.endTime) : null;
 
@@ -121,7 +121,7 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
     if (!targetDate) { // If date part is not set, use today as a base for time setting
         targetDate = new Date();
     }
-    
+
     if (type === 'start') setStartTimeStr(timeValue);
     else setEndTimeStr(timeValue);
 
@@ -134,7 +134,7 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
   };
 
   // Helper for unique option IDs
-  let optionIdCounter = 0; 
+  let optionIdCounter = 0;
   const generateOptionId = () => `opt-gen-${optionIdCounter++}-${Date.now()}`;
 
   const handleAddQuestion = useCallback(() => {
@@ -147,7 +147,7 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
       toast({ title: "Not Enough Options", description: "Please provide at least two options.", variant: "destructive" });
       return;
     }
-    
+
     const isCorrectOptionAmongFilled = filledOptions.some(opt => opt.id === currentCorrectOptionId);
     if (!currentCorrectOptionId || !isCorrectOptionAmongFilled) {
       toast({ title: "No Correct Answer", description: "Please select a valid correct answer from the provided options.", variant: "destructive" });
@@ -156,7 +156,7 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
 
     const newOptionsWithUniqueIds = filledOptions.map(opt => ({
       ...opt,
-      id: generateOptionId() 
+      id: generateOptionId()
     }));
 
     const originalCorrectOptionObject = filledOptions.find(opt => opt.id === currentCorrectOptionId);
@@ -169,19 +169,19 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
     }
 
     const newQuestion: Question = {
-      id: `q-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, 
+      id: `q-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       text: currentQuestionText,
       options: newOptionsWithUniqueIds,
       correctOptionId: finalCorrectOptionId,
     };
     setQuestions(prevQuestions => [...prevQuestions, newQuestion]);
-    
+
     setCurrentQuestionText('');
     setCurrentOptions(resetOptionIdsAndText());
     setCurrentCorrectOptionId('');
     toast({ description: "Question added to list below." });
   }, [currentQuestionText, currentOptions, currentCorrectOptionId, toast]);
-  
+
 
   const handleRemoveQuestion = useCallback((id: string) => {
     setQuestions(prevQuestions => prevQuestions.filter(q => q.id !== id));
@@ -229,7 +229,7 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
       questions,
       startTime,
       endTime,
-      status: 'Published', 
+      status: 'Published',
       exam_code: initialData?.exam_code,
     };
 
@@ -248,17 +248,17 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
     <form onSubmit={handleSubmit}>
       <Card className="w-full modern-card">
         <CardHeader>
-          <CardTitle className="text-2xl flex items-center gap-2">
-            {isEditing ? <Edit className="h-6 w-6 text-primary" /> : <PlusCircle className="h-6 w-6 text-primary" />}
+          <CardTitle className="text-2xl flex items-center gap-2 text-foreground">
+            {isEditing ? <Edit className="h-6 w-6 text-primary" strokeWidth={1.5} /> : <PlusCircle className="h-6 w-6 text-primary" strokeWidth={1.5} />}
             {isEditing ? `Edit Exam: ${initialData?.title || ''}` : 'Create New Exam'}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-muted-foreground">
             {isEditing ? 'Modify the details of your existing exam.' : 'Fill in the details to create a new exam. All exams created/edited here will be "Published".'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
           <section className="space-y-4 p-4 border rounded-lg bg-muted/20">
-            <h3 className="text-lg font-medium flex items-center gap-2 text-foreground"><FileText className="h-5 w-5 text-primary" /> Basic Information</h3>
+            <h3 className="text-lg font-medium flex items-center gap-2 text-foreground"><FileText className="h-5 w-5 text-primary" strokeWidth={1.5} /> Basic Information</h3>
             <div className="space-y-2">
               <Label htmlFor="examTitle">Exam Title</Label>
               <Input id="examTitle" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Final Year Mathematics" required className="modern-input"/>
@@ -270,10 +270,10 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
           </section>
 
           <section className="space-y-4 p-4 border rounded-lg bg-muted/20">
-            <h3 className="text-lg font-medium flex items-center gap-2 text-foreground"><Settings2 className="h-5 w-5 text-primary" /> Exam Settings</h3>
+            <h3 className="text-lg font-medium flex items-center gap-2 text-foreground"><Settings2 className="h-5 w-5 text-primary" strokeWidth={1.5} /> Exam Settings</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="examDuration" className="flex items-center gap-1"><Clock className="h-4 w-4" /> Duration (minutes)</Label>
+                <Label htmlFor="examDuration" className="flex items-center gap-1"><Clock className="h-4 w-4" strokeWidth={1.5} /> Duration (minutes)</Label>
                 <Input id="examDuration" type="number" value={duration} onChange={(e) => setDuration(parseInt(e.target.value))} min="1" required className="modern-input"/>
               </div>
               <div className="flex items-center space-x-2 pt-8">
@@ -281,17 +281,17 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
                 <Label htmlFor="allowBacktracking">Allow Backtracking</Label>
               </div>
             </div>
-            <Alert variant="default" className="mt-2 bg-primary/10 border-primary/20 text-primary/90">
-                <AlertTriangle className="inline h-4 w-4 mr-1 text-primary" />
+            <Alert variant="default" className="mt-2 bg-primary/10 border-primary/20 text-primary/90 dark:bg-primary/20 dark:border-primary/30 dark:text-primary/80">
+                <AlertTriangle className="inline h-4 w-4 mr-1 text-primary" strokeWidth={1.5} />
                 <AlertTitle className="font-semibold">Important Scheduling Note</AlertTitle>
-                <AlertDescription>
-                    Exams created or edited here are automatically set to &quot;Published&quot; status. 
+                <AlertDescription className="text-sm">
+                    Exams created or edited here are automatically set to &quot;Published&quot; status.
                     Accurate start and end times are mandatory for students to access the exam.
                 </AlertDescription>
              </Alert>
 
             <div className="space-y-2 mt-4">
-              <Label className="flex items-center gap-1 font-medium text-foreground"><CalendarDays className="h-4 w-4 text-primary" /> Scheduling (Required)</Label>
+              <Label className="flex items-center gap-1 font-medium text-foreground"><CalendarDays className="h-4 w-4 text-primary" strokeWidth={1.5} /> Scheduling (Required)</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label htmlFor="startTimeDate">Start Date & Time</Label>
@@ -301,15 +301,15 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
                         <Button
                           variant={"outline"}
                           className={cn(
-                            "w-full justify-start text-left font-normal modern-input", // Added modern-input
+                            "w-full justify-start text-left font-normal modern-input",
                             !startTime && "text-muted-foreground"
                           )}
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          <CalendarIcon className="mr-2 h-4 w-4" strokeWidth={1.5} />
                           {startTime ? format(startTime, "PPP") : <span>Pick start date</span>}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 bg-card border-border shadow-lg">
+                      <PopoverContent className="w-auto p-0 bg-popover border-border shadow-lg">
                         <Calendar
                           mode="single"
                           selected={startTime ?? undefined}
@@ -318,11 +318,11 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
                         />
                       </PopoverContent>
                     </Popover>
-                    <Input 
-                        type="time" 
+                    <Input
+                        type="time"
                         value={startTimeStr}
                         onChange={(e) => handleTimeChange(e.target.value, 'start')}
-                        className="w-[120px] modern-input" 
+                        className="w-[120px] modern-input"
                         required
                     />
                   </div>
@@ -335,15 +335,15 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
                         <Button
                           variant={"outline"}
                           className={cn(
-                            "w-full justify-start text-left font-normal modern-input", // Added modern-input
+                            "w-full justify-start text-left font-normal modern-input",
                             !endTime && "text-muted-foreground"
                           )}
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          <CalendarIcon className="mr-2 h-4 w-4" strokeWidth={1.5} />
                           {endTime ? format(endTime, "PPP") : <span>Pick end date</span>}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 bg-card border-border shadow-lg">
+                      <PopoverContent className="w-auto p-0 bg-popover border-border shadow-lg">
                         <Calendar
                           mode="single"
                           selected={endTime ?? undefined}
@@ -353,8 +353,8 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
                         />
                       </PopoverContent>
                     </Popover>
-                     <Input 
-                        type="time" 
+                     <Input
+                        type="time"
                         value={endTimeStr}
                         onChange={(e) => handleTimeChange(e.target.value, 'end')}
                         className="w-[120px] modern-input"
@@ -367,14 +367,14 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
           </section>
 
           <section className="space-y-4 p-4 border rounded-lg bg-muted/20">
-            <h3 className="text-lg font-medium flex items-center gap-2 text-foreground"><ListChecks className="h-5 w-5 text-primary" /> Manage Questions ({questions.length} added)</h3>
+            <h3 className="text-lg font-medium flex items-center gap-2 text-foreground"><ListChecks className="h-5 w-5 text-primary" strokeWidth={1.5} /> Manage Questions ({questions.length} added)</h3>
             <div className="flex flex-wrap gap-2 my-4">
               <Button type="button" variant="outline" disabled className="btn-outline-subtle">
-                <Upload className="mr-2 h-4 w-4" /> Upload CSV (Soon)
+                <Upload className="mr-2 h-4 w-4" strokeWidth={1.5} /> Upload CSV (Soon)
               </Button>
               <Button type="button" variant="outline" asChild className="btn-outline-subtle">
                 <Link href="/teacher/dashboard/ai-assistant" target="_blank">
-                  <Brain className="mr-2 h-4 w-4" /> Use AI Assistant
+                  <Brain className="mr-2 h-4 w-4" strokeWidth={1.5} /> Use AI Assistant
                 </Link>
               </Button>
             </div>
@@ -408,7 +408,7 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
               </CardContent>
               <CardFooter>
                 <Button type="button" onClick={handleAddQuestion} size="sm" className="btn-primary-solid">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add This Question
+                  <PlusCircle className="mr-2 h-4 w-4" strokeWidth={1.5} /> Add This Question
                 </Button>
               </CardFooter>
             </Card>
@@ -416,22 +416,22 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
             {questions.length > 0 && (
               <div className="mt-6 space-y-3">
                 <h4 className="font-semibold text-foreground">Added Questions:</h4>
-                <ul className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                <ul className="space-y-2 max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border">
                   {questions.map((q, index) => (
                     <li key={q.id} className="p-3 border rounded-md bg-background shadow-sm flex justify-between items-start">
                       <div>
                         <p className="font-medium text-foreground">{index + 1}. {q.text}</p>
                         <ul className="list-none text-sm text-muted-foreground pl-4 space-y-1">
                           {q.options.map((opt) => (
-                            <li key={opt.id} className={cn("flex items-center gap-2", opt.id === q.correctOptionId ? 'text-green-600 font-semibold' : '')}>
-                              {opt.id === q.correctOptionId && <CheckCircle className="h-4 w-4 text-green-600" />}
+                            <li key={opt.id} className={cn("flex items-center gap-2", opt.id === q.correctOptionId ? 'text-green-600 dark:text-green-400 font-semibold' : '')}>
+                              {opt.id === q.correctOptionId && <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" strokeWidth={1.5} />}
                               <span>{opt.text}</span>
                             </li>
                           ))}
                         </ul>
                       </div>
                       <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveQuestion(q.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full">
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" strokeWidth={1.5} />
                       </Button>
                     </li>
                   ))}
@@ -440,10 +440,10 @@ export function ExamForm({ initialData, onSave, isEditing = false }: ExamFormPro
             )}
           </section>
         </CardContent>
-        <CardFooter className="flex justify-end gap-2 p-6 border-t">
+        <CardFooter className="flex justify-end gap-2 p-6 border-t border-border">
           <Button type="button" variant="outline" onClick={() => router.back()} className="btn-outline-subtle">Cancel</Button>
           <Button type="submit" disabled={isLoading} className="btn-gradient">
-            {isLoading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
+            {isLoading ? <Loader2 className="animate-spin mr-2 h-4 w-4" strokeWidth={2} /> : <Save className="mr-2 h-4 w-4" strokeWidth={1.5} />}
             {isLoading ? (isEditing ? 'Saving...' : 'Creating...') : (isEditing ? 'Save Changes' : 'Create Exam')}
           </Button>
         </CardFooter>
