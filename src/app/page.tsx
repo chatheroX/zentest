@@ -57,11 +57,6 @@ export default function LandingPage() {
                       Join as Student
                     </Link>
                   </Button>
-                  <Button size="lg" variant="secondary" className="shadow-sm hover:shadow-md transition-shadow duration-300 text-secondary-foreground hover:bg-secondary/80" asChild>
-                    <Link href="/web-ide">
-                      <Code className="mr-2 h-5 w-5" /> Try Web IDE
-                    </Link>
-                  </Button>
                 </div>
               </div>
             </div>
