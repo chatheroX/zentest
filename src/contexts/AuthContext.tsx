@@ -85,15 +85,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      const errorMsg = "CRITICAL: Supabase URL or Anon Key missing. Check .env variables.";
+    if (!supabaseUrl || supabaseUrl.includes('your_supabase_url') || supabaseUrl.trim() === '') {
+      const errorMsg = "CRITICAL: Supabase URL is missing, a placeholder, or invalid. Please set NEXT_PUBLIC_SUPABASE_URL in your .env file with your actual Supabase project URL.";
       console.error(`${effectId} ${errorMsg}`);
       setAuthError(errorMsg);
       setSupabase(null);
       setIsLoading(false);
-      // No logErrorToBackend
       return;
     }
+    if (!supabaseAnonKey || supabaseAnonKey.includes('your_supabase_anon_key') || supabaseAnonKey.trim() === '') {
+      const errorMsg = "CRITICAL: Supabase Anon Key is missing, a placeholder, or invalid. Please set NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env file with your actual Supabase anon key.";
+      console.error(`${effectId} ${errorMsg}`);
+      setAuthError(errorMsg);
+      setSupabase(null);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const client = createSupabaseBrowserClient();
       setSupabase(client);
@@ -105,7 +113,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthError(errorMsg);
       setSupabase(null);
       setIsLoading(false);
-      // No logErrorToBackend
     }
   }, []);
 
@@ -144,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log(`${effectId} Session cookie found. Fetching user: ${userEmailFromCookie} from DB...`);
       const { data, error: dbError } = await supabase
         .from('proctorX')
-        .select('user_id, email, name, role, avatar_url, saved_links') // Added saved_links
+        .select('user_id, email, name, role, avatar_url, saved_links') 
         .eq('email', userEmailFromCookie)
         .single();
       console.log(`${effectId} DB query for ${userEmailFromCookie} - Data:`, data, 'Error:', dbError);
@@ -155,7 +162,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         else if (dbError) errorDetail = getSafeErrorMessage(dbError, 'Failed to fetch user data.');
         
         console.warn(`${effectId} ${errorDetail} Email: ${userEmailFromCookie}. Clearing session.`);
-        // No logErrorToBackend
         setUser(null);
         Cookies.remove(SESSION_COOKIE_NAME);
         Cookies.remove(ROLE_COOKIE_NAME);
@@ -169,7 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: data.name ?? null,
         role: data.role as CustomUser['role'] || null,
         avatar_url: data.avatar_url || generateEnhancedDiceBearAvatar(data.role as CustomUser['role'], data.user_id),
-        saved_links: data.saved_links || [], // Initialize as empty array if null
+        saved_links: data.saved_links || [], 
       };
       console.log(`${effectId} User loaded from cookie and DB: ${loadedUser.email}, Role: ${loadedUser.role}, SavedLinks: ${loadedUser.saved_links?.length}`);
       setUser(loadedUser);
@@ -179,7 +185,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       const errorMsg = getSafeErrorMessage(e, "Error processing user session.");
       console.error(`${effectId} Exception during user session processing:`, errorMsg, e);
-      // No logErrorToBackend
       setUser(null);
       Cookies.remove(SESSION_COOKIE_NAME);
       Cookies.remove(ROLE_COOKIE_NAME);
@@ -293,7 +298,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const errorMsg = "Service connection error. Please try again later.";
       console.error(`${operationId} Aborted: ${errorMsg}`);
       setAuthError(errorMsg); setIsLoading(false); 
-      // No logErrorToBackend
       return { success: false, error: errorMsg };
     }
     setIsLoading(true); setAuthError(null);
@@ -301,7 +305,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error: dbError } = await supabase
         .from('proctorX')
-        .select('user_id, email, pass, name, role, avatar_url, saved_links') // Added saved_links
+        .select('user_id, email, pass, name, role, avatar_url, saved_links') 
         .eq('email', email)
         .single();
 
@@ -311,7 +315,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         else if (dbError) errorDetail = getSafeErrorMessage(dbError, 'Failed to fetch user data.');
         
         console.warn(`${operationId} Failed to fetch user. Email:`, email, 'Error:', errorDetail);
-        // No logErrorToBackend
         setUser(null); setIsLoading(false); return { success: false, error: errorDetail };
       }
       console.log(`${operationId} User data fetched from DB: ${data.email}, Role: ${data.role}`);
@@ -323,7 +326,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: data.name ?? null,
           role: data.role as CustomUser['role'] || null,
           avatar_url: data.avatar_url || generateEnhancedDiceBearAvatar(data.role as CustomUser['role'], data.user_id),
-          saved_links: data.saved_links || [], // Initialize as empty array if null
+          saved_links: data.saved_links || [], 
         };
 
         setUser(userData);
@@ -342,7 +345,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       const errorMsg = getSafeErrorMessage(e, 'An unexpected error occurred during sign in.');
       console.error(`${operationId} Exception during sign in:`, errorMsg, e);
-      // No logErrorToBackend
       setUser(null); setAuthError(errorMsg); setIsLoading(false); return { success: false, error: errorMsg };
     }
   }, [supabase]);
@@ -354,7 +356,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) {
       const errorMsg = "Service connection error.";
       setAuthError(errorMsg); setIsLoading(false); 
-      // No logErrorToBackend
       return { success: false, error: errorMsg };
     }
     if (!role) {
@@ -373,7 +374,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (selectError && selectError.code !== 'PGRST116') { 
         const errorMsg = getSafeErrorMessage(selectError, 'Error checking existing user.');
         console.error(`${operationId} DB Select Error:`, errorMsg);
-        // No logErrorToBackend
         setIsLoading(false); throw new Error(errorMsg);
       }
       if (existingUser) {
@@ -385,19 +385,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const newUserId = generateShortId();
       const defaultAvatar = generateEnhancedDiceBearAvatar(role, newUserId);
       const newUserRecord: ProctorXTableType['Insert'] = {
-        user_id: newUserId, email, pass, name, role, avatar_url: defaultAvatar, saved_links: [], // Initialize with empty array
+        user_id: newUserId, email, pass, name, role, avatar_url: defaultAvatar, saved_links: [], 
       };
 
       const { data: insertedData, error: insertError } = await supabase
         .from('proctorX')
         .insert(newUserRecord)
-        .select('user_id, email, name, role, avatar_url, saved_links') // Added saved_links
+        .select('user_id, email, name, role, avatar_url, saved_links') 
         .single();
 
       if (insertError || !insertedData) {
         const errorDetail = getSafeErrorMessage(insertError, "Could not retrieve user data after insert.");
         console.error(`${operationId} Insert Error: ${errorDetail}`);
-        // No logErrorToBackend
         setUser(null); setIsLoading(false); return { success: false, error: `Registration failed: ${errorDetail}` };
       }
 
@@ -407,7 +406,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: insertedData.name ?? null,
         role: insertedData.role as CustomUser['role'],
         avatar_url: insertedData.avatar_url || defaultAvatar,
-        saved_links: insertedData.saved_links || [], // Initialize as empty array if null
+        saved_links: insertedData.saved_links || [], 
       };
 
       setUser(newUserData);
@@ -421,7 +420,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       const errorMsg = getSafeErrorMessage(e, 'Unexpected error during sign up.');
       console.error(`${operationId} Exception:`, errorMsg, e);
-      // No logErrorToBackend
       setUser(null); setAuthError(errorMsg); setIsLoading(false);
       return { success: false, error: errorMsg };
     }
@@ -453,13 +451,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const errorMsg = "Service connection error.";
       console.error(`${operationId} Aborted: ${errorMsg}`);
       setAuthError(errorMsg); setIsLoading(false); 
-      // No logErrorToBackend
       return { success: false, error: errorMsg };
     }
     if (!user || !user.user_id) {
       const errorMsg = "User not authenticated or user_id missing.";
       setAuthError(errorMsg); setIsLoading(false); 
-      // No logErrorToBackend
       return { success: false, error: errorMsg };
     }
 
@@ -489,7 +485,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (updateError) {
         const errorMsg = getSafeErrorMessage(updateError, "Failed to update profile.");
         console.error(`${operationId} Error updating DB:`, errorMsg, updateError);
-        // No logErrorToBackend
         setIsLoading(false); return { success: false, error: errorMsg };
       }
 
@@ -505,7 +500,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       const errorMsg = getSafeErrorMessage(e, 'Unexpected error during profile update.');
       console.error(`${operationId} Exception:`, errorMsg, e);
-      // No logErrorToBackend
       setAuthError(errorMsg); setIsLoading(false);
       return { success: false, error: errorMsg };
     }
