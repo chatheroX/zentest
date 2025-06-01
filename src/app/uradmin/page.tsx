@@ -1,6 +1,6 @@
 
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import { AppHeader } from '@/components/shared/header';
 import { AppFooter } from '@/components/shared/footer';
 
 const ADMIN_DASHBOARD_ROUTE = '/admin/dashboard';
+const USER_DASHBOARD_ROUTE = '/user/dashboard'; // For non-admin users
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -26,11 +27,16 @@ export default function AdminLoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (user && user.role === 'admin') {
-      router.replace(ADMIN_DASHBOARD_ROUTE);
+  useEffect(() => {
+    if (!authContextLoading && user) {
+      if (user.role === 'admin') {
+        router.replace(ADMIN_DASHBOARD_ROUTE);
+      } else {
+        // If a non-admin user somehow lands here, redirect them appropriately
+        router.replace(USER_DASHBOARD_ROUTE); 
+      }
     }
-  }, [user, router]);
+  }, [user, authContextLoading, router]);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +52,7 @@ export default function AdminLoginPage() {
     const result = await signInAdmin(username.trim(), password);
     if (result.success) {
       toast({ title: "Admin Login Successful!", description: "Redirecting to admin dashboard..." });
-      router.replace(ADMIN_DASHBOARD_ROUTE);
+      // router.replace(ADMIN_DASHBOARD_ROUTE); // Redirection handled by useEffect
     } else {
       setFormError(result.error || "Invalid admin credentials.");
       toast({ title: "Admin Login Error", description: result.error || "Invalid admin credentials.", variant: "destructive" });
@@ -54,7 +60,7 @@ export default function AdminLoginPage() {
     setIsSubmitting(false);
   };
   
-  if (authContextLoading && !user) {
+  if (authContextLoading) {
     return (
       <div className="flex flex-col min-h-screen">
         <AppHeader />
@@ -70,17 +76,15 @@ export default function AdminLoginPage() {
     );
   }
   
-  // If user is logged in but not an admin, redirect them.
-  if (user && user.role !== 'admin') {
-     router.replace('/'); // Or user dashboard
+  if (user) { // If user exists and not loading, useEffect will handle redirect.
      return (
         <div className="flex flex-col min-h-screen">
           <AppHeader />
           <main className="flex-grow flex items-center justify-center p-4 bg-muted/30 dark:bg-background">
             <Card className="p-6 ui-card text-center shadow-xl">
-                <AlertTriangle className="mx-auto h-10 w-10 text-destructive mb-4"/>
-                <CardTitle className="text-xl">Access Denied</CardTitle>
-                <CardDescription className="mt-2">Redirecting...</CardDescription>
+                <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary mb-4"/>
+                <CardTitle className="text-xl">Redirecting...</CardTitle>
+                <CardDescription className="mt-2">Please wait.</CardDescription>
             </Card>
           </main>
           <AppFooter />
@@ -88,7 +92,7 @@ export default function AdminLoginPage() {
      );
   }
 
-
+  // Render admin login form if not loading and no user (i.e. not about to redirect)
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-background via-muted to-secondary dark:from-slate-900 dark:via-slate-800 dark:to-background">
       <AppHeader />
@@ -146,9 +150,5 @@ export default function AdminLoginPage() {
     </div>
   );
 }
-// Removed static metadata export as this is a client component
-// export const metadata = {
-//     title: 'Admin Login | ProctorChecker',
-//     description: 'Administrator login portal for ProctorChecker.',
-// };
 
+    

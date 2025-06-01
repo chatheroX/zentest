@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -12,10 +13,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AuthenticatedUser } from '@/types/supabase';
 
-type AuthAction = 'login' | 'register'; // Removed 'adminLogin'
+type AuthAction = 'login' | 'register';
 
-const AUTH_ROUTE = '/auth';
 const USER_DASHBOARD_ROUTE = '/user/dashboard';
+const ADMIN_DASHBOARD_ROUTE = '/admin/dashboard';
 
 
 export function AuthForm() {
@@ -49,6 +50,16 @@ export function AuthForm() {
       setAction(actionFromParams);
     }
   }, [searchParams, action, resetFormFields]);
+
+  useEffect(() => {
+    if (!authContextLoading && user) {
+      if (user.role === 'user') {
+        router.replace(USER_DASHBOARD_ROUTE);
+      } else if (user.role === 'admin') {
+        router.replace(ADMIN_DASHBOARD_ROUTE);
+      }
+    }
+  }, [user, authContextLoading, router]);
   
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +92,7 @@ export function AuthForm() {
       result = await registerUserWithLicense(licenseKey.trim(), trimmedUsername, password);
       if (result.success) {
         toast({ title: "Registration Successful!", description: "Redirecting to your dashboard..." });
-         router.replace(USER_DASHBOARD_ROUTE);
+         // router.replace(USER_DASHBOARD_ROUTE); // Redirection handled by useEffect
       } else {
         setFormError(result.error || "Registration failed.");
         toast({ title: "Registration Error", description: result.error || "An unknown error occurred.", variant: "destructive" });
@@ -90,7 +101,7 @@ export function AuthForm() {
       result = await signInUser(trimmedUsername, password);
       if (result.success) {
         toast({ title: "Login Successful!", description: "Redirecting to your dashboard..." });
-         router.replace(USER_DASHBOARD_ROUTE);
+         // router.replace(USER_DASHBOARD_ROUTE); // Redirection handled by useEffect
       } else {
         setFormError(result.error || "Invalid credentials or server error.");
         toast({ title: "Login Error", description: result.error || "Invalid credentials or server error.", variant: "destructive" });
@@ -99,7 +110,7 @@ export function AuthForm() {
     setIsSubmitting(false);
   };
   
-  if (authContextLoading && !user) {
+  if (authContextLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-12rem)]">
         <Card className="p-6 ui-card text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary mb-3"/><p className="text-md font-medium text-foreground">Verifying session...</p></Card>
@@ -107,17 +118,8 @@ export function AuthForm() {
     );
   }
 
-  if (user && user.role === 'user') {
-     router.replace(USER_DASHBOARD_ROUTE); // If already logged in as user, go to user dash
+  if (user) { // If user exists and not loading, useEffect will handle redirect. Show a placeholder.
      return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-12rem)]">
-        <Card className="p-6 ui-card text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary mb-3"/><p className="text-md font-medium text-foreground">Redirecting...</p></Card>
-      </div>
-    );
-  }
-   if (user && user.role === 'admin') {
-     router.replace('/admin/dashboard'); // If logged in as admin, go to admin dash
-      return (
       <div className="flex items-center justify-center min-h-[calc(100vh-12rem)]">
         <Card className="p-6 ui-card text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary mb-3"/><p className="text-md font-medium text-foreground">Redirecting...</p></Card>
       </div>
@@ -157,6 +159,7 @@ export function AuthForm() {
     </>
   );
 
+  // Render form only if not loading and no user (i.e., not about to redirect)
   return (
     <div className="w-full max-w-md">
       <Card className="w-full ui-card shadow-xl border-border/60">
@@ -227,3 +230,5 @@ export function AuthForm() {
     </div>
   );
 }
+
+    
