@@ -1,17 +1,15 @@
 
 import type {Metadata} from 'next';
 import { GeistSans } from 'geist/font/sans';
-import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider } from '@/contexts/AuthContext'; // AuthProvider will be updated
 
 const geistSans = GeistSans;
-const geistMono = GeistMono;
 
 export const metadata: Metadata = {
-  title: 'ProctorPrep - Secure Online Proctoring',
-  description: 'A modern online proctoring solution with SEB integration.',
+  title: 'ProctorChecker - System Compatibility', // New Title
+  description: 'A tool to check system compatibility for proctored environments and manage reference links securely.', // New Description
 };
 
 export default function RootLayout({
@@ -20,10 +18,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      {/* Ensure body defaults to light theme from globals.css */}
-      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased flex flex-col min-h-screen bg-background text-foreground`}>
-        <AuthProvider>
+    <html lang="en" suppressHydrationWarning> {/* suppressHydrationWarning can be useful during large theme changes */}
+      <body className={`${geistSans.variable} font-sans antialiased flex flex-col min-h-screen bg-background text-foreground`}>
+        <AuthProvider> {/* AuthProvider will be heavily modified */}
           {children}
           <Toaster />
         </AuthProvider>

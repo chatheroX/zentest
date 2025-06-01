@@ -7,138 +7,57 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export interface QuestionOption {
-  id: string;
-  text: string;
+// ==== New Table Structures ====
+
+export interface Admin {
+  id: string; // UUID
+  username: string;
+  password_hash: string; // Hashed password
+  created_at: string; // TIMESTAMPTZ
 }
 
-export interface Question {
-  id: string;
-  text: string;
-  options: QuestionOption[];
-  correctOptionId: string;
+export interface LicenseKey {
+  id: string; // UUID
+  key_value: string; // The actual license key string
+  is_claimed: boolean;
+  claimed_at: string | null; // TIMESTAMPTZ
+  claimed_by_user_id: string | null; // UUID, Foreign Key to users table
+  created_by_admin_id: string; // UUID, Foreign Key to admins table
+  created_at: string; // TIMESTAMPTZ
 }
 
-export interface ProctorXTableType {
-  user_id: string;
-  email: string;
-  pass: string;
-  name: string;
-  role: 'student' | 'teacher';
-  avatar_url: string | null;
-  saved_links: string[] | null; // Added for persistent saved links
-  created_at?: string;
+export interface User {
+  id: string; // UUID
+  username: string;
+  password_hash: string; // Hashed password
+  saved_links: string[] | null; // Array of URLs
+  license_key_used_id: string; // UUID, Foreign Key to license_keys table
+  created_at: string; // TIMESTAMPTZ
 }
 
-export type ExamStatus = 'Published' | 'Ongoing' | 'Completed';
-export type ExamSubmissionStatus = 'In Progress' | 'Completed'; 
-
-export type FlaggedEventType =
-  | 'visibility_hidden'
-  | 'visibility_visible'
-  | 'fullscreen_entered'
-  | 'fullscreen_exited'
-  | 'blur'
-  | 'focus'
-  | 'copy_attempt'
-  | 'paste_attempt'
-  | 'shortcut_attempt'
-  | 'dev_tools_detected'
-  | 'webdriver_detected'
-  | 'disallowed_key_pressed';
-
-export interface FlaggedEvent {
-  type: FlaggedEventType;
-  timestamp: Date;
-  studentId: string;
-  examId: string;
-  details?: string;
-}
-
+// ==== Supabase Database Definition ====
 export interface Database {
   public: {
     Tables: {
-      proctorX: {
-        Row: ProctorXTableType;
-        Insert: Omit<ProctorXTableType, 'created_at'>;
-        Update: Partial<Omit<ProctorXTableType, 'created_at' | 'user_id' | 'email' | 'role'>>;
+      admins: {
+        Row: Admin;
+        Insert: Omit<Admin, 'id' | 'created_at'>;
+        Update: Partial<Omit<Admin, 'id' | 'created_at'>>;
       };
-      ExamX: {
-        Row: {
-          exam_id: string; // uuid
-          teacher_id: string;
-          title: string;
-          description: string | null;
-          duration: number;
-          allow_backtracking: boolean;
-          questions: Question[] | null;
-          exam_code: string;
-          status: ExamStatus;
-          start_time: string | null;
-          end_time: string | null;
-          created_at: string;
-          updated_at: string;
+      license_keys: {
+        Row: LicenseKey;
+        Insert: Omit<LicenseKey, 'id' | 'created_at' | 'is_claimed' | 'claimed_at' | 'claimed_by_user_id'> & {
+          created_by_admin_id: string; // Ensure this is provided on insert
+          key_value: string;
         };
-        Insert: {
-          exam_id?: string; // uuid
-          teacher_id: string;
-          title: string;
-          description?: string | null;
-          duration: number;
-          allow_backtracking?: boolean;
-          questions?: Question[] | null;
-          exam_code: string;
-          status?: ExamStatus;
-          start_time: string | null;
-          end_time: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<{
-          title: string;
-          description: string | null;
-          duration: number;
-          allow_backtracking: boolean;
-          questions: Question[] | null;
-          status: ExamStatus;
-          start_time: string | null;
-          end_time: string | null;
-          updated_at: string;
-        }>;
+        Update: Partial<Omit<LicenseKey, 'id' | 'created_at' | 'created_by_admin_id' | 'key_value'>>;
       };
-      ExamSubmissionsX: {
-        Row: {
-          submission_id: string;
-          exam_id: string; // uuid
-          student_user_id: string;
-          answers: Json | null;
-          status: ExamSubmissionStatus; 
-          score: number | null;
-          started_at: string; 
-          submitted_at: string | null;
-          flagged_events: FlaggedEvent[] | null;
-          saved_links: string[] | null; // Session-specific links for this attempt
+      users: {
+        Row: User;
+        Insert: Omit<User, 'id' | 'created_at'> & {
+           license_key_used_id: string; // Ensure this is provided
         };
-        Insert: {
-          submission_id?: string;
-          exam_id: string; // uuid
-          student_user_id: string;
-          answers?: Json | null;
-          status: ExamSubmissionStatus; 
-          score?: number | null;
-          started_at: string; 
-          submitted_at?: string | null;
-          flagged_events?: FlaggedEvent[] | null;
-          saved_links?: string[] | null; 
-        };
-        Update: Partial<{
-          answers: Json | null;
-          status: ExamSubmissionStatus; 
-          score: number | null;
-          submitted_at: string | null;
-          flagged_events: FlaggedEvent[] | null;
-          saved_links: string[] | null; 
-        }>;
+        Update: Partial<Omit<User, 'id' | 'created_at' | 'license_key_used_id' | 'username'>>; // Username typically not updatable this way
       };
     };
     Views: {
@@ -156,19 +75,18 @@ export interface Database {
   };
 }
 
-export type CustomUser = {
-  user_id: string;
-  email: string;
-  name: string | null;
-  role: 'student' | 'teacher' | null;
-  avatar_url: string | null;
-  saved_links?: string[] | null; // Added for persistent saved links
-};
+// ==== Custom User Type for AuthContext (Simplified) ====
+// This will represent the authenticated user in the application context.
+// It might be a 'user' or an 'admin'.
+export interface AuthenticatedUser {
+  id: string;
+  username: string;
+  role: 'user' | 'admin'; // Differentiates between regular user and admin
+  avatar_url?: string | null; // Generic avatar, can be based on username/role
+  saved_links?: string[] | null; // Only applicable if role is 'user'
+}
 
-export type ProctorXTable = Database['public']['Tables']['proctorX'];
-export type Exam = Database['public']['Tables']['ExamX']['Row'];
-export type ExamInsert = Database['public']['Tables']['ExamX']['Insert'];
-export type ExamUpdate = Database['public']['Tables']['ExamX']['Update'];
-export type ExamSubmission = Database['public']['Tables']['ExamSubmissionsX']['Row'];
-export type ExamSubmissionInsert = Database['public']['Tables']['ExamSubmissionsX']['Insert'];
-export type ExamSubmissionUpdate = Database['public']['Tables']['ExamSubmissionsX']['Update'];
+// Specific table type exports if needed elsewhere directly
+export type AdminTableType = Database['public']['Tables']['admins'];
+export type LicenseKeyTableType = Database['public']['Tables']['license_keys'];
+export type UserTableType = Database['public']['Tables']['users'];

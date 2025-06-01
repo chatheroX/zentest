@@ -1,22 +1,35 @@
 
 'use client';
+// This hook is likely not needed for the new "Proctor System Compatibility Check" project.
+// If detailed activity monitoring within SEB for the compatibility check itself is required,
+// it can be adapted. For now, it's a placeholder that can be removed or simplified.
 
 import { useEffect, useRef } from 'react';
-import type { FlaggedEvent, FlaggedEventType } from '@/types/supabase';
 
-interface UseActivityMonitorProps {
-  studentId: string; 
-  examId: string;
-  onFlagEvent: (event: FlaggedEvent) => void;
+// Simplified event types if this hook is kept for basic SEB interaction monitoring
+export type BasicFlaggedEventType =
+  | 'visibility_hidden'
+  | 'visibility_visible'
+  | 'fullscreen_exited'; // Example
+
+export interface BasicFlaggedEvent {
+  type: BasicFlaggedEventType;
+  timestamp: Date;
+  userId: string; // From SEB token
+  details?: string;
+}
+
+interface UseBasicActivityMonitorProps {
+  userId: string;
+  onFlagEvent: (event: BasicFlaggedEvent) => void;
   enabled?: boolean; 
 }
 
 export function useActivityMonitor({
-  studentId,
-  examId,
+  userId,
   onFlagEvent,
   enabled = true,
-}: UseActivityMonitorProps) {
+}: UseBasicActivityMonitorProps) {
   const onFlagEventRef = useRef(onFlagEvent);
 
   useEffect(() => {
@@ -24,13 +37,12 @@ export function useActivityMonitor({
   }, [onFlagEvent]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || typeof document === 'undefined') return;
 
-    const createEvent = (type: FlaggedEventType, details?: string): FlaggedEvent => ({
+    const createEvent = (type: BasicFlaggedEventType, details?: string): BasicFlaggedEvent => ({
       type,
       timestamp: new Date(),
-      studentId,
-      examId,
+      userId,
       details,
     });
 
@@ -45,34 +57,18 @@ export function useActivityMonitor({
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
         onFlagEventRef.current(createEvent('fullscreen_exited'));
-      } else {
-        onFlagEventRef.current(createEvent('fullscreen_entered'));
       }
     };
     
-    const handleBlur = () => {
-      onFlagEventRef.current(createEvent('blur', "Window lost focus"));
-    };
-
-    const handleFocus = () => {
-      onFlagEventRef.current(createEvent('focus', "Window gained focus"));
-    };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('focus', handleFocus);
 
-    if (document.fullscreenElement) {
-        onFlagEventRef.current(createEvent('fullscreen_entered', "Initial state: fullscreen"));
-    }
-
+    console.log('[ActivityMonitor] Basic SEB interaction listeners added.');
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('focus', handleFocus);
+      console.log('[ActivityMonitor] Basic SEB interaction listeners removed.');
     };
-  }, [enabled, studentId, examId]);
+  }, [enabled, userId]);
 }

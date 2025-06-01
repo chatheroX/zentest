@@ -1,18 +1,19 @@
+
 // src/app/seb/entry/page.tsx
+// This page is a simple wrapper for SebEntryClientNew,
+// which now expects the token to be passed as a query parameter.
 import React, { Suspense } from 'react';
 import { SebEntryClientNew } from '@/components/seb/seb-entry-client-new';
 import { Loader2, ShieldAlert } from 'lucide-react';
-import { Toaster } from '@/components/ui/toaster';
 
 export default function SebEntryPage() {
   return (
-    // Removed p-4, items-center, justify-center to allow SebEntryClientNew to control its full-screen layout
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="min-h-screen bg-seb-entry text-foreground flex flex-col">
       <Suspense fallback={
-        <div className="flex flex-col items-center justify-center text-center flex-grow">
+        <div className="flex flex-col items-center justify-center text-center flex-grow p-4">
           <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
           <h2 className="text-xl font-medium text-foreground mb-2">
-            Initializing Secure Exam Session...
+            Initializing Secure Session...
           </h2>
           <div className="flex items-center text-primary/80">
             <ShieldAlert className="h-5 w-5 mr-2" />
@@ -20,9 +21,8 @@ export default function SebEntryPage() {
           </div>
         </div>
       }>
-        <SebEntryClientNew />
+        <SebEntryClientNew /> {/* SebEntryClientNew will read token from searchParams */}
       </Suspense>
-      <Toaster />
     </div>
   );
 }

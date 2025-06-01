@@ -1,18 +1,19 @@
 
 // src/app/seb/layout.tsx
 import React from 'react';
-import { Toaster } from "@/components/ui/toaster"; // Moved Toaster to individual pages
+import { Toaster } from "@/components/ui/toaster";
 
 export default function SebLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // SEB pages will use the new global theme (light/dark mode)
+  // This layout ensures a consistent wrapper for SEB-specific pages.
   return (
-    // Ensures SEB pages use the standard light background and dark text
-    // The main structural elements (like <main>) are now in the page components
     <div className="bg-background text-foreground min-h-screen flex flex-col">
       {children}
+      <Toaster /> {/* Toaster for SEB specific notifications */}
     </div>
   );
 }

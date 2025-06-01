@@ -1,28 +1,43 @@
 
 // src/app/seb/entry/[token]/page.tsx
-import React, { Suspense } from 'react';
-import { SebEntryClientNew } from '@/components/seb/seb-entry-client-new'; // Use the new client component
-import { Loader2, ShieldAlert } from 'lucide-react';
+// This page is now DEPRECATED. The token will be passed as a query parameter to /seb/entry
+'use client';
 
-// This is the Server Component part of the page.
-// It receives the token from the URL path and passes it to the client component.
-export default function SebEntryTokenPage({ params }: { params: { token: string } }) {
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Loader2, AlertTriangle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+
+export default function SebEntryTokenPathPage({ params }: { params: { token: string } }) {
+  const router = useRouter();
+  const token = params.token;
+
+  useEffect(() => {
+    console.warn(`[SebEntryTokenPathPage DEPRECATED] Accessed with token in path. Redirecting to /seb/entry?token=${token}`);
+    if (token) {
+      router.replace(`/seb/entry?token=${token}`);
+    } else {
+      router.replace('/auth'); // Fallback if no token
+    }
+  }, [token, router]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-950 text-slate-100 flex flex-col items-center justify-center p-4">
-      <Suspense fallback={
-        <div className="flex flex-col items-center justify-center text-center">
-          <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
-          <h2 className="text-xl font-medium text-slate-200 mb-2">
-            Initializing Secure Exam Session...
-          </h2>
-          <div className="flex items-center text-yellow-400">
-            <ShieldAlert className="h-5 w-5 mr-2" />
-            <p className="text-sm">Please wait, preparing secure entry...</p>
-          </div>
-        </div>
-      }>
-        <SebEntryClientNew entryTokenFromPath={params.token} />
-      </Suspense>
+    <div className="min-h-screen bg-seb-entry text-foreground flex flex-col items-center justify-center p-4">
+      <Card className="w-full max-w-lg glass-pane text-center">
+        <CardHeader className="pt-8 pb-4">
+          <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
+          <CardTitle className="text-2xl">Redirecting...</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CardDescription className="text-muted-foreground">
+            Updating to new SEB entry point. Please wait.
+          </CardDescription>
+           <Button onClick={() => router.replace(`/seb/entry?token=${token}`)} className="mt-4 btn-primary">
+             Proceed Manually
+           </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
