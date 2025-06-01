@@ -5,16 +5,16 @@ This document outlines the major changes and deletions made to transform the pro
 
 ## I. Folders & Major Files to DELETE from your previous "ProctorChecker" or "ZenTest" structure:
 
-The following folders and their entire contents should be **deleted** from your project structure. The new implementation does not use them.
+The following folders and their entire contents should be **deleted** from your project structure if they still exist from a previous, more complex version of this application. The new implementation does not use them.
 
 *   `src/ai/` (All AI and Genkit related files and folders)
 *   `src/app/(app)/student/` (Old student dashboard, join-exam, profile pages, and related components if they were structured under a distinct "student" path that is now consolidated into `src/app/(app)/user/dashboard/page.tsx`)
 *   `src/app/(app)/teacher/` (Old teacher dashboard and related pages/components - entire folder)
 *   `src/app/exam-session/` (Old exam taking interface and related components)
 *   `src/app/web-ide/` (If it existed for coding exams)
-*   `src/components/landing/` (If `three-scene-placeholder.tsx` or other old landing page components were its only content and not used in the new minimal landing page)
-*   `src/components/seb/seb-exam-view-client.tsx` (Replaced by new SEB flow in `seb-entry-client-new.tsx`)
-*   `src/components/seb/seb-live-test-client.tsx` (Functionality integrated/simplified into `seb-entry-client-new.tsx` or not required for compatibility check)
+*   `src/components/landing/three-scene-placeholder.tsx` (Or any other old landing page specific components not used in the new minimal landing page at `src/app/page.tsx`)
+*   `src/components/seb/seb-exam-view-client.tsx` (Functionality integrated/simplified into `seb-entry-client-new.tsx` or not required)
+*   `src/components/seb/seb-live-test-client.tsx` (Functionality integrated/simplified into `seb-entry-client-new.tsx` or not required)
 *   `src/components/seb/seb-entry-client.tsx` (The older version of the SEB entry client, replaced by `seb-entry-client-new.tsx`)
 *   `src/components/student/` (Old student-specific components, if any existed outside the main dashboard structure)
 *   `src/components/teacher/` (Old teacher-specific components - entire folder)
@@ -22,11 +22,11 @@ The following folders and their entire contents should be **deleted** from your 
 *   `src/components/shared/exam-taking-interface.tsx` (Or any similar complex exam UI components)
 *   `src/app/api/log/route.ts` (If it existed for old detailed logging not relevant to the new scope)
 *   `src/app/api/seb/submit-exam/route.ts` (Or any similar exam submission endpoints)
-*   `src/app/api/seb/validate-entry-token/route.ts` (This was the old SEB token validator used by `seb-entry-client.tsx`; the new one is `/api/seb/validate-token` used by `seb-entry-client-new.tsx`)
+*   `src/app/api/seb/validate-entry-token/route.ts` (This was the old SEB token validator; the new one is `/api/seb/validate-token` used by `seb-entry-client-new.tsx`)
 *   All `.tsx` pages and related components under old student/teacher specific dashboard paths like `src/app/(app)/student/dashboard/overview/`, `src/app/(app)/student/dashboard/exams/`, `src/app/(app)/student/dashboard/ai-assistant/`, `src/app/(app)/teacher/dashboard/create-exam/`, etc. (These are replaced by the simpler `src/app/(app)/user/dashboard/page.tsx` and `src/app/(app)/admin/dashboard/page.tsx`)
-*   `src/app/supabase-test/page.tsx` (This page was for testing the old `proctorX` table schema; it's no longer relevant to the new `users`, `admins`, `license_keys` schema)
+*   `src/app/supabase-test/page.tsx` (This page was for testing an old database schema; it's no longer relevant to the new `users`, `admins`, `license_keys` schema)
 *   `src/lib/error-logging.ts` (If it existed and was specific to old features and not the current simple crypto/auth error handling)
-*   Any other components, hooks, or utility files specifically tied to the old exam, student, or teacher features that are not being reused in the new compatibility checker (e.g., specific form validation schemas for exams, question type components, AI prompt files).
+*   Any other components, hooks, or utility files specifically tied to the old exam, student, or teacher features that are not being reused in the new compatibility checker (e.g., specific form validation schemas for exams, question type components, AI prompt files, old Paseto token files).
 
 **Verify these paths carefully before deleting.** The goal is to remove all code not relevant to the "Proctor System Compatibility Check v2" specification.
 
@@ -115,6 +115,5 @@ Ensure all old Supabase tables are deleted. Create the following new ones (these
 
 This overhaul aims to create a focused "Proctor System Compatibility Check" tool as per the new requirements. Remember to handle password hashing securely in a production environment.
 Ensure to restart your Next.js development server after making changes to `.env` or `package.json`.
-
 
     
