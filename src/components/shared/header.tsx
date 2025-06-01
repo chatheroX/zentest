@@ -51,16 +51,18 @@ export function AppHeader() {
                >
                 <LogOut className="h-5 w-5" />
               </Button>
-               <Link href={`${user.role === 'admin' ? ADMIN_DASHBOARD_ROUTE : USER_DASHBOARD_ROUTE}/profile`} passHref legacyBehavior>
-                <a title="Profile & Settings" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-full">
-                <Avatar className="h-9 w-9 border-2 border-primary/50 hover:border-primary cursor-pointer transition-all">
-                  <AvatarImage src={user.avatar_url || undefined} alt={user.username} />
-                  <AvatarFallback className="bg-muted text-muted-foreground text-xs">
-                    {user.username.substring(0,2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                </a>
-              </Link>
+              {user.role === 'admin' && (
+                <Link href={`${ADMIN_DASHBOARD_ROUTE}/profile`} passHref legacyBehavior>
+                  <a title="Profile & Settings" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-full">
+                  <Avatar className="h-9 w-9 border-2 border-primary/50 hover:border-primary cursor-pointer transition-all">
+                    <AvatarImage src={user.avatar_url || undefined} alt={user.username} />
+                    <AvatarFallback className="bg-muted text-muted-foreground text-xs">
+                      {user.username.substring(0,2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  </a>
+                </Link>
+              )}
             </>
           ) : (
             <>
