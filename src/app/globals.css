@@ -23,102 +23,108 @@ main {
 
 @layer base {
   :root {
-    /* ==== Light Theme (Default) ==== */
-    /* Primary Palette: Professional Blue */
-    --background: 0 0% 98%; /* Off-white, very light gray */
-    --foreground: 220 15% 20%; /* Dark cool gray for text */
+    /* ==== Light Theme (Aurora) ==== */
+    /* Primary Palette: Cool Blues & Teals, Soft Purple Accent */
+    --background: 210 30% 98%; /* Very light cool gray, almost white */
+    --foreground: 220 25% 25%; /* Dark, slightly desaturated blue-gray for text */
 
-    --card: 0 0% 100%; /* White */
-    --card-foreground: 220 15% 15%;
+    --card: 0 0% 100%; /* Clean white */
+    --card-foreground: 220 25% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 15%;
+    --popover-foreground: 220 25% 20%;
 
-    --primary: 210 90% 50%; /* Vibrant Blue */
-    --primary-foreground: 0 0% 100%; /* White */
+    --primary: 190 70% 48%; /* Vibrant Teal/Cyan */
+    --primary-foreground: 0 0% 100%; /* White text on primary */
 
-    --secondary: 215 30% 92%; /* Light cool gray */
-    --secondary-foreground: 215 20% 30%;
+    --secondary: 205 50% 94%; /* Soft, light blue-gray */
+    --secondary-foreground: 210 30% 35%;
 
-    --muted: 215 30% 96%; /* Very light cool gray for subtle backgrounds */
-    --muted-foreground: 215 15% 50%; /* Softer gray for muted text */
+    --muted: 210 40% 96%; /* Very light, almost neutral blue-gray for subtle backgrounds */
+    --muted-foreground: 210 25% 55%; /* Softer gray for muted text */
 
-    --accent: 210 90% 60%; /* Slightly lighter blue for accents */
+    --accent: 260 80% 65%; /* Soft, inviting Purple */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 75% 55%; /* Clear, strong red */
+    --destructive: 0 70% 60%; /* Clear, noticeable red */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 25% 88%; /* Light gray border */
-    --input: 215 20% 96%; /* Input field background (matches muted) */
-    --ring: 210 90% 55%; /* Focus ring - primary blue */
+    --border: 205 30% 88%; /* Light cool gray border */
+    --input: 205 40% 97%; /* Input field background (slightly off-white blue tint) */
+    --ring: 190 75% 55%; /* Focus ring - primary teal/cyan */
 
-    --radius: 0.5rem; /* Standard 8px rounded corners */
+    --radius: 0.65rem; /* Slightly softer rounded corners */
 
     /* Gradient for buttons */
-    --gradient-primary-start: 210 90% 50%;
-    --gradient-primary-end: 205 85% 55%;
-    --gradient-destructive-start: 0 75% 55%;
-    --gradient-destructive-end: 0 80% 60%;
+    --gradient-primary-start: 190 70% 48%;
+    --gradient-primary-end: 180 65% 52%;
+    --gradient-destructive-start: 0 70% 60%;
+    --gradient-destructive-end: 0 75% 65%;
+    --gradient-accent-start: 260 80% 65%;
+    --gradient-accent-end: 250 75% 70%;
 
-     /* Sidebar specific theme variables */
-    --sidebar-background: 220 10% 96%; /* Light grey, slightly different from main bg */
-    --sidebar-foreground: 220 15% 25%; /* Text in sidebar */
-    --sidebar-primary: 210 90% 50%; /* Active item background (blue) */
+
+     /* Sidebar specific theme variables (Aurora Light) */
+    --sidebar-background: 210 25% 95%; /* Slightly darker than main bg, but still light */
+    --sidebar-foreground: 220 20% 30%; /* Text in sidebar */
+    --sidebar-primary: 190 65% 45%; /* Active item background (primary teal) */
     --sidebar-primary-foreground: 0 0% 100%; /* Active item text (white) */
-    --sidebar-accent: 210 90% 92%; /* Hover background for sidebar items (very light blue) */
-    --sidebar-accent-foreground: 210 90% 35%; /* Hover text color (darker blue) */
-    --sidebar-border: 215 20% 85%; /* Sidebar border */
-    --sidebar-ring: 210 90% 55%; /* Focus ring for sidebar items */
-    --sidebar-group-text: 215 15% 45%;
+    --sidebar-accent: 190 60% 90%; /* Hover background for sidebar items (very light teal) */
+    --sidebar-accent-foreground: 190 60% 30%; /* Hover text color (darker teal) */
+    --sidebar-border: 205 25% 85%; /* Sidebar border */
+    --sidebar-ring: 190 70% 50%; /* Focus ring for sidebar items */
+    --sidebar-group-text: 210 20% 50%;
   }
 
   .dark {
-    /* ==== Dark Theme ==== */
-    --background: 220 20% 12%; /* Very dark cool gray */
-    --foreground: 215 20% 90%; /* Light gray text */
+    /* ==== Dark Theme (Aurora Dark) ==== */
+    --background: 220 25% 12%; /* Deep, cool dark blue-gray */
+    --foreground: 205 30% 88%; /* Light, slightly cool gray text */
 
-    --card: 220 20% 18%;
-    --card-foreground: 215 20% 90%;
+    --card: 220 20% 18%; /* Darker card background */
+    --card-foreground: 205 30% 85%;
 
     --popover: 220 20% 15%;
-    --popover-foreground: 215 20% 90%;
+    --popover-foreground: 205 30% 85%;
 
-    --primary: 210 90% 60%; /* Brighter blue for dark mode */
-    --primary-foreground: 0 0% 100%;
+    --primary: 185 65% 55%; /* Brighter Teal/Cyan for dark mode */
+    --primary-foreground: 220 20% 10%; /* Dark text on primary for contrast */
 
-    --secondary: 215 20% 25%;
-    --secondary-foreground: 215 20% 80%;
+    --secondary: 215 20% 28%; /* Muted dark blue */
+    --secondary-foreground: 205 25% 75%;
 
-    --muted: 215 20% 22%;
-    --muted-foreground: 215 15% 60%;
+    --muted: 215 20% 22%; /* Darker muted background */
+    --muted-foreground: 210 20% 60%;
 
-    --accent: 210 90% 65%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 260 75% 70%; /* Brighter Purple for dark mode */
+    --accent-foreground: 220 20% 10%;
 
-    --destructive: 0 70% 60%; /* Brighter red for dark mode */
+    --destructive: 0 65% 65%; /* Slightly softer red for dark mode */
     --destructive-foreground: 0 0% 100%;
 
     --border: 215 20% 30%;
-    --input: 215 20% 20%;
-    --ring: 210 90% 65%;
+    --input: 215 20% 20%; /* Dark input background */
+    --ring: 185 70% 60%;
 
     /* Gradient for buttons - Dark Mode */
-    --gradient-primary-start: 210 90% 60%;
-    --gradient-primary-end: 205 85% 65%;
-    --gradient-destructive-start: 0 70% 60%;
-    --gradient-destructive-end: 0 75% 65%;
+    --gradient-primary-start: 185 65% 55%;
+    --gradient-primary-end: 175 60% 60%;
+    --gradient-destructive-start: 0 65% 65%;
+    --gradient-destructive-end: 0 70% 70%;
+    --gradient-accent-start: 260 75% 70%;
+    --gradient-accent-end: 250 70% 75%;
 
-    /* Sidebar Dark Theme */
+
+    /* Sidebar Dark Theme (Aurora Dark) */
     --sidebar-background: 220 20% 15%;
-    --sidebar-foreground: 215 15% 85%;
-    --sidebar-primary: 210 90% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 80% 28%;
-    --sidebar-accent-foreground: 210 80% 80%;
-    --sidebar-border: 215 15% 28%;
-    --sidebar-ring: 210 90% 70%;
-    --sidebar-group-text: 215 10% 55%;
+    --sidebar-foreground: 205 25% 80%;
+    --sidebar-primary: 185 60% 52%;
+    --sidebar-primary-foreground: 220 15% 10%;
+    --sidebar-accent: 185 50% 30%; /* Darker teal accent for hover */
+    --sidebar-accent-foreground: 185 50% 80%;
+    --sidebar-border: 215 15% 25%;
+    --sidebar-ring: 185 65% 60%;
+    --sidebar-group-text: 210 15% 55%;
   }
 }
 
@@ -128,39 +134,54 @@ main {
   }
 }
 
-/* ==== GENERAL UI STYLES ==== */
+/* ==== GENERAL UI STYLES (Aurora Theme) ==== */
 
 /* Card Style */
 .ui-card {
-  @apply bg-card text-card-foreground rounded-lg border border-border/70 shadow-md transition-shadow duration-300 hover:shadow-lg;
-  /* dark:border-border/50 */
+  @apply bg-card text-card-foreground rounded-lg border border-border/60 shadow-lg transition-shadow duration-300 hover:shadow-xl;
+  /* dark:border-border/40 */
 }
 
 /* Button Styles */
-.btn-primary {
-  @apply bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring shadow-sm hover:shadow-md transition-all duration-200 ease-in-out;
+.btn-primary { /* Solid Primary Button */
+  @apply bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring shadow-md hover:shadow-lg transition-all duration-200 ease-in-out transform hover:-translate-y-px active:translate-y-0;
 }
 
-.btn-gradient {
-  @apply text-primary-foreground font-semibold bg-gradient-to-r from-[hsl(var(--gradient-primary-start))] to-[hsl(var(--gradient-primary-end))] hover:opacity-90 focus-visible:ring-ring shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-px active:translate-y-0;
+.btn-gradient { /* General Gradient Button (uses primary gradient by default) */
+  @apply text-primary-foreground font-semibold bg-gradient-to-r from-[hsl(var(--gradient-primary-start))] to-[hsl(var(--gradient-primary-end))] hover:opacity-90 focus-visible:ring-ring shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-px active:translate-y-0;
 }
 .btn-gradient-destructive {
-  @apply text-destructive-foreground font-semibold bg-gradient-to-r from-[hsl(var(--gradient-destructive-start))] to-[hsl(var(--gradient-destructive-end))] hover:opacity-90 focus-visible:ring-ring shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-px active:translate-y-0;
+  @apply text-destructive-foreground font-semibold bg-gradient-to-r from-[hsl(var(--gradient-destructive-start))] to-[hsl(var(--gradient-destructive-end))] hover:opacity-90 focus-visible:ring-ring shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-px active:translate-y-0;
+}
+.btn-gradient-accent {
+  @apply text-accent-foreground font-semibold bg-gradient-to-r from-[hsl(var(--gradient-accent-start))] to-[hsl(var(--gradient-accent-end))] hover:opacity-90 focus-visible:ring-ring shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-px active:translate-y-0;
 }
 
-.btn-outline {
-  @apply border-border bg-transparent hover:bg-accent/10 text-foreground;
+
+.btn-outline { /* General Outline Button */
+  @apply border-border bg-transparent hover:bg-accent/10 text-foreground focus-visible:ring-ring;
 }
+.btn-outline-primary {
+  @apply border-primary text-primary bg-transparent hover:bg-primary/10 hover:text-primary focus-visible:ring-primary;
+}
+.btn-outline-subtle {
+  @apply border-border/70 text-muted-foreground bg-transparent hover:bg-muted/50 hover:text-foreground focus-visible:ring-ring;
+}
+
 
 /* Input Field Style */
 .ui-input {
-    @apply bg-background/80 dark:bg-black/20 backdrop-blur-sm border-border/80 focus:border-primary focus:ring-primary/60 text-sm rounded-md shadow-sm;
+    @apply bg-input text-foreground border-border/70 focus:border-primary focus:ring-primary/50 placeholder:text-muted-foreground/70 text-sm rounded-md shadow-sm;
 }
 
-/* Glassmorphism (Subtle) - for modals or special panes */
+/* Glassmorphism for modals or special panes (Aurora Style) */
 .glass-pane {
-  @apply bg-card/90 dark:bg-card/80 backdrop-blur-md text-card-foreground p-4 sm:p-6 rounded-lg border border-border/60 dark:border-border/40 shadow-xl;
+  @apply bg-card/80 dark:bg-card/70 backdrop-blur-lg text-card-foreground p-4 sm:p-6 rounded-xl border border-border/50 dark:border-border/30 shadow-2xl;
 }
+.sidebar-glass {
+  @apply bg-sidebar/85 dark:bg-sidebar/75 backdrop-blur-md border-r border-sidebar-border/50 dark:border-sidebar-border/30;
+}
+
 
 /* Headings */
 h1, h2, h3, h4, h5, h6 {
@@ -175,35 +196,36 @@ h4 { @apply text-lg sm:text-xl; }
 /* Scrollbar styling */
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: hsl(var(--border)) hsl(var(--background)/0.5);
+  scrollbar-color: hsl(var(--border)/0.6) hsl(var(--background)/0.3);
 }
 .scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 .scrollbar-thin::-webkit-scrollbar-track {
   background: hsl(var(--background)/0.1);
-  border-radius: 3px;
+  border-radius: 4px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--border)/0.7);
-  border-radius: 3px;
+  background-color: hsl(var(--border)/0.5);
+  border-radius: 4px;
   border: 1px solid hsl(var(--background)/0.1);
 }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--border));
+  background-color: hsl(var(--border)/0.8);
 }
 
-/* SEB Specific (if any overrides are needed, generally try to keep SEB consistent with main theme) */
-.bg-seb-entry { /* For the main SEB entry page background */
-  @apply bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900;
+/* SEB Specific (Aurora Theme) */
+.bg-seb-entry {
+  @apply bg-gradient-to-br from-background via-muted to-secondary; /* Subtle gradient from main theme */
+  /* dark:from-slate-800 dark:to-slate-900; previous */
 }
 
-.seb-link-card { /* Specific styling for link cards in SEB entry */
-  @apply bg-card/90 dark:bg-card/70 border border-border/50 rounded-lg shadow-md hover:shadow-lg transition-all duration-200;
+.seb-link-card {
+  @apply bg-card/95 dark:bg-card/80 border border-border/60 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:border-primary/50;
 }
 
-/* Ensure light/dark mode switch is smooth if implemented globally */
+
 html:not(.dark) {
   color-scheme: light;
 }
@@ -211,7 +233,8 @@ html.dark {
   color-scheme: dark;
 }
 
-/* Ensure AuthForm page has a neutral background that works with the card */
 .auth-page-background {
-    @apply bg-muted/30;
+    @apply bg-gradient-to-br from-background via-muted to-secondary;
 }
+
+    

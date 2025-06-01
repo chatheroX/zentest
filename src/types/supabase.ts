@@ -32,6 +32,7 @@ export interface User {
   password_hash: string; // Hashed password
   saved_links: string[] | null; // Array of URLs
   license_key_used_id: string; // UUID, Foreign Key to license_keys table
+  avatar_url: string | null; // URL for the user's avatar (e.g., Dicebear)
   created_at: string; // TIMESTAMPTZ
 }
 
@@ -47,7 +48,7 @@ export interface Database {
       license_keys: {
         Row: LicenseKey;
         Insert: Omit<LicenseKey, 'id' | 'created_at' | 'is_claimed' | 'claimed_at' | 'claimed_by_user_id'> & {
-          created_by_admin_id: string; // Ensure this is provided on insert
+          created_by_admin_id: string; 
           key_value: string;
         };
         Update: Partial<Omit<LicenseKey, 'id' | 'created_at' | 'created_by_admin_id' | 'key_value'>>;
@@ -55,9 +56,10 @@ export interface Database {
       users: {
         Row: User;
         Insert: Omit<User, 'id' | 'created_at'> & {
-           license_key_used_id: string; // Ensure this is provided
+           license_key_used_id: string; 
+           avatar_url?: string | null; // Optional on insert, can be generated
         };
-        Update: Partial<Omit<User, 'id' | 'created_at' | 'license_key_used_id' | 'username'>>; // Username typically not updatable this way
+        Update: Partial<Omit<User, 'id' | 'created_at' | 'license_key_used_id' | 'username'>>;
       };
     };
     Views: {
@@ -76,17 +78,17 @@ export interface Database {
 }
 
 // ==== Custom User Type for AuthContext (Simplified) ====
-// This will represent the authenticated user in the application context.
-// It might be a 'user' or an 'admin'.
 export interface AuthenticatedUser {
   id: string;
   username: string;
-  role: 'user' | 'admin'; // Differentiates between regular user and admin
-  avatar_url?: string | null; // Generic avatar, can be based on username/role
-  saved_links?: string[] | null; // Only applicable if role is 'user'
+  role: 'user' | 'admin'; 
+  avatar_url: string | null; // Store the avatar URL
+  saved_links: string[] | null; // Only applicable if role is 'user'
 }
 
 // Specific table type exports if needed elsewhere directly
 export type AdminTableType = Database['public']['Tables']['admins'];
 export type LicenseKeyTableType = Database['public']['Tables']['license_keys'];
 export type UserTableType = Database['public']['Tables']['users'];
+
+    

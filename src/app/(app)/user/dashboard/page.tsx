@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
 export default function UserDashboardPage() {
-  const { user, updateUserLinks, isLoading: authLoading } = useAuth();
+  const { user, updateUserLinks, isLoading: authLoading, updateUserProfile } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -32,12 +32,12 @@ export default function UserDashboardPage() {
   const handleAddLink = () => {
     if (currentLinkInput.trim()) {
       try {
-        new URL(currentLinkInput.trim()); // Validate URL
+        new URL(currentLinkInput.trim()); 
         if (userLinks.length >= 10) {
           toast({ title: "Limit Reached", description: "You can save a maximum of 10 links.", variant: "default" });
           return;
         }
-        setUserLinks(prev => [...prev, currentLinkInput.trim()]);
+        setUserLinks(prev => Array.from(new Set([...prev, currentLinkInput.trim()])));
         setCurrentLinkInput('');
       } catch (_) {
         toast({ title: "Invalid Link", description: "Please enter a valid URL.", variant: "destructive" });
@@ -55,9 +55,11 @@ export default function UserDashboardPage() {
       return;
     }
     setIsSavingLinks(true);
-    const result = await updateUserLinks(user.id, userLinks);
+    // Use updateUserProfile from AuthContext to save links
+    const result = await updateUserProfile({ saved_links: userLinks });
+
     if (result.success) {
-      toast({ title: "Success", description: "Your links have been saved." });
+      toast({ title: "Success", description: "Your links have been saved to your profile." });
     } else {
       toast({ title: "Error", description: result.error || "Failed to save links.", variant: "destructive" });
     }
@@ -71,12 +73,10 @@ export default function UserDashboardPage() {
     }
     setIsLaunchingSEB(true);
     try {
-      // Generate a simple token carrying user ID.
-      // In a real scenario, this token might include more context for the SEB session.
-      const tokenResponse = await fetch('/api/generate-seb-token', { // This API will need to be simplified
+      const tokenResponse = await fetch('/api/generate-seb-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }), // Simplified payload
+        body: JSON.stringify({ userId: user.id }), 
       });
 
       if (!tokenResponse.ok) {
@@ -87,16 +87,15 @@ export default function UserDashboardPage() {
       if (!sebEntryTokenValue) throw new Error("SEB token generation failed.");
 
       const appDomain = window.location.origin;
-      const sebEntryPageUrl = `${appDomain}/seb/entry?token=${sebEntryTokenValue}`; // Using query param for simplicity
+      const sebEntryPageUrl = `${appDomain}/seb/entry?token=${sebEntryTokenValue}`; 
       const domainAndPathForSeb = sebEntryPageUrl.replace(/^https?:\/\//, '');
       const sebLaunchUrl = `sebs://${domainAndPathForSeb}`;
       
       toast({ title: "Launching SEB", description: "Safe Exam Browser should start. Ensure SEB is installed.", duration: 8000 });
       window.location.href = sebLaunchUrl;
 
-      // Fallback if SEB doesn't launch
       setTimeout(() => {
-        if (window.location.pathname.includes('user/dashboard')) { // Check if still on the same page
+        if (window.location.pathname.includes('user/dashboard')) { 
           setIsLaunchingSEB(false);
           toast({ title: "SEB Launch Issue?", description: "If SEB did not open, check pop-up blockers and SEB installation.", variant: "destructive", duration: 10000 });
         }
@@ -133,7 +132,7 @@ export default function UserDashboardPage() {
         <CardContent className="space-y-4">
           <div className="flex gap-2 items-end">
             <div className="flex-grow space-y-1">
-              <Label htmlFor="linkInput">Enter Link URL</Label>
+              <Label htmlFor="linkInput" className="text-muted-foreground">Enter Link URL</Label>
               <Input
                 id="linkInput"
                 type="url"
@@ -144,15 +143,15 @@ export default function UserDashboardPage() {
                 disabled={isSavingLinks}
               />
             </div>
-            <Button type="button" variant="outline" size="icon" onClick={handleAddLink} className="h-10 w-10 border-primary text-primary hover:bg-primary/10" title="Add Link" disabled={isSavingLinks || userLinks.length >= 10}>
+            <Button type="button" variant="outline" size="icon" onClick={handleAddLink} className="btn-outline-primary h-10 w-10" title="Add Link" disabled={isSavingLinks || userLinks.length >= 10}>
               <PlusCircle className="h-5 w-5" />
             </Button>
           </div>
           {userLinks.length > 0 && (
-            <div className="space-y-2 pt-3 border-t mt-3 max-h-60 overflow-y-auto scrollbar-thin">
+            <div className="space-y-2 pt-3 border-t border-border/20 mt-3 max-h-60 overflow-y-auto scrollbar-thin">
               <p className="text-sm font-medium text-muted-foreground">Your saved links:</p>
               {userLinks.map((link, index) => (
-                <div key={index} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded">
+                <div key={index} className="flex items-center justify-between text-sm p-2.5 bg-muted/50 rounded-md border border-border/30">
                   <a href={link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate flex-grow" title={link}>
                     {link.length > 60 ? `${link.substring(0, 57)}...` : link}
                   </a>
@@ -168,7 +167,7 @@ export default function UserDashboardPage() {
           )}
         </CardContent>
         <CardFooter>
-          <Button onClick={handleSaveChanges} className="ml-auto btn-primary" disabled={isSavingLinks || authLoading}>
+          <Button onClick={handleSaveChanges} className="ml-auto btn-gradient py-2.5 px-5" disabled={isSavingLinks || authLoading}>
             {isSavingLinks ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
             {isSavingLinks ? 'Saving...' : 'Save Link Changes'}
           </Button>
@@ -181,7 +180,7 @@ export default function UserDashboardPage() {
           <CardDescription>Launch Safe Exam Browser (SEB) to check your system&apos;s compatibility and access your saved links.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Alert variant="default" className="bg-primary/5 border-primary/20 text-primary/90">
+          <Alert variant="default" className="bg-primary/5 border-primary/20 text-primary/90 dark:text-primary/80">
             <Info className="h-5 w-5 text-primary" />
             <AlertTitle className="font-semibold">SEB Required</AlertTitle>
             <AlertDescription>
@@ -193,7 +192,7 @@ export default function UserDashboardPage() {
           </Alert>
         </CardContent>
         <CardFooter>
-          <Button onClick={handleRunSEB} className="w-full sm:w-auto btn-gradient text-base py-3" disabled={isLaunchingSEB || authLoading}>
+          <Button onClick={handleRunSEB} className="w-full sm:w-auto btn-gradient-accent text-base py-3 px-6" disabled={isLaunchingSEB || authLoading}>
             {isLaunchingSEB ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <PlayCircle className="mr-2 h-5 w-5" />}
             {isLaunchingSEB ? 'Launching SEB...' : 'Run SEB Compatibility Check'}
           </Button>
@@ -202,3 +201,5 @@ export default function UserDashboardPage() {
     </div>
   );
 }
+
+    

@@ -2,13 +2,13 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Eye, EyeOff, User, Lock, Loader2, KeyRound, ArrowRight, AlertTriangle, ShieldAlert } from 'lucide-react'; // Added KeyRound
+import { Eye, EyeOff, User, Lock, Loader2, KeyRound, ArrowRight, AlertTriangle, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AuthenticatedUser } from '@/types/supabase';
@@ -80,7 +80,6 @@ export function AuthForm() {
       result = await registerUserWithLicense(licenseKey.trim(), trimmedUsername, password);
       if (result.success) {
         toast({ title: "Registration Successful!", description: "Redirecting to your dashboard..." });
-        // AuthContext handles navigation
       } else {
         setFormError(result.error || "Registration failed.");
         toast({ title: "Registration Error", description: result.error || "An unknown error occurred.", variant: "destructive" });
@@ -93,7 +92,7 @@ export function AuthForm() {
         setFormError(result.error || "Invalid admin credentials.");
         toast({ title: "Admin Login Error", description: result.error || "Invalid admin credentials.", variant: "destructive" });
       }
-    } else { // 'login' action for regular users
+    } else { 
       result = await signInUser(trimmedUsername, password);
       if (result.success) {
         toast({ title: "Login Successful!", description: "Redirecting to your dashboard..." });
@@ -124,16 +123,16 @@ export function AuthForm() {
   const commonUserPassFields = (idPrefix: string) => (
     <>
       <div className="space-y-1.5">
-        <Label htmlFor={`${idPrefix}-username`}>Username</Label>
+        <Label htmlFor={`${idPrefix}-username`} className="text-muted-foreground">Username</Label>
         <div className="relative">
-          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/70" />
           <Input id={`${idPrefix}-username`} placeholder="your_username" value={username} onChange={(e) => setUsername(e.target.value)} required className="pl-10 ui-input" autoComplete="username" />
         </div>
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor={`${idPrefix}-password`}>Password</Label>
+        <Label htmlFor={`${idPrefix}-password`} className="text-muted-foreground">Password</Label>
         <div className="relative">
-          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/70" />
           <Input id={`${idPrefix}-password`} type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required className="pl-10 pr-10 ui-input" autoComplete={action === 'register' ? "new-password" : "current-password"} />
           <Button type="button" variant="ghost" size="icon" className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -153,7 +152,7 @@ export function AuthForm() {
                 <TabsTrigger 
                   key={tabAction}
                   value={tabAction} 
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md data-[state=inactive]:text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-[0.3rem] py-2 text-xs sm:text-sm font-medium transition-all"
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md data-[state=inactive]:text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-[0.4rem] py-2 text-xs sm:text-sm font-medium transition-all"
                 >
                   {tabAction === 'login' ? 'User Login' : tabAction === 'register' ? 'Register' : 'Admin Login'}
                 </TabsTrigger>
@@ -164,16 +163,15 @@ export function AuthForm() {
           <form onSubmit={handleAuth}>
             { (formError || contextAuthError) && (
               <div className="p-4 pt-0 sm:px-6 sm:pt-0">
-                <div className="bg-destructive/10 border border-destructive/40 text-destructive p-3 rounded-md text-sm flex items-start gap-2">
-                  <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0"/>
+                <div className="bg-destructive/10 border border-destructive/40 text-destructive-foreground p-3 rounded-md text-sm flex items-start gap-2">
+                  <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-destructive"/>
                   <div><p className="font-medium">Authentication Error</p>{formError && <p>{formError}</p>}{contextAuthError && !formError && <p>{contextAuthError}</p>}</div>
                 </div>
               </div>
             )}
 
-            {/* User Login Tab */}
             <TabsContent value="login">
-              <CardHeader className="text-center pt-4 sm:pt-6 pb-3"><CardTitle className="text-2xl font-semibold text-foreground">User Login</CardTitle><CardDescription className="text-muted-foreground pt-1 text-sm">Access your ProctorChecker account.</CardDescription></CardHeader>
+              <CardHeader className="text-center pt-4 sm:pt-6 pb-3"><CardTitle className="text-2xl font-semibold text-foreground flex items-center justify-center gap-2"><User className="h-6 w-6 text-primary"/>User Login</CardTitle><CardDescription className="text-muted-foreground pt-1 text-sm">Access your ProctorChecker account.</CardDescription></CardHeader>
               <CardContent className="space-y-4 p-4 sm:p-6 pt-2">{commonUserPassFields('login')}</CardContent>
               <CardFooter className="flex flex-col p-4 sm:p-6 pt-0 pb-6">
                 <Button type="submit" className="btn-gradient w-full text-sm py-2.5 rounded-md" disabled={isSubmitting || authContextLoading}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-1.5 h-4 w-4" />}Login</Button>
@@ -181,23 +179,22 @@ export function AuthForm() {
               </CardFooter>
             </TabsContent>
 
-            {/* User Registration Tab */}
             <TabsContent value="register">
-              <CardHeader className="text-center pt-4 sm:pt-6 pb-3"><CardTitle className="text-2xl font-semibold text-foreground">Create User Account</CardTitle><CardDescription className="text-muted-foreground pt-1 text-sm">Register with a valid license key.</CardDescription></CardHeader>
+              <CardHeader className="text-center pt-4 sm:pt-6 pb-3"><CardTitle className="text-2xl font-semibold text-foreground flex items-center justify-center gap-2"><User className="h-6 w-6 text-primary"/>Create User Account</CardTitle><CardDescription className="text-muted-foreground pt-1 text-sm">Register with a valid license key.</CardDescription></CardHeader>
               <CardContent className="space-y-3.5 p-4 sm:p-6 pt-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="register-licenseKey">License Key</Label>
+                  <Label htmlFor="register-licenseKey" className="text-muted-foreground">License Key</Label>
                   <div className="relative">
-                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/70" />
                     <Input id="register-licenseKey" placeholder="XXXX-XXXX-XXXX-XXXX" value={licenseKey} onChange={(e) => setLicenseKey(e.target.value.toUpperCase())} required className="pl-10 ui-input" />
                   </div>
                 </div>
                 {commonUserPassFields('register')}
                 <div className="space-y-1.5">
-                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Label htmlFor="confirm-password-register" className="text-muted-foreground">Confirm Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="confirm-password" type={showConfirmPassword ? 'text' : 'password'} placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="pl-10 pr-10 ui-input" autoComplete="new-password" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/70" />
+                    <Input id="confirm-password-register" type={showConfirmPassword ? 'text' : 'password'} placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="pl-10 pr-10 ui-input" autoComplete="new-password" />
                      <Button type="button" variant="ghost" size="icon" className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setShowConfirmPassword(!showConfirmPassword)} aria-label={showConfirmPassword ? "Hide password" : "Show password"}>
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
@@ -210,9 +207,8 @@ export function AuthForm() {
               </CardFooter>
             </TabsContent>
 
-            {/* Admin Login Tab */}
             <TabsContent value="adminLogin">
-              <CardHeader className="text-center pt-4 sm:pt-6 pb-3"><CardTitle className="text-2xl font-semibold text-foreground">Admin Portal Login</CardTitle><CardDescription className="text-muted-foreground pt-1 text-sm flex items-center justify-center gap-1"><ShieldAlert className="h-4 w-4 text-amber-500"/>Authorized access only.</CardDescription></CardHeader>
+              <CardHeader className="text-center pt-4 sm:pt-6 pb-3"><CardTitle className="text-2xl font-semibold text-foreground flex items-center justify-center gap-2"><ShieldCheck className="h-6 w-6 text-primary"/>Admin Portal Login</CardTitle><CardDescription className="text-muted-foreground pt-1 text-sm flex items-center justify-center gap-1"><ShieldAlert className="h-4 w-4 text-amber-500"/>Authorized access only.</CardDescription></CardHeader>
               <CardContent className="space-y-4 p-4 sm:p-6 pt-2">{commonUserPassFields('adminLogin')}</CardContent>
               <CardFooter className="p-4 sm:p-6 pt-0 pb-6">
                 <Button type="submit" className="btn-gradient w-full text-sm py-2.5 rounded-md" disabled={isSubmitting || authContextLoading}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-1.5 h-4 w-4" />}Admin Login</Button>
@@ -224,3 +220,5 @@ export function AuthForm() {
     </div>
   );
 }
+
+    
