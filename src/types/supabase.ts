@@ -26,6 +26,7 @@ export interface ProctorXTableType {
   name: string;
   role: 'student' | 'teacher';
   avatar_url: string | null;
+  saved_links: string[] | null; // Added for persistent saved links
   created_at?: string;
 }
 
@@ -116,7 +117,7 @@ export interface Database {
           started_at: string; 
           submitted_at: string | null;
           flagged_events: FlaggedEvent[] | null;
-          saved_links: string[] | null; // Added field
+          saved_links: string[] | null; // Session-specific links for this attempt
         };
         Insert: {
           submission_id?: string;
@@ -128,7 +129,7 @@ export interface Database {
           started_at: string; 
           submitted_at?: string | null;
           flagged_events?: FlaggedEvent[] | null;
-          saved_links?: string[] | null; // Added field
+          saved_links?: string[] | null; 
         };
         Update: Partial<{
           answers: Json | null;
@@ -136,7 +137,7 @@ export interface Database {
           score: number | null;
           submitted_at: string | null;
           flagged_events: FlaggedEvent[] | null;
-          saved_links: string[] | null; // Added field
+          saved_links: string[] | null; 
         }>;
       };
     };
@@ -161,6 +162,7 @@ export type CustomUser = {
   name: string | null;
   role: 'student' | 'teacher' | null;
   avatar_url: string | null;
+  saved_links?: string[] | null; // Added for persistent saved links
 };
 
 export type ProctorXTable = Database['public']['Tables']['proctorX'];

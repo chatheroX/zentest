@@ -3,7 +3,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/supabase';
+import type { Database, CustomUser } from '@/types/supabase';
 
 // Local helper for safe error message extraction
 function getLocalSafeErrorMessage(e: any, defaultMessage = "An unknown error occurred."): string {
@@ -56,14 +56,15 @@ export async function GET(request: NextRequest) {
   const operationId = `[API ValidateToken GET ${Date.now().toString().slice(-5)}]`;
   console.log(`${operationId} Handler started.`);
 
-  const jwtSecret = process.env.NEXT_PUBLIC_JWT_SECRET; // Using NEXT_PUBLIC_ as per user's .env for deployment
+  // Changed from NEXT_PUBLIC_JWT_SECRET to JWT_SECRET
+  const jwtSecret = process.env.JWT_SECRET; 
 
   if (!jwtSecret) {
-    const errorMsg = 'Server configuration error (JWT secret).';
-    console.error(`${operationId} CRITICAL: NEXT_PUBLIC_JWT_SECRET environment variable is not defined or is empty on the server. This secret is required to validate exam session tokens. Please ensure it is set in your .env file or deployment environment variables, and that the server has been restarted.`);
+    const errorMsg = 'Server configuration error (JWT secret). Ensure JWT_SECRET is set.';
+    console.error(`${operationId} CRITICAL: JWT_SECRET environment variable is not defined or is empty on the server. This secret is required to validate exam session tokens. Please ensure it is set in your .env file or deployment environment variables, and that the server has been restarted.`);
     return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
-  console.log(`${operationId} NEXT_PUBLIC_JWT_SECRET is available for validation (length: ${jwtSecret.length}).`);
+  console.log(`${operationId} JWT_SECRET is available for validation (length: ${jwtSecret.length}).`);
 
   if (!supabaseAdmin) {
     console.error(`${operationId} Supabase admin client not initialized. Check server logs for init errors. Details: ${initErrorDetails}`);
@@ -90,8 +91,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: errorMessage }, { status: 401 });
     }
     
-    const { studentId, examId, links } = decoded; // Added links
-    console.log(`${operationId} JWT decoded. StudentID: ${studentId}, ExamID: ${examId}, Links:`, links);
+    // Renamed 'links' from token to 'sessionSpecificLinks' for clarity
+    const { studentId, examId, sessionSpecificLinks } = decoded; 
+    console.log(`${operationId} JWT decoded. StudentID: ${studentId}, ExamID: ${examId}, SessionSpecificLinks:`, sessionSpecificLinks);
 
     if (!studentId || !examId) {
         const errMsg = "Token payload incomplete (missing studentId or examId).";
@@ -99,24 +101,37 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Token payload incomplete.' }, { status: 400 });
     }
 
-    // Validate links format if present
-    let validLinks: string[] = [];
-    if (links) {
-        if (Array.isArray(links) && links.every(l => typeof l === 'string')) {
-            validLinks = links;
+    let validSessionSpecificLinks: string[] = [];
+    if (sessionSpecificLinks) {
+        if (Array.isArray(sessionSpecificLinks) && sessionSpecificLinks.every(l => typeof l === 'string')) {
+            validSessionSpecificLinks = sessionSpecificLinks;
         } else {
-            console.warn(`${operationId} Invalid 'links' format in token payload. Expected array of strings. Received:`, links);
-            // Proceed without links, or could error out if links are critical. For now, just warn.
+            console.warn(`${operationId} Invalid 'sessionSpecificLinks' format in token payload. Expected array of strings. Received:`, sessionSpecificLinks);
         }
     }
+
+    console.log(`${operationId} Fetching user profile for student: ${studentId} to get profile-level saved links.`);
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+        .from('proctorX')
+        .select('saved_links')
+        .eq('user_id', studentId)
+        .single();
+
+    if (profileError) {
+        const profileDbErrorMsg = getLocalSafeErrorMessage(profileError, 'Database error fetching user profile links.');
+        console.error(`${operationId} Supabase error fetching user profile links:`, profileDbErrorMsg, profileError);
+        // Proceed without profile links, or return error if critical. For now, proceed.
+    }
+    const profileSavedLinks: string[] = userProfile?.saved_links || [];
+    console.log(`${operationId} Profile-level saved links fetched for student ${studentId}:`, profileSavedLinks);
+
 
     console.log(`${operationId} Checking for prior submission for student: ${studentId}, exam: ${examId}`);
     const { data: submissionData, error: submissionError } = await supabaseAdmin
       .from('ExamSubmissionsX')
-      .select('status, saved_links') // Also fetch saved_links if needed here, or rely on token's links
+      .select('status') 
       .eq('student_user_id', studentId)
       .eq('exam_id', examId)
-      // .eq('status', 'Completed') // We might want to allow re-entry if 'In Progress'
       .maybeSingle();
 
     if (submissionError) {
@@ -132,17 +147,14 @@ export async function GET(request: NextRequest) {
     } else if (submissionData?.status === 'In Progress') {
       console.log(`${operationId} Exam 'In Progress' for student ${studentId}, exam ${examId}. Re-entry allowed.`);
     }
-
-    // The links from the token are the source of truth for this session.
-    // If a submission already exists, its `saved_links` might be from a previous attempt if not overwritten.
-    // `SebEntryClientNew` will handle upserting the current session's links from the token.
     
     console.log(`${operationId} Token ${token.substring(0, 10) + "..."} successfully validated. isAlreadyCompleted: ${isAlreadyCompleted}`);
     return NextResponse.json({
       studentId: studentId, 
       examId: examId,
-      isAlreadySubmitted: isAlreadyCompleted, // Renamed for clarity
-      savedLinks: validLinks, // Return links from token
+      isAlreadySubmitted: isAlreadyCompleted, 
+      sessionSpecificLinks: validSessionSpecificLinks, 
+      profileSavedLinks: profileSavedLinks, 
     }, { status: 200 });
 
   } catch (e: any) {

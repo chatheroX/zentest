@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, AlertTriangle, PlayCircle, ShieldCheck, XCircle, Info, LogOut, ServerCrash, CheckCircle, Ban, CircleSlash, BookOpen, UserCircle2, CalendarDays, ListChecks, Shield, ClockIcon, FileTextIcon, HelpCircleIcon, Wifi, Maximize, Zap, LinkIcon } from 'lucide-react';
-import type { Exam, CustomUser, FlaggedEvent, ExamSubmissionInsert } from '@/types/supabase'; // Added ExamSubmissionInsert
+import { Loader2, AlertTriangle, PlayCircle, ShieldCheck, XCircle, Info, LogOut, ServerCrash, CheckCircle, Ban, CircleSlash, BookOpen, UserCircle2, CalendarDays, ListChecks, Shield, ClockIcon, FileTextIcon, HelpCircleIcon, Wifi, Maximize, Zap, LinkIcon, ExternalLink } from 'lucide-react';
+import type { Exam, CustomUser, FlaggedEvent, ExamSubmissionInsert } from '@/types/supabase'; 
 import { useToast, toast as globalToast } from '@/hooks/use-toast'; 
 import { format, isValid as isValidDate, parseISO } from 'date-fns';
 import { isSebEnvironment, isOnline, areDevToolsLikelyOpen, isWebDriverActive } from '@/lib/seb-utils';
@@ -78,7 +78,8 @@ export function SebEntryClientNew() {
   const [validatedStudentId, setValidatedStudentId] = useState<string | null>(null);
   const [validatedExamId, setValidatedExamId] = useState<string | null>(null);
   const [isPreviouslySubmitted, setIsPreviouslySubmitted] = useState(false);
-  const [fetchedSavedLinks, setFetchedSavedLinks] = useState<string[]>([]); // New state for links
+  const [sessionSpecificLinks, setSessionSpecificLinks] = useState<string[]>([]);
+  const [profileSavedLinks, setProfileSavedLinks] = useState<string[]>([]);
 
   const [examDetails, setExamDetails] = useState<Exam | null>(null);
   const [studentProfile, setStudentProfile] = useState<CustomUser | null>(null);
@@ -186,8 +187,9 @@ export function SebEntryClientNew() {
               setValidatedStudentId(responseBodyJson.studentId);
               setValidatedExamId(responseBodyJson.examId);
               setIsPreviouslySubmitted(responseBodyJson.isAlreadySubmitted || false);
-              setFetchedSavedLinks(responseBodyJson.savedLinks || []); // Set saved links from token
-              console.log(`${effectId} Token validated. StudentID: ${responseBodyJson.studentId}, ExamID: ${responseBodyJson.examId}, PreviouslySubmitted: ${responseBodyJson.isAlreadySubmitted}, Links: ${responseBodyJson.savedLinks?.length || 0}. Moving to fetchingDetails.`);
+              setSessionSpecificLinks(responseBodyJson.sessionSpecificLinks || []);
+              setProfileSavedLinks(responseBodyJson.profileSavedLinks || []);
+              console.log(`${effectId} Token validated. StudentID: ${responseBodyJson.studentId}, ExamID: ${responseBodyJson.examId}, PreviouslySubmitted: ${responseBodyJson.isAlreadySubmitted}, SessionLinks: ${responseBodyJson.sessionSpecificLinks?.length || 0}, ProfileLinks: ${responseBodyJson.profileSavedLinks?.length || 0}. Moving to fetchingDetails.`);
               setStage('fetchingDetails');
             } catch (jsonParseError: any) {
                 console.error(`${effectId} Failed to parse successful API response JSON:`, jsonParseError, "Response text:", responseBodyText);
@@ -350,14 +352,15 @@ export function SebEntryClientNew() {
       console.error(`${operationId} Aborting: ${errorMsg}`);
       setPageError(errorMsg); setStage('error'); return;
     }
-    console.log(`${operationId} Upserting 'In Progress' for exam: ${examDetails.exam_id}, student: ${validatedStudentId}, with links:`, fetchedSavedLinks);
+    console.log(`${operationId} Upserting 'In Progress' for exam: ${examDetails.exam_id}, student: ${validatedStudentId}, with session-specific links:`, sessionSpecificLinks);
     try {
       const submissionUpsertData: ExamSubmissionInsert = {
         exam_id: examDetails.exam_id,
         student_user_id: validatedStudentId,
         status: 'In Progress',
         started_at: new Date().toISOString(),
-        saved_links: fetchedSavedLinks.length > 0 ? fetchedSavedLinks : null,
+        // Save session-specific links to the submission record
+        saved_links: sessionSpecificLinks.length > 0 ? sessionSpecificLinks : null, 
         answers: null,
         flagged_events: null,
         score: null,
@@ -372,7 +375,7 @@ export function SebEntryClientNew() {
         const warningMsg = getSafeErrorMessage(submissionUpsertError, "Could not record exam start accurately.");
         console.warn(`${operationId} Error upserting 'In Progress' submission:`, warningMsg, submissionUpsertError);
         globalToast({ title: "Start Record Warning", description: warningMsg, variant: "default" });
-      } else console.log(`${operationId} 'In Progress' submission record upserted with links.`);
+      } else console.log(`${operationId} 'In Progress' submission record upserted with session-specific links.`);
       setStage('examInProgress');
       console.log(`${operationId} Stage set to examInProgress.`);
     } catch (e: any) {
@@ -380,7 +383,7 @@ export function SebEntryClientNew() {
       console.error(`${operationId} Exception:`, errorMsg, e);
       setPageError(errorMsg); setStage('error');
     }
-  }, [examDetails, validatedStudentId, supabase, studentProfile, globalToast, isDataReadyForExam, fetchedSavedLinks]);
+  }, [examDetails, validatedStudentId, supabase, studentProfile, globalToast, isDataReadyForExam, sessionSpecificLinks]);
 
   useEffect(() => {
     const effectId = `[SebEntryClientNew useEffect for startingExamSession ${Date.now().toString().slice(-5)}]`;
@@ -405,7 +408,8 @@ export function SebEntryClientNew() {
       exam_id: validatedExamId, student_user_id: validatedStudentId, answers: answers,
       flagged_events: flaggedEventsFromInterface.length > 0 ? flaggedEventsFromInterface : null,
       status: 'Completed' as 'Completed', submitted_at: new Date().toISOString(),
-      saved_links: fetchedSavedLinks.length > 0 ? fetchedSavedLinks : null, // Ensure links are part of final submission too
+      // Session-specific links that were active for this attempt
+      saved_links: sessionSpecificLinks.length > 0 ? sessionSpecificLinks : null, 
     };
     console.log(`${operationId} Submitting payload (answers omitted for brevity):`, { ...submissionPayload, answers: Object.keys(answers).length > 0 ? "{...}" : "{}" });
 
@@ -452,7 +456,7 @@ export function SebEntryClientNew() {
     } finally {
       setIsSubmittingViaApi(false);
     }
-  }, [validatedExamId, validatedStudentId, examDetails, studentProfile, globalToast, fetchedSavedLinks]);
+  }, [validatedExamId, validatedStudentId, examDetails, studentProfile, globalToast, sessionSpecificLinks]);
 
   const isLoadingCriticalStages = stage === 'initializing' || stage === 'validatingToken' || stage === 'fetchingDetails' || (authContextLoading && stage === 'initializing');
   
@@ -581,6 +585,8 @@ export function SebEntryClientNew() {
   if (isPreviouslySubmitted) examStatusText = "Already Submitted";
   else if (stage === 'examCompleted') examStatusText = "Completed";
 
+  const hasProfileLinks = profileSavedLinks && profileSavedLinks.length > 0;
+  const hasSessionLinks = sessionSpecificLinks && sessionSpecificLinks.length > 0;
 
   return (
     <div className="min-h-screen w-full flex flex-col sm:flex-row bg-slate-50 text-slate-800 overflow-hidden">
@@ -647,38 +653,68 @@ export function SebEntryClientNew() {
         <div className="card-3d p-3 sm:p-4 rounded-lg shadow-lg border border-slate-200 flex-grow overflow-hidden flex flex-col">
           <h3 className="text-base sm:text-md font-semibold mb-2 flex items-center gap-1.5 text-slate-700 shrink-0">
             <ShieldCheck className="h-4 w-4 text-blue-600 stroke-width-1.5" /> 
-            {fetchedSavedLinks.length > 0 ? "Your Saved Links & Exam Rules" : "General Rules & Instructions"}
+            {(hasProfileLinks || hasSessionLinks) ? "Reference Links & Exam Rules" : "General Rules & Instructions"}
           </h3>
           <ScrollArea className="flex-grow seb-rules-list text-slate-600 pr-2">
-            {fetchedSavedLinks.length > 0 && (
+            {hasProfileLinks && (
                 <div className="mb-3 pt-2 border-t border-slate-200">
                     <h4 className="text-sm font-semibold mb-1.5 text-slate-700 flex items-center gap-1.5">
-                        <LinkIcon className="h-4 w-4 text-blue-500 stroke-width-1.5"/>
-                        Saved Links:
+                        <UserCircle2 className="h-4 w-4 text-blue-500 stroke-width-1.5"/>
+                        Your Saved Links (Profile):
                     </h4>
                     <ul className="space-y-1 text-xs sm:text-sm">
-                        {fetchedSavedLinks.map((link, index) => (
-                             <li key={index} className="flex items-center gap-1.5 p-1 hover:bg-blue-50 rounded">
-                                <ExternalLink className="h-3.5 w-3.5 text-blue-500 shrink-0 stroke-width-1.5" />
-                                <a href={link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate" title={link}>
+                        {profileSavedLinks.map((link, index) => (
+                             <li key={`profile-${index}`} className="flex items-center justify-between gap-1.5 p-1 hover:bg-blue-50 rounded">
+                                <a href={link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate flex-grow" title={link}>
+                                    <LinkIcon className="h-3.5 w-3.5 text-blue-500 shrink-0 stroke-width-1.5 inline mr-1.5" />
                                     {link}
                                 </a>
+                                <Button size="sm" variant="outline" className="h-auto py-1 px-2 text-xs border-blue-500 text-blue-600 hover:bg-blue-100" onClick={() => window.open(link, '_blank', 'noopener,noreferrer')}>Open</Button>
                             </li>
                         ))}
                     </ul>
                 </div>
             )}
-            <ul className="space-y-1.5 text-xs sm:text-sm">
-                {generalRules.map((rule, index) => {
-                const RuleIcon = rule.icon;
-                return (
-                    <li key={index} className="flex items-start gap-1.5"> 
-                    <RuleIcon className="h-4 w-4 text-blue-600 shrink-0 mt-0.5 stroke-width-1.5" />
-                    <span>{rule.text}</span>
-                    </li>
-                );
-                })}
-            </ul>
+            {hasSessionLinks && (
+                <div className="mb-3 pt-2 border-t border-slate-200">
+                    <h4 className="text-sm font-semibold mb-1.5 text-slate-700 flex items-center gap-1.5">
+                        <ListChecks className="h-4 w-4 text-blue-500 stroke-width-1.5"/>
+                        Links for This Exam Session:
+                    </h4>
+                    <ul className="space-y-1 text-xs sm:text-sm">
+                        {sessionSpecificLinks.map((link, index) => (
+                            <li key={`session-${index}`} className="flex items-center justify-between gap-1.5 p-1 hover:bg-blue-50 rounded">
+                                <a href={link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate flex-grow" title={link}>
+                                    <LinkIcon className="h-3.5 w-3.5 text-blue-500 shrink-0 stroke-width-1.5 inline mr-1.5" />
+                                    {link}
+                                </a>
+                                <Button size="sm" variant="outline" className="h-auto py-1 px-2 text-xs border-blue-500 text-blue-600 hover:bg-blue-100" onClick={() => window.open(link, '_blank', 'noopener,noreferrer')}>Open</Button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            {(!hasProfileLinks && !hasSessionLinks) && (
+                <p className="text-xs text-slate-500 italic py-2">No specific links provided for this session or saved to your profile.</p>
+            )}
+
+            <div className={cn("pt-2", (hasProfileLinks || hasSessionLinks) && "border-t border-slate-200 mt-3")}>
+                <h4 className="text-sm font-semibold mb-1.5 text-slate-700 flex items-center gap-1.5">
+                    <BookOpen className="h-4 w-4 text-blue-500 stroke-width-1.5"/>
+                    General Exam Rules:
+                </h4>
+                <ul className="space-y-1.5 text-xs sm:text-sm">
+                    {generalRules.map((rule, index) => {
+                    const RuleIcon = rule.icon;
+                    return (
+                        <li key={`rule-${index}`} className="flex items-start gap-1.5"> 
+                        <RuleIcon className="h-4 w-4 text-blue-600 shrink-0 mt-0.5 stroke-width-1.5" />
+                        <span>{rule.text}</span>
+                        </li>
+                    );
+                    })}
+                </ul>
+            </div>
           </ScrollArea>
         </div>
 

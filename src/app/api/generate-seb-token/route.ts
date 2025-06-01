@@ -56,16 +56,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errorMsg }, { status: 500 });
     }
 
-    const currentJwtSecretValue = process.env.NEXT_PUBLIC_JWT_SECRET; // As per user's last instruction for deployment
-    console.log(`${operationId} Value of process.env.NEXT_PUBLIC_JWT_SECRET at runtime: '${currentJwtSecretValue}' (Type: ${typeof currentJwtSecretValue})`);
+    // Changed from NEXT_PUBLIC_JWT_SECRET to JWT_SECRET
+    const currentJwtSecretValue = process.env.JWT_SECRET; 
+    console.log(`${operationId} Value of process.env.JWT_SECRET at runtime: '${currentJwtSecretValue ? '********' : 'NOT SET'}' (Type: ${typeof currentJwtSecretValue})`);
 
     if (!currentJwtSecretValue) {
-      const errorMsg = 'Server configuration error (JWT secret missing for generation).';
-      console.error(`${operationId} CRITICAL: NEXT_PUBLIC_JWT_SECRET is not configured on the server for token generation. Verified value is undefined or empty: '${currentJwtSecretValue}'`);
-      console.log(`${operationId} Preparing to send 500 response due to missing NEXT_PUBLIC_JWT_SECRET.`);
+      const errorMsg = 'Server configuration error (JWT secret missing for generation). Ensure JWT_SECRET is set in your environment.';
+      console.error(`${operationId} CRITICAL: JWT_SECRET is not configured on the server for token generation. Verified value is undefined or empty.`);
+      console.log(`${operationId} Preparing to send 500 response due to missing JWT_SECRET.`);
       return NextResponse.json({ error: errorMsg }, { status: 500 });
     }
-    console.log(`${operationId} NEXT_PUBLIC_JWT_SECRET is available (length: ${currentJwtSecretValue?.length || 0}).`);
+    console.log(`${operationId} JWT_SECRET is available (length: ${currentJwtSecretValue?.length || 0}).`);
 
     let body;
     try {
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Invalid request body: ${errorMsg}` }, { status: 400 });
     }
 
-    const { studentId, examId, links } = body; // Added links
+    const { studentId, examId, links } = body; 
 
     if (!studentId || !examId) {
       const errorMsg = "Missing studentId or examId in request body.";
@@ -87,20 +88,21 @@ export async function POST(request: NextRequest) {
       console.log(`${operationId} Preparing to send 400 response due to missing params.`);
       return NextResponse.json({ error: errorMsg }, { status: 400 });
     }
-    console.log(`${operationId} Extracted studentId: ${studentId}, examId: ${examId}, links:`, links);
+    console.log(`${operationId} Extracted studentId: ${studentId}, examId: ${examId}, session-specific links:`, links);
 
-    const payload: Record<string, any> = { studentId, examId, type: 'sebEntry' }; // Added a type for clarity
+    const payload: Record<string, any> = { studentId, examId, type: 'sebEntry' }; 
+    // These are session-specific links for this exam attempt
     if (links && Array.isArray(links) && links.every(l => typeof l === 'string')) {
-        payload.links = links;
+        payload.sessionSpecificLinks = links;
     } else if (links !== undefined) {
-        console.warn(`${operationId} Invalid 'links' format received. Expected array of strings. Links will not be included in token. Received:`, links);
+        console.warn(`${operationId} Invalid 'links' (session-specific) format received. Expected array of strings. Session links will not be included in token. Received:`, links);
     }
     
     let token;
 
     try {
       console.log(`${operationId} Attempting to sign JWT with payload:`, payload);
-      token = localJwt.sign(payload, currentJwtSecretValue, { expiresIn: '1h' }); // Using 1h expiry as per latest user context
+      token = localJwt.sign(payload, currentJwtSecretValue, { expiresIn: '1h' }); 
       console.log(`${operationId} JWT signed successfully. Token (first 20 chars): ${token ? token.substring(0,20) + "..." : "TOKEN_GENERATION_FAILED"}`);
     } catch (signError: any) {
       const errorMsg = getLocalSafeServerErrorMessage(signError, "JWT signing process failed.");

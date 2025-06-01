@@ -61,7 +61,7 @@ type AuthContextType = {
   signIn: (email: string, pass: string) => Promise<{ success: boolean; error?: string; user?: CustomUser | null }>;
   signUp: (email: string, pass: string, name: string, role: CustomUser['role']) => Promise<{ success: boolean; error?: string; user?: CustomUser | null }>;
   signOut: () => Promise<void>;
-  updateUserProfile: (data: { name: string; password?: string; avatar_url?: string }) => Promise<{ success: boolean; error?: string }>;
+  updateUserProfile: (data: { name: string; password?: string; avatar_url?: string; saved_links?: string[] }) => Promise<{ success: boolean; error?: string }>;
   showSignOutDialog: boolean; 
   setShowSignOutDialog: React.Dispatch<React.SetStateAction<boolean>>; 
 };
@@ -144,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log(`${effectId} Session cookie found. Fetching user: ${userEmailFromCookie} from DB...`);
       const { data, error: dbError } = await supabase
         .from('proctorX')
-        .select('user_id, email, name, role, avatar_url')
+        .select('user_id, email, name, role, avatar_url, saved_links') // Added saved_links
         .eq('email', userEmailFromCookie)
         .single();
       console.log(`${effectId} DB query for ${userEmailFromCookie} - Data:`, data, 'Error:', dbError);
@@ -169,8 +169,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: data.name ?? null,
         role: data.role as CustomUser['role'] || null,
         avatar_url: data.avatar_url || generateEnhancedDiceBearAvatar(data.role as CustomUser['role'], data.user_id),
+        saved_links: data.saved_links || [], // Initialize as empty array if null
       };
-      console.log(`${effectId} User loaded from cookie and DB: ${loadedUser.email}, Role: ${loadedUser.role}`);
+      console.log(`${effectId} User loaded from cookie and DB: ${loadedUser.email}, Role: ${loadedUser.role}, SavedLinks: ${loadedUser.saved_links?.length}`);
       setUser(loadedUser);
       if (loadedUser.role) Cookies.set(ROLE_COOKIE_NAME, loadedUser.role, { expires: 7, path: '/' });
       else Cookies.remove(ROLE_COOKIE_NAME);
@@ -300,7 +301,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error: dbError } = await supabase
         .from('proctorX')
-        .select('user_id, email, pass, name, role, avatar_url')
+        .select('user_id, email, pass, name, role, avatar_url, saved_links') // Added saved_links
         .eq('email', email)
         .single();
 
@@ -322,6 +323,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: data.name ?? null,
           role: data.role as CustomUser['role'] || null,
           avatar_url: data.avatar_url || generateEnhancedDiceBearAvatar(data.role as CustomUser['role'], data.user_id),
+          saved_links: data.saved_links || [], // Initialize as empty array if null
         };
 
         setUser(userData);
@@ -383,13 +385,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const newUserId = generateShortId();
       const defaultAvatar = generateEnhancedDiceBearAvatar(role, newUserId);
       const newUserRecord: ProctorXTableType['Insert'] = {
-        user_id: newUserId, email, pass, name, role, avatar_url: defaultAvatar,
+        user_id: newUserId, email, pass, name, role, avatar_url: defaultAvatar, saved_links: [], // Initialize with empty array
       };
 
       const { data: insertedData, error: insertError } = await supabase
         .from('proctorX')
         .insert(newUserRecord)
-        .select('user_id, email, name, role, avatar_url')
+        .select('user_id, email, name, role, avatar_url, saved_links') // Added saved_links
         .single();
 
       if (insertError || !insertedData) {
@@ -405,6 +407,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: insertedData.name ?? null,
         role: insertedData.role as CustomUser['role'],
         avatar_url: insertedData.avatar_url || defaultAvatar,
+        saved_links: insertedData.saved_links || [], // Initialize as empty array if null
       };
 
       setUser(newUserData);
@@ -443,7 +446,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [pathname, router]);
 
-  const updateUserProfile = useCallback(async (profileData: { name: string; password?: string; avatar_url?: string }): Promise<{ success: boolean; error?: string }> => {
+  const updateUserProfile = useCallback(async (profileData: { name: string; password?: string; avatar_url?: string; saved_links?: string[] }): Promise<{ success: boolean; error?: string }> => {
     const operationId = `[AuthContext updateUserProfile ${Date.now().toString().slice(-4)}]`;
 
     if (!supabase) {
@@ -460,11 +463,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: errorMsg };
     }
 
-    console.log(`${operationId} Attempting update for user_id: ${user.user_id} with data:`, {name: profileData.name, password_present: !!profileData.password, avatar_url_present: !!profileData.avatar_url});
+    console.log(`${operationId} Attempting update for user_id: ${user.user_id} with data:`, {name: profileData.name, password_present: !!profileData.password, avatar_url_present: !!profileData.avatar_url, saved_links_count: profileData.saved_links?.length});
     setIsLoading(true); setAuthError(null);
 
     try {
-      const updates: Partial<Omit<ProctorXTableType['Update'], 'user_id' | 'email' | 'role'>> = { name: profileData.name };
+      const updates: Partial<Omit<ProctorXTableType['Update'], 'user_id' | 'email' | 'role'>> = { 
+        name: profileData.name,
+        saved_links: profileData.saved_links !== undefined ? profileData.saved_links : user.saved_links || [],
+       };
       if (profileData.password) {
         if (profileData.password.length < 6) {
           setIsLoading(false);
@@ -473,6 +479,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updates.pass = profileData.password;
       }
       if (profileData.avatar_url !== undefined) updates.avatar_url = profileData.avatar_url;
+
 
       const { error: updateError } = await supabase
         .from('proctorX')
@@ -490,6 +497,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...prevUser,
         name: updates.name ?? prevUser.name,
         avatar_url: updates.avatar_url !== undefined ? updates.avatar_url : prevUser.avatar_url,
+        saved_links: updates.saved_links !== undefined ? updates.saved_links : prevUser.saved_links,
       }) : null);
       console.log(`${operationId} Success. Profile updated and context refreshed.`);
       setIsLoading(false); return { success: true };
