@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -145,8 +146,9 @@ export default function AdminLoginPage() {
     </div>
   );
 }
+// Removed static metadata export as this is a client component
+// export const metadata = {
+//     title: 'Admin Login | ProctorChecker',
+//     description: 'Administrator login portal for ProctorChecker.',
+// };
 
-export const metadata = {
-    title: 'Admin Login | ProctorChecker',
-    description: 'Administrator login portal for ProctorChecker.',
-};
