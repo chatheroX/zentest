@@ -18,7 +18,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning> {/* suppressHydrationWarning can be useful during large theme changes */}
+    <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} font-sans antialiased flex flex-col min-h-screen bg-background text-foreground`}>
         <AuthProvider> {/* AuthProvider will be heavily modified */}
           {children}
