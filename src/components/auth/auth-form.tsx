@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -8,20 +7,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Eye, EyeOff, User, Lock, Loader2, KeyRound, ArrowRight, AlertTriangle, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, Loader2, KeyRound, ArrowRight, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AuthenticatedUser } from '@/types/supabase';
 
-type AuthAction = 'login' | 'register' | 'adminLogin';
+type AuthAction = 'login' | 'register'; // Removed 'adminLogin'
 
 const AUTH_ROUTE = '/auth';
+const USER_DASHBOARD_ROUTE = '/user/dashboard';
+
 
 export function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { user, isLoading: authContextLoading, authError: contextAuthError, signInUser, signInAdmin, registerUserWithLicense } = useAuth();
+  const { user, isLoading: authContextLoading, authError: contextAuthError, signInUser, registerUserWithLicense } = useAuth();
 
   const initialAction = (searchParams.get('action') as AuthAction) || 'login';
   
@@ -43,7 +44,7 @@ export function AuthForm() {
 
   useEffect(() => {
     const actionFromParams = (searchParams.get('action') as AuthAction) || 'login';
-    if (actionFromParams !== action) {
+    if (actionFromParams !== action && (actionFromParams === 'login' || actionFromParams === 'register')) {
       resetFormFields();
       setAction(actionFromParams);
     }
@@ -80,22 +81,16 @@ export function AuthForm() {
       result = await registerUserWithLicense(licenseKey.trim(), trimmedUsername, password);
       if (result.success) {
         toast({ title: "Registration Successful!", description: "Redirecting to your dashboard..." });
+         router.replace(USER_DASHBOARD_ROUTE);
       } else {
         setFormError(result.error || "Registration failed.");
         toast({ title: "Registration Error", description: result.error || "An unknown error occurred.", variant: "destructive" });
       }
-    } else if (action === 'adminLogin') {
-      result = await signInAdmin(trimmedUsername, password);
-      if (result.success) {
-        toast({ title: "Admin Login Successful!", description: "Redirecting to admin dashboard..." });
-      } else {
-        setFormError(result.error || "Invalid admin credentials.");
-        toast({ title: "Admin Login Error", description: result.error || "Invalid admin credentials.", variant: "destructive" });
-      }
-    } else { 
+    } else { // Only 'login' (user login) remains
       result = await signInUser(trimmedUsername, password);
       if (result.success) {
         toast({ title: "Login Successful!", description: "Redirecting to your dashboard..." });
+         router.replace(USER_DASHBOARD_ROUTE);
       } else {
         setFormError(result.error || "Invalid credentials or server error.");
         toast({ title: "Login Error", description: result.error || "Invalid credentials or server error.", variant: "destructive" });
@@ -111,13 +106,33 @@ export function AuthForm() {
       </div>
     );
   }
+
+  if (user && user.role === 'user') {
+     router.replace(USER_DASHBOARD_ROUTE); // If already logged in as user, go to user dash
+     return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-12rem)]">
+        <Card className="p-6 ui-card text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary mb-3"/><p className="text-md font-medium text-foreground">Redirecting...</p></Card>
+      </div>
+    );
+  }
+   if (user && user.role === 'admin') {
+     router.replace('/admin/dashboard'); // If logged in as admin, go to admin dash
+      return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-12rem)]">
+        <Card className="p-6 ui-card text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary mb-3"/><p className="text-md font-medium text-foreground">Redirecting...</p></Card>
+      </div>
+    );
+  }
   
   const handleTabChange = (value: string) => {
-    setAction(value as AuthAction);
-    resetFormFields();
-    const newUrl = new URL(window.location.href);
-    newUrl.searchParams.set('action', value);
-    router.replace(newUrl.toString(), { scroll: false });
+    const newAction = value as AuthAction;
+    if (newAction === 'login' || newAction === 'register') {
+        setAction(newAction);
+        resetFormFields();
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set('action', value);
+        router.replace(newUrl.toString(), { scroll: false });
+    }
   };
 
   const commonUserPassFields = (idPrefix: string) => (
@@ -147,14 +162,14 @@ export function AuthForm() {
       <Card className="w-full ui-card shadow-xl border-border/60">
         <Tabs value={action} onValueChange={handleTabChange} className="w-full">
            <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-3">
-            <TabsList className="grid w-full grid-cols-3 bg-muted/60 dark:bg-muted/30 p-1 rounded-md">
-              {['login', 'register', 'adminLogin'].map(tabAction => (
+            <TabsList className="grid w-full grid-cols-2 bg-muted/60 dark:bg-muted/30 p-1 rounded-md">
+              {(['login', 'register'] as AuthAction[]).map(tabAction => (
                 <TabsTrigger 
                   key={tabAction}
                   value={tabAction} 
                   className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md data-[state=inactive]:text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-[0.4rem] py-2 text-xs sm:text-sm font-medium transition-all"
                 >
-                  {tabAction === 'login' ? 'User Login' : tabAction === 'register' ? 'Register' : 'Admin Login'}
+                  {tabAction === 'login' ? 'User Login' : 'Register Key'}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -163,8 +178,8 @@ export function AuthForm() {
           <form onSubmit={handleAuth}>
             { (formError || contextAuthError) && (
               <div className="p-4 pt-0 sm:px-6 sm:pt-0">
-                <div className="bg-destructive/10 border border-destructive/40 text-destructive-foreground p-3 rounded-md text-sm flex items-start gap-2">
-                  <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-destructive"/>
+                <div className="bg-destructive/10 border border-destructive/40 text-destructive p-3 rounded-md text-sm flex items-start gap-2">
+                  <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0"/>
                   <div><p className="font-medium">Authentication Error</p>{formError && <p>{formError}</p>}{contextAuthError && !formError && <p>{contextAuthError}</p>}</div>
                 </div>
               </div>
@@ -206,19 +221,9 @@ export function AuthForm() {
                 <p className="mt-4 text-center text-xs text-muted-foreground">Already have an account?{' '}<button type="button" className="font-medium text-primary hover:underline focus:outline-none" onClick={() => handleTabChange('login')}>Login here</button></p>
               </CardFooter>
             </TabsContent>
-
-            <TabsContent value="adminLogin">
-              <CardHeader className="text-center pt-4 sm:pt-6 pb-3"><CardTitle className="text-2xl font-semibold text-foreground flex items-center justify-center gap-2"><ShieldCheck className="h-6 w-6 text-primary"/>Admin Portal Login</CardTitle><CardDescription className="text-muted-foreground pt-1 text-sm flex items-center justify-center gap-1"><ShieldAlert className="h-4 w-4 text-amber-500"/>Authorized access only.</CardDescription></CardHeader>
-              <CardContent className="space-y-4 p-4 sm:p-6 pt-2">{commonUserPassFields('adminLogin')}</CardContent>
-              <CardFooter className="p-4 sm:p-6 pt-0 pb-6">
-                <Button type="submit" className="btn-gradient w-full text-sm py-2.5 rounded-md" disabled={isSubmitting || authContextLoading}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-1.5 h-4 w-4" />}Admin Login</Button>
-              </CardFooter>
-            </TabsContent>
           </form>
         </Tabs>
       </Card>
     </div>
   );
 }
-
-    
