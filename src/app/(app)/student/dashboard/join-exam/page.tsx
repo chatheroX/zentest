@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, ExternalLink, ShieldAlert, LogIn, LinkIcon, PlusCircle, XCircle, Info, ListChecks } from 'lucide-react';
+import { Loader2, ExternalLink, ShieldAlert, LogIn, LinkIcon, PlusCircle, XCircle, Info, ListChecks, Save } from 'lucide-react'; // Added Save icon
 import { useToast } from '@/hooks/use-toast';
 import type { Exam, CustomUser } from '@/types/supabase';
 import { getEffectiveExamStatus } from '@/app/(app)/teacher/dashboard/exams/[examId]/details/page';
@@ -22,17 +22,18 @@ export default function JoinExamPage() {
   
   const [currentLink, setCurrentLink] = useState('');
   const [sessionLinks, setSessionLinks] = useState<string[]>([]);
+  const [isSavingToProfile, setIsSavingToProfile] = useState(false); // New state for profile save
 
   const { toast } = useToast();
-  const { user: studentUser, isLoading: authLoading, supabase: authSupabase } = useAuth();
+  const { user: studentUser, isLoading: authLoading, supabase: authSupabase, updateUserProfile } = useAuth(); // Added updateUserProfile
   const router = useRouter();
 
   const handleAddLink = () => {
     if (currentLink.trim()) {
       try {
         new URL(currentLink.trim()); // Validate URL
-        if (sessionLinks.length >= 5) {
-            toast({ title: "Limit Reached", description: "You can add a maximum of 5 links.", variant: "default" });
+        if (sessionLinks.length >= 5) { // Session links limit for SEB token
+            toast({ title: "Limit Reached", description: "You can add a maximum of 5 links for this exam session.", variant: "default" });
             return;
         }
         setSessionLinks(prev => [...prev, currentLink.trim()]);
@@ -45,6 +46,46 @@ export default function JoinExamPage() {
 
   const handleRemoveLink = (indexToRemove: number) => {
     setSessionLinks(prev => prev.filter((_, index) => index !== indexToRemove));
+  };
+
+  // New handler to save sessionLinks to user's profile
+  const handleSaveLinksToProfile = async () => {
+    if (!studentUser) {
+        toast({ title: "Error", description: "You must be logged in to save links to your profile.", variant: "destructive" });
+        return;
+    }
+    if (sessionLinks.length === 0) {
+        toast({ title: "No Links", description: "Add some links first before saving to profile.", variant: "default" });
+        return;
+    }
+    // Check against profile's own limit if different from session limit
+    const profileCurrentSavedLinksCount = studentUser.saved_links?.length || 0;
+    if (profileCurrentSavedLinksCount + sessionLinks.length > 10) { // Assuming profile limit is 10
+        toast({ title: "Profile Link Limit", description: `You can save a maximum of 10 links to your profile. You currently have ${profileCurrentSavedLinksCount}. Adding ${sessionLinks.length} would exceed this.`, variant: "destructive", duration: 7000 });
+        return;
+    }
+
+
+    setIsSavingToProfile(true);
+    try {
+        const newProfileLinks = Array.from(new Set([...(studentUser.saved_links || []), ...sessionLinks])).slice(0, 10);
+
+        const result = await updateUserProfile({
+            name: studentUser.name || "Student", // Pass current name to avoid clearing it
+            // Do not pass password or avatar_url unless they are being changed
+            saved_links: newProfileLinks,
+        });
+
+        if (result.success) {
+            toast({ title: "Links Saved", description: "These links have been added to your profile's saved links." });
+        } else {
+            toast({ title: "Save Failed", description: result.error || "Could not save links to your profile.", variant: "destructive" });
+        }
+    } catch (e: any) {
+        toast({ title: "Error", description: e.message || "An unexpected error occurred while saving links.", variant: "destructive" });
+    } finally {
+        setIsSavingToProfile(false);
+    }
   };
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -205,7 +246,7 @@ export default function JoinExamPage() {
       setLocalError(exceptionMsg);
       setIsLoading(false);
     }
-  }, [examCode, authSupabase, toast, studentUser, authLoading, router, sessionLinks]);
+  }, [examCode, authSupabase, toast, studentUser, authLoading, router, sessionLinks, updateUserProfile]); // Added updateUserProfile
 
 
   useEffect(() => {
@@ -288,7 +329,7 @@ export default function JoinExamPage() {
               <AccordionItem value="item-1" className="border-slate-200">
                 <AccordionTrigger className="text-sm font-medium text-slate-600 hover:no-underline hover:text-blue-600 py-3">
                   <div className="flex items-center gap-2">
-                    <LinkIcon className="h-4 w-4"/> Optional: Add Reference Links (Max 5)
+                    <LinkIcon className="h-4 w-4"/> Optional: Add Reference Links (Max 5 for session)
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pt-2 pb-4 space-y-3">
@@ -306,7 +347,7 @@ export default function JoinExamPage() {
                    </div>
                    {sessionLinks.length > 0 && (
                     <div className="space-y-2 pt-2 border-t border-slate-200 max-h-40 overflow-y-auto pr-1">
-                        <p className="text-xs text-slate-500 mb-1">Added links (will be available in SEB):</p>
+                        <p className="text-xs text-slate-500 mb-1">Added links (will be available in SEB for this session):</p>
                         {sessionLinks.map((link, index) => (
                             <div key={index} className="flex items-center justify-between text-xs p-1.5 bg-slate-100 rounded text-slate-600">
                                 <a href={link} target="_blank" rel="noopener noreferrer" className="truncate hover:underline" title={link}>
@@ -317,7 +358,21 @@ export default function JoinExamPage() {
                                 </Button>
                             </div>
                         ))}
+                         <Button 
+                            type="button" 
+                            onClick={handleSaveLinksToProfile} 
+                            variant="outline" 
+                            size="sm"
+                            className="w-full mt-3 text-xs border-blue-500 text-blue-600 hover:bg-blue-500/10"
+                            disabled={isSavingToProfile || sessionLinks.length === 0}
+                        >
+                            {isSavingToProfile ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <Save className="mr-1.5 h-3 w-3" />}
+                            {isSavingToProfile ? "Saving..." : "Save These Links to My Profile (Persistent)"}
+                        </Button>
                     </div>
+                   )}
+                   {sessionLinks.length === 0 && (
+                       <p className="text-xs text-slate-400 text-center py-2">No links added for this exam session yet.</p>
                    )}
                 </AccordionContent>
               </AccordionItem>
@@ -355,4 +410,6 @@ export default function JoinExamPage() {
     </div>
   );
 }
+    
+
     
