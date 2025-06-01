@@ -115,3 +115,6 @@ Ensure all old Supabase tables are deleted. Create the following new ones (these
 
 This overhaul aims to create a focused "Proctor System Compatibility Check" tool as per the new requirements. Remember to handle password hashing securely in a production environment.
 Ensure to restart your Next.js development server after making changes to `.env` or `package.json`.
+
+
+    
