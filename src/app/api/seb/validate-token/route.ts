@@ -90,8 +90,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: errorMessage }, { status: 401 });
     }
     
-    const { studentId, examId } = decoded;
-    console.log(`${operationId} JWT decoded. StudentID: ${studentId}, ExamID: ${examId}`);
+    const { studentId, examId, links } = decoded; // Added links
+    console.log(`${operationId} JWT decoded. StudentID: ${studentId}, ExamID: ${examId}, Links:`, links);
 
     if (!studentId || !examId) {
         const errMsg = "Token payload incomplete (missing studentId or examId).";
@@ -99,14 +99,24 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Token payload incomplete.' }, { status: 400 });
     }
 
-    // Check if student has already completed this exam
+    // Validate links format if present
+    let validLinks: string[] = [];
+    if (links) {
+        if (Array.isArray(links) && links.every(l => typeof l === 'string')) {
+            validLinks = links;
+        } else {
+            console.warn(`${operationId} Invalid 'links' format in token payload. Expected array of strings. Received:`, links);
+            // Proceed without links, or could error out if links are critical. For now, just warn.
+        }
+    }
+
     console.log(`${operationId} Checking for prior submission for student: ${studentId}, exam: ${examId}`);
     const { data: submissionData, error: submissionError } = await supabaseAdmin
       .from('ExamSubmissionsX')
-      .select('status')
+      .select('status, saved_links') // Also fetch saved_links if needed here, or rely on token's links
       .eq('student_user_id', studentId)
       .eq('exam_id', examId)
-      .eq('status', 'Completed') 
+      // .eq('status', 'Completed') // We might want to allow re-entry if 'In Progress'
       .maybeSingle();
 
     if (submissionError) {
@@ -115,17 +125,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Error verifying exam status: ' + dbErrorMsg }, { status: 500 });
     }
 
-    const isAlreadySubmitted = !!submissionData;
+    const isAlreadyCompleted = submissionData?.status === 'Completed';
 
-    if (isAlreadySubmitted) { 
-      console.warn(`${operationId} Exam already submitted by this student. (Exam: ${examId}, Student: ${studentId}). Proceeding to inform student.`);
+    if (isAlreadyCompleted) { 
+      console.warn(`${operationId} Exam already completed by this student. (Exam: ${examId}, Student: ${studentId}).`);
+    } else if (submissionData?.status === 'In Progress') {
+      console.log(`${operationId} Exam 'In Progress' for student ${studentId}, exam ${examId}. Re-entry allowed.`);
     }
 
-    console.log(`${operationId} Token ${token.substring(0, 10) + "..."} successfully validated. isAlreadySubmitted: ${isAlreadySubmitted}`);
+    // The links from the token are the source of truth for this session.
+    // If a submission already exists, its `saved_links` might be from a previous attempt if not overwritten.
+    // `SebEntryClientNew` will handle upserting the current session's links from the token.
+    
+    console.log(`${operationId} Token ${token.substring(0, 10) + "..."} successfully validated. isAlreadyCompleted: ${isAlreadyCompleted}`);
     return NextResponse.json({
       studentId: studentId, 
       examId: examId,
-      isAlreadySubmitted: isAlreadySubmitted,
+      isAlreadySubmitted: isAlreadyCompleted, // Renamed for clarity
+      savedLinks: validLinks, // Return links from token
     }, { status: 200 });
 
   } catch (e: any) {

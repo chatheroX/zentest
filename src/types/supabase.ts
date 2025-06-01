@@ -116,6 +116,7 @@ export interface Database {
           started_at: string; 
           submitted_at: string | null;
           flagged_events: FlaggedEvent[] | null;
+          saved_links: string[] | null; // Added field
         };
         Insert: {
           submission_id?: string;
@@ -127,6 +128,7 @@ export interface Database {
           started_at: string; 
           submitted_at?: string | null;
           flagged_events?: FlaggedEvent[] | null;
+          saved_links?: string[] | null; // Added field
         };
         Update: Partial<{
           answers: Json | null;
@@ -134,6 +136,7 @@ export interface Database {
           score: number | null;
           submitted_at: string | null;
           flagged_events: FlaggedEvent[] | null;
+          saved_links: string[] | null; // Added field
         }>;
       };
     };

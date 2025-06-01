@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Invalid request body: ${errorMsg}` }, { status: 400 });
     }
 
-    const { studentId, examId } = body;
+    const { studentId, examId, links } = body; // Added links
 
     if (!studentId || !examId) {
       const errorMsg = "Missing studentId or examId in request body.";
@@ -87,9 +87,15 @@ export async function POST(request: NextRequest) {
       console.log(`${operationId} Preparing to send 400 response due to missing params.`);
       return NextResponse.json({ error: errorMsg }, { status: 400 });
     }
-    console.log(`${operationId} Extracted studentId: ${studentId}, examId: ${examId}`);
+    console.log(`${operationId} Extracted studentId: ${studentId}, examId: ${examId}, links:`, links);
 
-    const payload = { studentId, examId, type: 'sebEntry' }; // Added a type for clarity
+    const payload: Record<string, any> = { studentId, examId, type: 'sebEntry' }; // Added a type for clarity
+    if (links && Array.isArray(links) && links.every(l => typeof l === 'string')) {
+        payload.links = links;
+    } else if (links !== undefined) {
+        console.warn(`${operationId} Invalid 'links' format received. Expected array of strings. Links will not be included in token. Received:`, links);
+    }
+    
     let token;
 
     try {
