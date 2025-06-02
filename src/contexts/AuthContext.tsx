@@ -6,7 +6,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useRouter, usePathname } from 'next/navigation';
 import type { AuthenticatedUser, AdminTableType, UserTableType, LicenseKeyTableType } from '@/types/supabase';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-// import { Button } from '@/components/ui/button'; // Button not used here
+import Cookies from 'js-cookie';
 
 // Helper to get a safe error message
 function getSafeErrorMessage(e: any, fallbackMessage = "An unknown error occurred."): string {
@@ -30,6 +30,9 @@ const AUTH_ROUTE = '/auth';
 const ADMIN_LOGIN_ROUTE = '/uradmin';
 const USER_DASHBOARD_ROUTE = '/user/dashboard';
 const ADMIN_DASHBOARD_ROUTE = '/admin/dashboard';
+const SESSION_COOKIE_NAME = 'proctorchecker-session'; // Stores username
+const ROLE_COOKIE_NAME = 'proctorchecker-role';     // Stores role ('user' | 'admin')
+const COOKIE_EXPIRES_DAYS = 7; // Session cookie validity
 
 // --- Supabase Configuration Error Handling ---
 const SUPABASE_URL_CONFIG_ERROR_MSG = "CRITICAL: Supabase URL is missing, a placeholder, or invalid. Please set NEXT_PUBLIC_SUPABASE_URL in your .env file with your actual Supabase project URL.";
@@ -167,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []); 
 
   const loadUserFromCookie = useCallback(async () => {
+    const effectId = "[AuthContext loadUserFromCookie]";
     if (!initialConfigCheckDone || configError || !supabase) {
         if (initialConfigCheckDone && !configError && !supabase && !authError) {
              setAuthError("Service connection not fully ready for session load.");
@@ -174,9 +178,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
         return;
     }
-    setUser(null); 
+    console.log(`${effectId} Attempting to load user from cookie.`);
+    setIsLoading(true); 
+    setAuthError(null);
+
+    const sessionUsername = Cookies.get(SESSION_COOKIE_NAME);
+    const sessionRole = Cookies.get(ROLE_COOKIE_NAME) as 'user' | 'admin' | undefined;
+
+    if (sessionUsername && sessionRole) {
+        console.log(`${effectId} Found cookies: Username - ${sessionUsername}, Role - ${sessionRole}`);
+        try {
+            const tableName = sessionRole === 'user' ? 'users' : 'admins';
+            const { data: dbUser, error: dbError } = await supabase
+                .from(tableName)
+                .select('*')
+                .eq('username', sessionUsername)
+                .single();
+
+            if (dbError || !dbUser) {
+                console.warn(`${effectId} User not found in DB or error:`, dbError?.message);
+                Cookies.remove(SESSION_COOKIE_NAME); Cookies.remove(ROLE_COOKIE_NAME);
+                setUser(null);
+            } else {
+                const authenticatedUser: AuthenticatedUser = {
+                    id: dbUser.id,
+                    username: dbUser.username,
+                    role: sessionRole,
+                    avatar_url: sessionRole === 'user' ? (dbUser as UserTableType['Row']).avatar_url : generateEnhancedDiceBearAvatar('admin', dbUser.id),
+                    saved_links: sessionRole === 'user' ? (dbUser as UserTableType['Row']).saved_links : null,
+                };
+                setUser(authenticatedUser);
+                console.log(`${effectId} Session restored for user: ${authenticatedUser.username}`);
+            }
+        } catch (e: any) {
+            console.error(`${effectId} Error validating session from cookie:`, e);
+            setAuthError(getSafeErrorMessage(e, "Failed to validate session."));
+            Cookies.remove(SESSION_COOKIE_NAME); Cookies.remove(ROLE_COOKIE_NAME);
+            setUser(null);
+        }
+    } else {
+        console.log(`${effectId} No session cookies found.`);
+        setUser(null);
+    }
     setIsLoading(false);
-    
   }, [supabase, authError, initialConfigCheckDone, configError]);
 
   useEffect(() => {
@@ -187,7 +231,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [initialConfigCheckDone, configError, supabase, loadUserFromCookie]);
 
   useEffect(() => {
-    // Guard: Wait for initial loading, config checks, and Supabase client
     if (isLoading || !initialConfigCheckDone || configError || !supabase) {
       return;
     }
@@ -198,26 +241,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isOnAnyAuthPage = isOnUserAuthPage || isOnAdminAuthPage;
 
     if (user) {
-      // User is logged in
       const targetDashboard = user.role === 'admin' ? ADMIN_DASHBOARD_ROUTE : USER_DASHBOARD_ROUTE;
-
       if (currentPath !== targetDashboard) {
-        // If user is on an auth page, or any other page that isn't their target dashboard, redirect.
         setTimeout(() => {
-           if (router && typeof router.replace === 'function') { // Defensive check
+           if (router && typeof router.replace === 'function') {
             router.replace(targetDashboard);
            }
         }, 0);
       }
     } else {
-      // No user is logged in
       const isUserDashboardProtected = currentPath.startsWith(USER_DASHBOARD_ROUTE);
       const isAdminDashboardProtected = currentPath.startsWith(ADMIN_DASHBOARD_ROUTE);
 
       if ((isUserDashboardProtected || isAdminDashboardProtected) && !isOnAnyAuthPage) {
-        // If trying to access a protected dashboard page and not already on an auth page, redirect to login.
         setTimeout(() => {
-          if (router && typeof router.replace === 'function') { // Defensive check
+          if (router && typeof router.replace === 'function') {
             router.replace(isUserDashboardProtected ? AUTH_ROUTE : ADMIN_LOGIN_ROUTE);
           }
         }, 0);
@@ -240,10 +278,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: data.id,
           username: data.username,
           role: type,
-          avatar_url: type === 'user' ? (data as UserTableType['Row']).avatar_url : generateEnhancedDiceBearAvatar(data.id, 'admin'), // Typo was "data.id, 'admin'", should be 'admin', data.id for seed
+          avatar_url: type === 'user' ? (data as UserTableType['Row']).avatar_url : generateEnhancedDiceBearAvatar('admin', data.id),
           saved_links: type === 'user' ? (data as UserTableType['Row']).saved_links : null,
         };
         setUser(authUser);
+        Cookies.set(SESSION_COOKIE_NAME, authUser.username, { expires: COOKIE_EXPIRES_DAYS, path: '/' });
+        Cookies.set(ROLE_COOKIE_NAME, authUser.role, { expires: COOKIE_EXPIRES_DAYS, path: '/' });
         setIsLoading(false); return { success: true, user: authUser };
       } else {
         setIsLoading(false); return { success: false, error: 'Incorrect password.' };
@@ -286,6 +326,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         avatar_url: insertedUser.avatar_url, saved_links: insertedUser.saved_links || [],
       };
       setUser(authUser);
+      Cookies.set(SESSION_COOKIE_NAME, authUser.username, { expires: COOKIE_EXPIRES_DAYS, path: '/' });
+      Cookies.set(ROLE_COOKIE_NAME, authUser.role, { expires: COOKIE_EXPIRES_DAYS, path: '/' });
       setIsLoading(false); return { success: true, user: authUser };
 
     } catch (e: any) {
@@ -294,9 +336,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   
   const performSignOut = useCallback(async () => {
+    Cookies.remove(SESSION_COOKIE_NAME, { path: '/' });
+    Cookies.remove(ROLE_COOKIE_NAME, { path: '/' });
     setUser(null); 
     setAuthError(null); setIsLoading(false); setShowSignOutDialog(false);
-    // Use setTimeout to ensure state updates propagate before navigation
     setTimeout(() => {
       if (router && typeof router.replace === 'function' && pathname !== AUTH_ROUTE) {
          router.replace(AUTH_ROUTE);
@@ -325,7 +368,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const updatePayload: Partial<UserTableType['Update'] | AdminTableType['Update']> = {};
       
-      if (profileData.name) { // 'name' field maps to 'username' in DB
+      if (profileData.name) { 
         (updatePayload as UserTableType['Update']).username = profileData.name;
       }
       if (profileData.password) {
@@ -356,12 +399,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
       const newAuthenticatedUser: AuthenticatedUser = {
-        ...user, // Spread existing user to maintain role and other unchanged fields
-        username: updatedDbUser.username || user.username, // Ensure username is updated
+        ...user, 
+        username: updatedDbUser.username || user.username, 
         avatar_url: user.role === 'user' ? ((updatedDbUser as UserTableType['Row']).avatar_url || user.avatar_url) : user.avatar_url,
         saved_links: user.role === 'user' ? ((updatedDbUser as UserTableType['Row']).saved_links || user.saved_links) : null,
       };
       setUser(newAuthenticatedUser);
+      // If username changed, update the session cookie
+      if (profileData.name && profileData.name !== user.username) {
+          Cookies.set(SESSION_COOKIE_NAME, newAuthenticatedUser.username, { expires: COOKIE_EXPIRES_DAYS, path: '/' });
+      }
       setIsLoading(false);
       return { success: true, user: newAuthenticatedUser };
     } catch (e: any) {
