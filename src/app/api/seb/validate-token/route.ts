@@ -3,7 +3,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
-import type { Database, UserTableType } from '@/types/supabase'; // Updated types
+import type { Database, UserTableType } from '@/types/supabase';
 
 // Local helper for safe error message extraction
 function getLocalSafeErrorMessage(e: any, defaultMessage = "An unknown error occurred."): string {
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: errorMessage }, { status: 401 });
     }
     
-    const { userId, sessionSpecificLinks } = decoded; // Expecting userId and optional sessionSpecificLinks
+    const { userId, sessionSpecificLinks } = decoded; 
     if (!userId) {
       return NextResponse.json({ error: 'Token payload incomplete (missing userId).' }, { status: 400 });
     }
@@ -81,26 +81,55 @@ export async function GET(request: NextRequest) {
         console.warn(`${operationId} Invalid 'sessionSpecificLinks' format in token. Received:`, sessionSpecificLinks);
     }
 
-    // Fetch user's persistent saved_links from the 'users' table
-    const { data: userProfile, error: profileError } = await supabaseAdmin
+    // Attempt to fetch user profile
+    let userProfileData: { id: string; username: string; saved_links: string[] | null; avatar_url?: string | null } | null = null;
+    let fetchError: any = null;
+
+    // Attempt 1: Fetch with avatar_url
+    const { data: profileWithAvatar, error: errorWithAvatar } = await supabaseAdmin
         .from('users')
-        .select('id, username, saved_links, avatar_url') // Include avatar_url
+        .select('id, username, saved_links, avatar_url')
         .eq('id', userId)
         .single();
 
-    if (profileError || !userProfile) {
-        const detail = profileError ? getLocalSafeErrorMessage(profileError) : 'User record not found for the ID in token.';
-        console.error(`${operationId} Failed to fetch user profile for user ID ${userId}: ${detail}`, profileError);
-        return NextResponse.json({ error: `User data retrieval failed: ${detail}` }, { status: 404 }); // Use 404 if user not found
+    if (errorWithAvatar) {
+        const errorMsg = getLocalSafeErrorMessage(errorWithAvatar);
+        if (errorMsg.includes('column') && errorMsg.includes('avatar_url') && (errorMsg.includes('does not exist') || errorMsg.includes('doesn\'t exist'))) {
+            console.warn(`${operationId} 'avatar_url' column missing or inaccessible. Attempting to fetch user data without it. DB Error: ${errorMsg}`);
+            const { data: profileWithoutAvatar, error: errorWithoutAvatar } = await supabaseAdmin
+                .from('users')
+                .select('id, username, saved_links')
+                .eq('id', userId)
+                .single();
+
+            if (errorWithoutAvatar) {
+                fetchError = errorWithoutAvatar;
+            } else if (profileWithoutAvatar) {
+                userProfileData = { ...profileWithoutAvatar, avatar_url: null };
+            } else {
+                 fetchError = new Error('User record not found after fallback.');
+            }
+        } else {
+            fetchError = errorWithAvatar; // Different error, not related to missing avatar_url column
+        }
+    } else if (profileWithAvatar) {
+        userProfileData = profileWithAvatar;
+    } else {
+        fetchError = new Error('User record not found.');
     }
-    const profileSavedLinks: string[] = userProfile.saved_links || [];
+
+    if (fetchError || !userProfileData) {
+        const detail = fetchError ? getLocalSafeErrorMessage(fetchError) : 'User record not found for the ID in token.';
+        console.error(`${operationId} Failed to fetch user profile for user ID ${userId}: ${detail}`, fetchError);
+        return NextResponse.json({ error: `User data retrieval failed: ${detail}` }, { status: 404 });
+    }
     
-    console.log(`${operationId} Token validated for userId: ${userId}. Profile links: ${profileSavedLinks.length}, Session links: ${validSessionSpecificLinks.length}. Avatar URL: ${userProfile.avatar_url ? 'present' : 'null'}`);
+    console.log(`${operationId} Token validated for userId: ${userProfileData.id}. Profile links: ${userProfileData.saved_links?.length || 0}, Session links: ${validSessionSpecificLinks.length}. Avatar URL: ${userProfileData.avatar_url ? 'present' : 'null'}`);
     return NextResponse.json({
-      userId: userProfile.id,
-      username: userProfile.username,
-      avatarUrl: userProfile.avatar_url, 
-      profileSavedLinks: profileSavedLinks,
+      userId: userProfileData.id,
+      username: userProfileData.username,
+      avatarUrl: userProfileData.avatar_url || null, // Ensure it's null if undefined or explicitly set to null
+      profileSavedLinks: userProfileData.saved_links || [],
       sessionSpecificLinks: validSessionSpecificLinks,
     }, { status: 200 });
 
