@@ -42,14 +42,14 @@ export async function GET(request: NextRequest) {
 
   const jwtSecret = process.env.JWT_SECRET;
   if (!jwtSecret) {
-    const errorMsg = 'Server config error (JWT_SECRET).';
+    const errorMsg = 'Server config error (JWT_SECRET missing).';
     console.error(`${operationId} CRITICAL: JWT_SECRET missing.`);
     return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
 
   if (!supabaseAdmin) {
     console.error(`${operationId} Supabase admin client not initialized. Init Error: ${initErrorDetails}`);
-    return NextResponse.json({ error: 'Server config error (Supabase client).' }, { status: 500 });
+    return NextResponse.json({ error: 'Server config error (Supabase client not initialized).' }, { status: 500 });
   }
 
   try {
@@ -84,24 +84,24 @@ export async function GET(request: NextRequest) {
     // Fetch user's persistent saved_links from the 'users' table
     const { data: userProfile, error: profileError } = await supabaseAdmin
         .from('users')
-        .select('id, username, saved_links, avatar_url') // Include avatar_url if needed on entry page
+        .select('id, username, saved_links, avatar_url') // Include avatar_url
         .eq('id', userId)
         .single();
 
     if (profileError || !userProfile) {
-        const profileDbErrorMsg = getLocalSafeErrorMessage(profileError, 'Database error fetching user profile.');
-        console.error(`${operationId} Supabase error fetching user profile:`, profileDbErrorMsg, profileError);
-        return NextResponse.json({ error: 'Error fetching user details: ' + profileDbErrorMsg }, { status: 500 });
+        const detail = profileError ? getLocalSafeErrorMessage(profileError) : 'User record not found for the ID in token.';
+        console.error(`${operationId} Failed to fetch user profile for user ID ${userId}: ${detail}`, profileError);
+        return NextResponse.json({ error: `User data retrieval failed: ${detail}` }, { status: 404 }); // Use 404 if user not found
     }
     const profileSavedLinks: string[] = userProfile.saved_links || [];
     
-    console.log(`${operationId} Token validated for userId: ${userId}. Profile links: ${profileSavedLinks.length}, Session links: ${validSessionSpecificLinks.length}`);
+    console.log(`${operationId} Token validated for userId: ${userId}. Profile links: ${profileSavedLinks.length}, Session links: ${validSessionSpecificLinks.length}. Avatar URL: ${userProfile.avatar_url ? 'present' : 'null'}`);
     return NextResponse.json({
       userId: userProfile.id,
-      username: userProfile.username, // Pass username for display
-      avatarUrl: userProfile.avatar_url, // Pass avatar URL
+      username: userProfile.username,
+      avatarUrl: userProfile.avatar_url, 
       profileSavedLinks: profileSavedLinks,
-      sessionSpecificLinks: validSessionSpecificLinks, // These are for this specific session
+      sessionSpecificLinks: validSessionSpecificLinks,
     }, { status: 200 });
 
   } catch (e: any) {
