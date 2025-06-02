@@ -23,108 +23,105 @@ main {
 
 @layer base {
   :root {
-    /* ==== Light Theme (Aurora) ==== */
-    /* Primary Palette: Cool Blues & Teals, Soft Purple Accent */
-    --background: 210 30% 98%; /* Very light cool gray, almost white */
-    --foreground: 220 25% 25%; /* Dark, slightly desaturated blue-gray for text */
+    /* ==== Light Theme (Cyber Neon Light) ==== */
+    --background: 210 20% 97%; /* Very light cool gray */
+    --foreground: 220 25% 15%; /* Dark cool gray for text */
 
     --card: 0 0% 100%; /* Clean white */
-    --card-foreground: 220 25% 20%;
+    --card-foreground: 220 25% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 25% 20%;
+    --popover-foreground: 220 25% 12%;
 
-    --primary: 190 70% 48%; /* Vibrant Teal/Cyan */
+    --primary: 195 90% 45%; /* Electric Cyan/Blue - adjusted for light bg */
     --primary-foreground: 0 0% 100%; /* White text on primary */
 
-    --secondary: 205 50% 94%; /* Soft, light blue-gray */
-    --secondary-foreground: 210 30% 35%;
+    --secondary: 210 20% 92%; /* Soft, light cool gray */
+    --secondary-foreground: 220 20% 35%;
 
-    --muted: 210 40% 96%; /* Very light, almost neutral blue-gray for subtle backgrounds */
-    --muted-foreground: 210 25% 55%; /* Softer gray for muted text */
+    --muted: 210 20% 95%; /* Very light, almost neutral cool gray for subtle backgrounds */
+    --muted-foreground: 210 20% 50%; /* Softer gray for muted text */
 
-    --accent: 260 80% 65%; /* Soft, inviting Purple */
+    --accent: 320 90% 50%; /* Vibrant Magenta/Pink - adjusted for light bg */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 70% 60%; /* Clear, noticeable red */
+    --destructive: 0 75% 55%; /* Clear, noticeable red */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 205 30% 88%; /* Light cool gray border */
-    --input: 205 40% 97%; /* Input field background (slightly off-white blue tint) */
-    --ring: 190 75% 55%; /* Focus ring - primary teal/cyan */
+    --border: 210 20% 85%; /* Light cool gray border */
+    --input: 210 20% 98%; /* Input field background (very light) */
+    --ring: 195 90% 50%; /* Focus ring - primary cyan */
 
-    --radius: 0.65rem; /* Slightly softer rounded corners */
+    --radius: 0.5rem; /* Sharper corners */
 
     /* Gradient for buttons */
-    --gradient-primary-start: 190 70% 48%;
-    --gradient-primary-end: 180 65% 52%;
-    --gradient-destructive-start: 0 70% 60%;
-    --gradient-destructive-end: 0 75% 65%;
-    --gradient-accent-start: 260 80% 65%;
-    --gradient-accent-end: 250 75% 70%;
+    --gradient-primary-start: 195 90% 45%;
+    --gradient-primary-end: 185 85% 50%;
+    --gradient-destructive-start: 0 75% 55%;
+    --gradient-destructive-end: 0 80% 60%;
+    --gradient-accent-start: 320 90% 50%;
+    --gradient-accent-end: 310 85% 55%;
 
-
-     /* Sidebar specific theme variables (Aurora Light) */
-    --sidebar-background: 210 25% 95%; /* Slightly darker than main bg, but still light */
-    --sidebar-foreground: 220 20% 30%; /* Text in sidebar */
-    --sidebar-primary: 190 65% 45%; /* Active item background (primary teal) */
-    --sidebar-primary-foreground: 0 0% 100%; /* Active item text (white) */
-    --sidebar-accent: 190 60% 90%; /* Hover background for sidebar items (very light teal) */
-    --sidebar-accent-foreground: 190 60% 30%; /* Hover text color (darker teal) */
-    --sidebar-border: 205 25% 85%; /* Sidebar border */
-    --sidebar-ring: 190 70% 50%; /* Focus ring for sidebar items */
-    --sidebar-group-text: 210 20% 50%;
+    /* Sidebar specific theme variables (Cyber Neon Light) */
+    --sidebar-background: 210 20% 94%; 
+    --sidebar-foreground: 220 20% 25%;
+    --sidebar-primary: 195 85% 42%; 
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 195 70% 88%; 
+    --sidebar-accent-foreground: 195 70% 25%;
+    --sidebar-border: 210 15% 80%;
+    --sidebar-ring: 195 85% 48%;
+    --sidebar-group-text: 210 15% 45%;
   }
 
   .dark {
-    /* ==== Dark Theme (Aurora Dark) ==== */
-    --background: 220 25% 12%; /* Deep, cool dark blue-gray */
-    --foreground: 205 30% 88%; /* Light, slightly cool gray text */
+    /* ==== Dark Theme (Cyber Neon Dark) ==== */
+    --background: 220 20% 8%; /* Very dark, slightly cool blue */
+    --foreground: 210 20% 90%; /* Light cool gray text */
 
-    --card: 220 20% 18%; /* Darker card background */
-    --card-foreground: 205 30% 85%;
+    --card: 220 20% 12%; /* Slightly lighter dark blue */
+    --card-foreground: 210 20% 85%;
 
-    --popover: 220 20% 15%;
-    --popover-foreground: 205 30% 85%;
+    --popover: 220 20% 10%;
+    --popover-foreground: 210 20% 85%;
 
-    --primary: 185 65% 55%; /* Brighter Teal/Cyan for dark mode */
-    --primary-foreground: 220 20% 10%; /* Dark text on primary for contrast */
+    --primary: 195 100% 50%; /* Electric Cyan/Blue */
+    --primary-foreground: 220 20% 10%; /* Dark text on bright primary */
 
-    --secondary: 215 20% 28%; /* Muted dark blue */
-    --secondary-foreground: 205 25% 75%;
+    --secondary: 220 15% 25%; /* Muted dark blue */
+    --secondary-foreground: 210 15% 75%;
 
-    --muted: 215 20% 22%; /* Darker muted background */
-    --muted-foreground: 210 20% 60%;
+    --muted: 220 15% 20%; /* Darker muted background */
+    --muted-foreground: 210 15% 55%;
 
-    --accent: 260 75% 70%; /* Brighter Purple for dark mode */
-    --accent-foreground: 220 20% 10%;
+    --accent: 320 100% 55%; /* Vibrant Magenta/Pink */
+    --accent-foreground: 0 0% 100%; /* White text on accent */
 
-    --destructive: 0 65% 65%; /* Slightly softer red for dark mode */
+    --destructive: 0 80% 58%; /* Bright Red */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 20% 30%;
-    --input: 215 20% 20%; /* Dark input background */
-    --ring: 185 70% 60%;
+    --border: 220 20% 30%;
+    --input: 220 20% 18%; /* Dark input background */
+    --ring: 195 100% 55%; /* Primary color for ring */
 
     /* Gradient for buttons - Dark Mode */
-    --gradient-primary-start: 185 65% 55%;
-    --gradient-primary-end: 175 60% 60%;
-    --gradient-destructive-start: 0 65% 65%;
-    --gradient-destructive-end: 0 70% 70%;
-    --gradient-accent-start: 260 75% 70%;
-    --gradient-accent-end: 250 70% 75%;
+    --gradient-primary-start: 195 100% 50%;
+    --gradient-primary-end: 185 95% 55%;
+    --gradient-destructive-start: 0 80% 58%;
+    --gradient-destructive-end: 0 85% 62%;
+    --gradient-accent-start: 320 100% 55%;
+    --gradient-accent-end: 310 95% 60%;
 
-
-    /* Sidebar Dark Theme (Aurora Dark) */
-    --sidebar-background: 220 20% 15%;
-    --sidebar-foreground: 205 25% 80%;
-    --sidebar-primary: 185 60% 52%;
-    --sidebar-primary-foreground: 220 15% 10%;
-    --sidebar-accent: 185 50% 30%; /* Darker teal accent for hover */
-    --sidebar-accent-foreground: 185 50% 80%;
-    --sidebar-border: 215 15% 25%;
-    --sidebar-ring: 185 65% 60%;
-    --sidebar-group-text: 210 15% 55%;
+    /* Sidebar Dark Theme (Cyber Neon Dark) */
+    --sidebar-background: 220 18% 10%;
+    --sidebar-foreground: 210 18% 85%;
+    --sidebar-primary: 195 95% 48%;
+    --sidebar-primary-foreground: 220 15% 8%;
+    --sidebar-accent: 195 80% 25%; 
+    --sidebar-accent-foreground: 195 80% 80%;
+    --sidebar-border: 220 15% 25%;
+    --sidebar-ring: 195 95% 52%;
+    --sidebar-group-text: 210 15% 50%;
   }
 }
 
@@ -134,17 +131,17 @@ main {
   }
 }
 
-/* ==== GENERAL UI STYLES (Aurora Theme) ==== */
+/* ==== GENERAL UI STYLES (Cyber Neon Theme) ==== */
 
 /* Card Style */
 .ui-card {
-  @apply bg-card text-card-foreground rounded-lg border border-border/60 shadow-lg transition-shadow duration-300 hover:shadow-xl;
-  /* dark:border-border/40 */
+  @apply bg-card text-card-foreground rounded-lg border border-border/70 shadow-md transition-shadow duration-300 hover:shadow-lg hover:border-primary/50;
+  /* dark:border-border/50 */
 }
 
 /* Button Styles */
 .btn-primary { /* Solid Primary Button */
-  @apply bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring shadow-md hover:shadow-lg transition-all duration-200 ease-in-out transform hover:-translate-y-px active:translate-y-0;
+  @apply bg-primary text-primary-foreground hover:bg-primary/85 focus-visible:ring-ring shadow-md hover:shadow-lg transition-all duration-200 ease-in-out transform hover:-translate-y-px active:translate-y-0;
 }
 
 .btn-gradient { /* General Gradient Button (uses primary gradient by default) */
@@ -171,15 +168,16 @@ main {
 
 /* Input Field Style */
 .ui-input {
-    @apply bg-input text-foreground border-border/70 focus:border-primary focus:ring-primary/50 placeholder:text-muted-foreground/70 text-sm rounded-md shadow-sm;
+    @apply bg-input text-foreground border-border/80 focus:border-primary focus:ring-2 focus:ring-ring/70 placeholder:text-muted-foreground/60 text-sm rounded-md shadow-sm;
+    /* dark:border-border/60 dark:focus:ring-ring/50 */
 }
 
-/* Glassmorphism for modals or special panes (Aurora Style) */
+/* Glassmorphism for modals or special panes (Cyber Neon Style) */
 .glass-pane {
-  @apply bg-card/80 dark:bg-card/70 backdrop-blur-lg text-card-foreground p-4 sm:p-6 rounded-xl border border-border/50 dark:border-border/30 shadow-2xl;
+  @apply bg-card/75 dark:bg-card/60 backdrop-blur-md text-card-foreground p-4 sm:p-6 rounded-xl border border-border/40 dark:border-border/25 shadow-2xl;
 }
 .sidebar-glass {
-  @apply bg-sidebar/85 dark:bg-sidebar/75 backdrop-blur-md border-r border-sidebar-border/50 dark:border-sidebar-border/30;
+  @apply bg-sidebar/80 dark:bg-sidebar/70 backdrop-blur-lg border-r border-sidebar-border/40 dark:border-sidebar-border/25;
 }
 
 
@@ -193,36 +191,37 @@ h3 { @apply text-xl sm:text-2xl; }
 h4 { @apply text-lg sm:text-xl; }
 
 
-/* Scrollbar styling */
+/* Scrollbar styling (Darker for Cyber Neon) */
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: hsl(var(--border)/0.6) hsl(var(--background)/0.3);
+  scrollbar-color: hsl(var(--border)/0.4) hsl(var(--background)/0.2); /* Adjusted for darker theme */
 }
 .scrollbar-thin::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 .scrollbar-thin::-webkit-scrollbar-track {
-  background: hsl(var(--background)/0.1);
+  background: hsl(var(--background)/0.05); /* More transparent track */
   border-radius: 4px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--border)/0.5);
+  background-color: hsl(var(--border)/0.3); /* Darker thumb */
   border-radius: 4px;
-  border: 1px solid hsl(var(--background)/0.1);
+  border: 1px solid hsl(var(--background)/0.05);
 }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--border)/0.8);
+  background-color: hsl(var(--border)/0.6);
 }
 
-/* SEB Specific (Aurora Theme) */
+/* SEB Specific (Cyber Neon Theme) */
 .bg-seb-entry {
-  @apply bg-gradient-to-br from-background via-muted to-secondary; /* Subtle gradient from main theme */
-  /* dark:from-slate-800 dark:to-slate-900; previous */
+  @apply bg-gradient-to-br from-background via-muted/80 to-secondary/70; 
+  /* dark:from-background dark:via-muted/90 dark:to-secondary/80 */
 }
 
 .seb-link-card {
-  @apply bg-card/95 dark:bg-card/80 border border-border/60 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:border-primary/50;
+  @apply bg-card/90 dark:bg-card/75 border border-border/50 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 hover:border-primary/60;
+  /* dark:border-border/40 */
 }
 
 
@@ -234,7 +233,8 @@ html.dark {
 }
 
 .auth-page-background {
-    @apply bg-gradient-to-br from-background via-muted to-secondary;
+    @apply bg-gradient-to-br from-background via-muted/90 to-secondary/80;
+    /* dark:from-background dark:via-muted/95 dark:to-secondary/85 */
 }
 
     
