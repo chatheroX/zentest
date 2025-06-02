@@ -8,16 +8,17 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, KeyRound, PlusCircle, Copy, Check, List, Users, Clock, ExternalLink } from 'lucide-react';
+import { Loader2, KeyRound, PlusCircle, Copy, Check, List, Users, Clock } from 'lucide-react'; // Removed ExternalLink as it's not used
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { LicenseKeyTableType, UserTableType } from '@/types/supabase';
+import type { LicenseKeyTableType } from '@/types/supabase'; // Removed UserTableType as it's not used
 import { format } from 'date-fns';
 
-interface DisplayLicenseKey extends LicenseKeyTableType['Row'] {
+// Changed interface to type alias with intersection to resolve build error
+type DisplayLicenseKey = LicenseKeyTableType['Row'] & {
   claimed_by_username?: string | null;
-}
+};
 
 export default function AdminDashboardPage() {
   const { user, supabase } = useAuth();
@@ -31,7 +32,7 @@ export default function AdminDashboardPage() {
   const [copySuccess, setCopySuccess] = useState<Record<string, boolean>>({});
 
   const generateRandomKey = (): string => {
-    const segments = Array(4).fill(null).map(() => 
+    const segments = Array(4).fill(null).map(() =>
       Math.random().toString(36).substring(2, 6).toUpperCase()
     );
     return segments.join('-');
@@ -61,7 +62,7 @@ export default function AdminDashboardPage() {
             .from('users')
             .select('id, username')
             .in('id', claimedUserIds);
-          
+
           if (usersError) console.warn("Failed to fetch usernames for claimed keys:", usersError.message);
           else usersData?.forEach(u => usersMap.set(u.id, u.username));
         }
@@ -98,24 +99,19 @@ export default function AdminDashboardPage() {
       const { data, error } = await supabase
         .from('license_keys')
         .insert({ key_value: keyVal, created_by_admin_id: user.id })
-        .select('key_value, id, created_at, is_claimed') // Select more fields to update allLicenseKeys
+        .select('key_value, id, created_at, is_claimed, claimed_at, claimed_by_user_id, created_by_admin_id') // Ensure all fields for DisplayLicenseKey are selected
         .single();
 
       if (error) throw error;
-      
+
       if (data) {
         setNewlyGeneratedKey(data.key_value);
-        setRecentlyGeneratedKeys(prev => [data.key_value!, ...prev].slice(0, 5)); 
-        
+        setRecentlyGeneratedKeys(prev => [data.key_value!, ...prev].slice(0, 5));
+
         // Add to the main list immediately
         const newDisplayKey: DisplayLicenseKey = {
-          ...data,
-          id: data.id,
-          claimed_at: null,
-          claimed_by_user_id: null,
-          claimed_by_username: null,
-          created_by_admin_id: user.id,
-          key_value: data.key_value
+          ...data, // Spread all fields from the selected data
+          claimed_by_username: null, // Initially no username
         };
         setAllLicenseKeys(prev => [newDisplayKey, ...prev]);
 
@@ -245,5 +241,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-    
