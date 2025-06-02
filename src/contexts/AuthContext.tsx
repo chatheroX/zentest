@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useRouter, usePathname } from 'next/navigation';
-import Cookies from 'js-cookie';
+// import Cookies from 'js-cookie'; // Cookies are no longer used for session
 import type { AuthenticatedUser, AdminTableType, UserTableType, LicenseKeyTableType } from '@/types/supabase';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
@@ -27,8 +27,8 @@ function getSafeErrorMessage(e: any, fallbackMessage = "An unknown error occurre
 }
 
 // --- Constants for Auth ---
-const SESSION_COOKIE_NAME = 'proctorchecker-session';
-const ROLE_COOKIE_NAME = 'proctorchecker-role';
+// const SESSION_COOKIE_NAME = 'proctorchecker-session'; // No longer used
+// const ROLE_COOKIE_NAME = 'proctorchecker-role'; // No longer used
 
 const AUTH_ROUTE = '/auth';
 const USER_DASHBOARD_ROUTE = '/user/dashboard';
@@ -86,16 +86,14 @@ export function generateEnhancedDiceBearAvatar(
   const randomKeyword = keywords ? keywords[Math.floor(Math.random() * keywords.length)] : '';
   const finalSeed = `${seed}-${role}-${randomKeyword}`;
 
-  // Construct query parameters
   const queryParams = new URLSearchParams({
     seed: finalSeed,
-    backgroundColor: role === 'admin' ? "2c3e50,3498db" : "00acc1,80deea,f4511e,ff9800", // Darker for admin, brighter for user
+    backgroundColor: role === 'admin' ? "2c3e50,3498db" : "00acc1,80deea,f4511e,ff9800", 
     backgroundType: "gradientLinear",
     backgroundRotation: (Math.floor(Math.random() * 360)).toString(),
-    shapeColor: "ffffff,f5f5f5", // Keep shapes light for better visibility
+    shapeColor: "ffffff,f5f5f5", 
     size: "128",
-    radius: "50", // Ensure fully rounded
-    // Some styles might support more options
+    radius: "50", 
   });
 
   if (selectedStyle === "identicon") queryParams.set("colorLevel", "600");
@@ -157,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     } else {
       try {
-        if (!supabase) { // Initialize only if not already set
+        if (!supabase) { 
           const client = createSupabaseBrowserClient();
           setSupabase(client);
           console.log(`${effectId} Supabase client initialized successfully.`);
@@ -170,8 +168,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setInitialConfigCheckDone(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount
+  }, []); 
 
+  // loadUserFromCookie is no longer effective as cookies are not being set.
+  // It's kept here to show the structure, but it will find no cookies.
+  // For a non-cookie-based session, this would need a different persistence mechanism
+  // or sessions would be entirely ephemeral (lost on refresh).
   const loadUserFromCookie = useCallback(async () => {
     if (!initialConfigCheckDone || configError || !supabase) {
         if (initialConfigCheckDone && !configError && !supabase && !authError) {
@@ -181,69 +183,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
     }
 
-    const sessionCookie = Cookies.get(SESSION_COOKIE_NAME);
-    const roleCookie = Cookies.get(ROLE_COOKIE_NAME) as 'user' | 'admin' | undefined;
+    // const sessionCookie = Cookies.get(SESSION_COOKIE_NAME); // No longer used
+    // const roleCookie = Cookies.get(ROLE_COOKIE_NAME) as 'user' | 'admin' | undefined; // No longer used
 
-    if (user && user.username === sessionCookie && user.role === roleCookie && !isLoading) return;
+    // if (user && user.username === sessionCookie && user.role === roleCookie && !isLoading) return;
 
     setIsLoading(true); setAuthError(null);
 
-    try {
-      if (!sessionCookie || !roleCookie) {
-        setUser(null); Cookies.remove(SESSION_COOKIE_NAME); Cookies.remove(ROLE_COOKIE_NAME); return;
-      }
+    // Since cookies are not used, we assume no persistent session can be loaded this way.
+    // If a different persistence (e.g., localStorage, but not recommended for sensitive data)
+    // was used, that logic would go here.
+    setUser(null); 
+    // Cookies.remove(SESSION_COOKIE_NAME); // Ensure any old cookies are cleared (though we are not setting new ones)
+    // Cookies.remove(ROLE_COOKIE_NAME);
 
-      let userDataFromDb: UserTableType['Row'] | AdminTableType['Row'] | null = null;
-      let errorFromDb = null;
-
-      if (roleCookie === 'user') {
-        const { data, error } = await supabase.from('users').select('*').eq('username', sessionCookie).single();
-        userDataFromDb = data; errorFromDb = error;
-      } else if (roleCookie === 'admin') {
-        const { data, error } = await supabase.from('admins').select('*').eq('username', sessionCookie).single();
-        userDataFromDb = data; errorFromDb = error;
-      } else {
-        throw new Error("Invalid role stored in cookie.");
-      }
-
-      if (errorFromDb || !userDataFromDb) {
-         const detail = errorFromDb ? getSafeErrorMessage(errorFromDb) : "User/Admin not found from session.";
-        throw new Error(detail);
-      }
-      
-      const loadedUser: AuthenticatedUser = {
-        id: userDataFromDb.id,
-        username: userDataFromDb.username,
-        role: roleCookie,
-        avatar_url: roleCookie === 'user' ? (userDataFromDb as UserTableType['Row']).avatar_url : generateEnhancedDiceBearAvatar(userDataFromDb.id, 'admin'), // Admins get a generic one if not stored
-        saved_links: roleCookie === 'user' ? (userDataFromDb as UserTableType['Row']).saved_links : null,
-      };
-      setUser(loadedUser);
-      console.log(`[AuthContext] User loaded from session: ${loadedUser.username}, Role: ${loadedUser.role}`);
-
-    } catch (e: any) {
-      console.warn(`[AuthContext] Error loading user from session: ${e.message}. Clearing session.`);
-      setUser(null); Cookies.remove(SESSION_COOKIE_NAME); Cookies.remove(ROLE_COOKIE_NAME); setAuthError(e.message);
-    } finally {
-      setIsLoading(false);
-    }
+    // The original logic to fetch from DB based on cookie is removed
+    // as there are no cookies to base it on.
+    // The app now starts with no user logged in on refresh.
+    console.log(`[AuthContext] loadUserFromCookie: No session cookies used. Initializing with no user.`);
+    
+    setIsLoading(false);
+    
   }, [supabase, user, isLoading, authError, initialConfigCheckDone, configError]);
 
   useEffect(() => {
     if (initialConfigCheckDone && !configError && supabase && !initialLoadAttempted.current) {
       initialLoadAttempted.current = true;
-      loadUserFromCookie();
+      // Calling loadUserFromCookie which will now simply initialize with no user.
+      loadUserFromCookie(); 
     }
   }, [initialConfigCheckDone, configError, supabase, loadUserFromCookie]);
 
   useEffect(() => {
+    // This effect handles redirection based on current user state.
+    // Without cookies, middleware can't protect routes effectively on server-side or hard navigations.
+    // Client-side navigation will still work based on the context's `user` state.
     if (isLoading || !initialConfigCheckDone || configError) return;
 
     const isAuthPg = pathname === AUTH_ROUTE;
     const isUserDashboard = pathname.startsWith(USER_DASHBOARD_ROUTE);
     const isAdminDashboard = pathname.startsWith(ADMIN_DASHBOARD_ROUTE);
-    const isSebSpecificRoute = pathname.startsWith('/seb/');
-    const isPublicRoute = ['/', '/privacy', '/terms'].includes(pathname);
+    // const isSebSpecificRoute = pathname.startsWith('/seb/'); // SEB flow might need its own session handling
+    // const isPublicRoute = ['/', '/privacy', '/terms'].includes(pathname);
 
     if (user) {
       const targetDashboard = user.role === 'admin' ? ADMIN_DASHBOARD_ROUTE : USER_DASHBOARD_ROUTE;
@@ -251,7 +232,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       else if (user.role === 'user' && isAdminDashboard && pathname !== USER_DASHBOARD_ROUTE) router.replace(USER_DASHBOARD_ROUTE);
       else if (user.role === 'admin' && isUserDashboard && pathname !== ADMIN_DASHBOARD_ROUTE) router.replace(ADMIN_DASHBOARD_ROUTE);
     } else {
-      if ((isUserDashboard || isAdminDashboard) && !isAuthPg && !isSebSpecificRoute) {
+      // If no user, and trying to access a protected dashboard, redirect to auth.
+      // This check is now more reliant on client-side state.
+      if ((isUserDashboard || isAdminDashboard) && !isAuthPg) {
         router.replace(AUTH_ROUTE);
       }
     }
@@ -275,8 +258,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           saved_links: type === 'user' ? (data as UserTableType['Row']).saved_links : null,
         };
         setUser(authUser);
-        Cookies.set(SESSION_COOKIE_NAME, authUser.username, { expires: 7, path: '/', sameSite: 'Lax' });
-        Cookies.set(ROLE_COOKIE_NAME, authUser.role, { expires: 7, path: '/', sameSite: 'Lax' });
+        // Cookies.set(SESSION_COOKIE_NAME, authUser.username, { expires: 7, path: '/', sameSite: 'Lax' }); // Removed
+        // Cookies.set(ROLE_COOKIE_NAME, authUser.role, { expires: 7, path: '/', sameSite: 'Lax' }); // Removed
         setIsLoading(false); return { success: true, user: authUser };
       } else {
         setIsLoading(false); return { success: false, error: 'Incorrect password.' };
@@ -303,7 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const initialAvatarUrl = generateEnhancedDiceBearAvatar('user', `${username}-${Date.now()}`);
       const newUserRecord: UserTableType['Insert'] = { 
         username, 
-        password_hash: pass, // Plain text, needs hashing
+        password_hash: pass, 
         license_key_used_id: keyData.id, 
         saved_links: [],
         avatar_url: initialAvatarUrl,
@@ -319,8 +302,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         avatar_url: insertedUser.avatar_url, saved_links: insertedUser.saved_links || [],
       };
       setUser(authUser);
-      Cookies.set(SESSION_COOKIE_NAME, authUser.username, { expires: 7, path: '/', sameSite: 'Lax' });
-      Cookies.set(ROLE_COOKIE_NAME, authUser.role, { expires: 7, path: '/', sameSite: 'Lax' });
+      // Cookies.set(SESSION_COOKIE_NAME, authUser.username, { expires: 7, path: '/', sameSite: 'Lax' }); // Removed
+      // Cookies.set(ROLE_COOKIE_NAME, authUser.role, { expires: 7, path: '/', sameSite: 'Lax' }); // Removed
       setIsLoading(false); return { success: true, user: authUser };
 
     } catch (e: any) {
@@ -329,7 +312,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   
   const performSignOut = useCallback(async () => {
-    setUser(null); Cookies.remove(SESSION_COOKIE_NAME); Cookies.remove(ROLE_COOKIE_NAME);
+    setUser(null); 
+    // Cookies.remove(SESSION_COOKIE_NAME); // Removed
+    // Cookies.remove(ROLE_COOKIE_NAME); // Removed
     setAuthError(null); setIsLoading(false); setShowSignOutDialog(false);
     if (pathname !== AUTH_ROUTE) router.replace(AUTH_ROUTE);
   }, [pathname, router]);
@@ -354,13 +339,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     try {
       const updatePayload: Partial<UserTableType['Update']> = {};
-      if (profileData.name) updatePayload.username = profileData.name; // Assuming name maps to username for users
-      if (profileData.password) updatePayload.password_hash = profileData.password; // Needs hashing
+      if (profileData.name) updatePayload.username = profileData.name; 
+      if (profileData.password) updatePayload.password_hash = profileData.password; 
       if (profileData.avatar_url) updatePayload.avatar_url = profileData.avatar_url;
       if (profileData.saved_links && user.role === 'user') updatePayload.saved_links = profileData.saved_links;
 
       if (Object.keys(updatePayload).length === 0) {
-        setIsLoading(false); return { success: true, user }; // No actual changes to save
+        setIsLoading(false); return { success: true, user }; 
       }
 
       const { data: updatedUser, error } = await supabase
@@ -396,7 +381,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut: () => setShowSignOutDialog(true),
     updateUserLinks, updateUserProfile,
     showSignOutDialog, setShowSignOutDialog
-  }), [user, isLoading, authError, supabase, showSignOutDialog]);
+  }), [user, isLoading, authError, supabase, showSignOutDialog, signInAdmin, registerUserWithLicense, updateUserLinks, updateUserProfile, signInUser]); // Added missing dependencies
 
   if (!initialConfigCheckDone && !configError) {
     return ( 
@@ -427,6 +412,5 @@ export function useAuth() {
   if (context === undefined) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }
-
 
     
