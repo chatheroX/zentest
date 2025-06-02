@@ -1,7 +1,7 @@
 
 'use client';
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation'; // Added usePathname
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Eye, EyeOff, User, Lock, Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import Link from 'next/link';
+// import Link from 'next/link'; // Link not used
 import { AppHeader } from '@/components/shared/header';
 import { AppFooter } from '@/components/shared/footer';
 
@@ -18,6 +18,7 @@ const USER_DASHBOARD_ROUTE = '/user/dashboard'; // For non-admin users
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const pathname = usePathname(); // Get current pathname
   const { toast } = useToast();
   const { user, isLoading: authContextLoading, signInAdmin, authError: contextAuthError } = useAuth();
 
@@ -27,16 +28,8 @@ export default function AdminLoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!authContextLoading && user) {
-      if (user.role === 'admin') {
-        router.replace(ADMIN_DASHBOARD_ROUTE);
-      } else {
-        // If a non-admin user somehow lands here, redirect them appropriately
-        router.replace(USER_DASHBOARD_ROUTE); 
-      }
-    }
-  }, [user, authContextLoading, router]);
+  // Removed the useEffect that called router.replace() here.
+  // AuthContext now solely handles these lifecycle-based redirects.
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +45,7 @@ export default function AdminLoginPage() {
     const result = await signInAdmin(username.trim(), password);
     if (result.success) {
       toast({ title: "Admin Login Successful!", description: "Redirecting to admin dashboard..." });
-      // router.replace(ADMIN_DASHBOARD_ROUTE); // Redirection handled by useEffect
+      // Redirection handled by AuthContext
     } else {
       setFormError(result.error || "Invalid admin credentials.");
       toast({ title: "Admin Login Error", description: result.error || "Invalid admin credentials.", variant: "destructive" });
@@ -76,7 +69,8 @@ export default function AdminLoginPage() {
     );
   }
   
-  if (user) { // If user exists and not loading, useEffect will handle redirect.
+  // If user exists and not loading, AuthContext will handle redirect. Show "Redirecting..." message.
+  if (!authContextLoading && user) { 
      return (
         <div className="flex flex-col min-h-screen">
           <AppHeader />
@@ -84,7 +78,7 @@ export default function AdminLoginPage() {
             <Card className="p-6 ui-card text-center shadow-xl">
                 <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary mb-4"/>
                 <CardTitle className="text-xl">Redirecting...</CardTitle>
-                <CardDescription className="mt-2">Please wait.</CardDescription>
+                <CardDescription className="mt-2">Loading your dashboard.</CardDescription>
             </Card>
           </main>
           <AppFooter />
@@ -92,7 +86,7 @@ export default function AdminLoginPage() {
      );
   }
 
-  // Render admin login form if not loading and no user (i.e. not about to redirect)
+  // Render admin login form if not loading and no user
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-background via-muted to-secondary dark:from-slate-900 dark:via-slate-800 dark:to-background">
       <AppHeader />

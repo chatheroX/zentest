@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'; // Added usePathname
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +22,7 @@ const ADMIN_DASHBOARD_ROUTE = '/admin/dashboard';
 export function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname(); // Get current pathname
   const { toast } = useToast();
   const { user, isLoading: authContextLoading, authError: contextAuthError, signInUser, registerUserWithLicense } = useAuth();
 
@@ -51,15 +52,8 @@ export function AuthForm() {
     }
   }, [searchParams, action, resetFormFields]);
 
-  useEffect(() => {
-    if (!authContextLoading && user) {
-      if (user.role === 'user') {
-        router.replace(USER_DASHBOARD_ROUTE);
-      } else if (user.role === 'admin') {
-        router.replace(ADMIN_DASHBOARD_ROUTE);
-      }
-    }
-  }, [user, authContextLoading, router]);
+  // Removed the useEffect that called router.replace() here.
+  // AuthContext now solely handles these lifecycle-based redirects.
   
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +86,7 @@ export function AuthForm() {
       result = await registerUserWithLicense(licenseKey.trim(), trimmedUsername, password);
       if (result.success) {
         toast({ title: "Registration Successful!", description: "Redirecting to your dashboard..." });
-         // router.replace(USER_DASHBOARD_ROUTE); // Redirection handled by useEffect
+         // Redirection handled by AuthContext
       } else {
         setFormError(result.error || "Registration failed.");
         toast({ title: "Registration Error", description: result.error || "An unknown error occurred.", variant: "destructive" });
@@ -101,7 +95,7 @@ export function AuthForm() {
       result = await signInUser(trimmedUsername, password);
       if (result.success) {
         toast({ title: "Login Successful!", description: "Redirecting to your dashboard..." });
-         // router.replace(USER_DASHBOARD_ROUTE); // Redirection handled by useEffect
+         // Redirection handled by AuthContext
       } else {
         setFormError(result.error || "Invalid credentials or server error.");
         toast({ title: "Login Error", description: result.error || "Invalid credentials or server error.", variant: "destructive" });
@@ -118,10 +112,15 @@ export function AuthForm() {
     );
   }
 
-  if (user) { // If user exists and not loading, useEffect will handle redirect. Show a placeholder.
-     return (
+  // If user is logged in (and not loading), AuthContext will handle redirect. Show "Redirecting..." message.
+  if (!authContextLoading && user) {
+    return (
       <div className="flex items-center justify-center min-h-[calc(100vh-12rem)]">
-        <Card className="p-6 ui-card text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary mb-3"/><p className="text-md font-medium text-foreground">Redirecting...</p></Card>
+        <Card className="p-6 ui-card text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary mb-3"/>
+          <p className="text-md font-medium text-foreground">Redirecting...</p>
+          <p className="text-xs text-muted-foreground">Loading your dashboard.</p>
+        </Card>
       </div>
     );
   }
@@ -131,9 +130,11 @@ export function AuthForm() {
     if (newAction === 'login' || newAction === 'register') {
         setAction(newAction);
         resetFormFields();
-        const newUrl = new URL(window.location.href);
-        newUrl.searchParams.set('action', value);
-        router.replace(newUrl.toString(), { scroll: false });
+        // Update URL query param without a full page navigation,
+        // letting AuthContext handle any redirects if user state changes.
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set('action', value);
+        router.replace(currentUrl.toString(), { scroll: false });
     }
   };
 
@@ -159,7 +160,7 @@ export function AuthForm() {
     </>
   );
 
-  // Render form only if not loading and no user (i.e., not about to redirect)
+  // Render form only if not loading and no user
   return (
     <div className="w-full max-w-md">
       <Card className="w-full ui-card shadow-xl border-border/60">
