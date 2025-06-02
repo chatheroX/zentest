@@ -1,11 +1,13 @@
 
 # Project Overhaul: Proctor System Compatibility Check (v2)
 
-This document outlines the major changes and deletions made to transform the project into a "Proctor System Compatibility Check" tool. This version includes a hidden admin login and UI/UX refinements based on the "Aurora" theme.
+This document outlines the major changes and deletions to transform the project into a "Proctor System Compatibility Check" tool. This version includes a hidden admin login and UI/UX refinements based on the "Aurora" theme.
+
+**Important Note on Deletions:** The "Folders & Major Files to DELETE" section below lists components from *previous, more complex versions* of this application (e.g., "ZenTest" or an earlier "ProctorChecker" with full student/teacher dashboards, AI features, etc.). If your project originated from such a version, **you should manually delete any of these listed items that still exist in your project directory.** They are not part of the current, streamlined "Proctor System Compatibility Check v2" specification. If you've already removed some, simply use this as a final checklist.
 
 ## I. Folders & Major Files to DELETE from your previous "ProctorChecker" or "ZenTest" structure:
 
-The following folders and their entire contents should be **deleted** from your project structure if they still exist from a previous, more complex version of this application. The new implementation does not use them.
+The following folders and their entire contents should be **deleted** from your project if they still exist from a previous, more complex version of this application. The new v2 implementation does not use them.
 
 *   `src/ai/` (All AI and Genkit related files and folders)
 *   `src/app/(app)/student/` (Old student dashboard, join-exam, profile pages, and related components if they were structured under a distinct "student" path that is now consolidated into `src/app/(app)/user/dashboard/page.tsx`)
@@ -89,9 +91,9 @@ Ensure all old Supabase tables are deleted. Create the following new ones (these
 
 *   **Global Styles (`globals.css`):** "Aurora" theme implemented (cool blues, teals, soft purple accent) for light and dark modes. General UI components (cards, buttons, inputs) styled accordingly.
 *   **Root Layout (`layout.tsx`):** Updated metadata, simplified structure.
-*   **Homepage (`page.tsx`):** Minimal landing page with Login/Register calls to action. Branding "ProctorChecker".
+*   **Homepage (`page.tsx`):** Minimal landing page with Login/Register calls to action. Branding "ProctorChecker". "Core Features" section removed.
 *   **Authentication (`AuthContext.tsx`, `auth/page.tsx`, `auth-form.tsx`, `uradmin/page.tsx`):**
-    *   Registration flow requires a valid, unclaimed license key. User sets username/password.
+    *   Registration flow requires a valid, unclaimed license key. User sets username/password. Avatars (Dicebear) are generated and stored.
     *   **Main AuthForm (`auth-form.tsx`) now only handles USER login and USER registration.**
     *   **New Admin Login Page (`app/uradmin/page.tsx`):** Dedicated, less discoverable login page for administrators at the `/uradmin` route.
     *   `AuthContext` adapted for new user/admin model, separate sign-in functions. Avatars (Dicebear) are generated and their URLs stored for users.
@@ -109,11 +111,12 @@ Ensure all old Supabase tables are deleted. Create the following new ones (these
 *   **Shared Components (`header.tsx`, `footer.tsx`):**
     *   Simplified, old branding removed, updated navigation links. "ProctorChecker" branding.
     *   **Footer content (copyright, privacy/terms links) has been removed.** The footer is now a minimal structural element.
+    *   Header no longer shows avatar/profile link for regular users.
 *   **Middleware (`middleware.ts`):** Adapted to new authentication logic, recognizes the separate admin login route (`/uradmin`), and protects dashboard routes (`/user/dashboard`, `/admin/dashboard`).
 *   **`package.json`:** Cleaned up to remove AI/Genkit related dependencies (`@genkit-ai/*`, `genkit`, `genkit-cli`) and `paseto`. Genkit scripts removed. The `dev` script was simplified to `next dev --turbopack`.
 *   **Branding:** All instances of "ZenTest", "ProctorPrep" should be removed/replaced with "ProctorChecker". Privacy and Terms pages updated to "ProctorChecker".
 
 This overhaul aims to create a focused "Proctor System Compatibility Check" tool as per the new requirements. Remember to handle password hashing securely in a production environment.
 Ensure to restart your Next.js development server after making changes to `.env` or `package.json`.
-
+    
     
